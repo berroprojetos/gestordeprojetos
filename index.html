@@ -725,6 +725,298 @@
     } catch (err) { msg('msgColar', err.message); btn.disabled = false; }
   });
 
+  // ---------- contratações
+  const STATUS_CTR = ['Em cotação', 'Contrato em elaboração', 'Contrato assinado', 'Em execução', 'Encerrada', 'Cancelada'];
+  const TIPOS_UPLOAD = ['Contrato', 'Cotação', 'Nota fiscal', 'Comprovante de pagamento', 'Outro'];
+  const CAMPOS_FORN = ['cnpj_cpf', 'razao_social', 'nome_fantasia', 'rg', 'nacionalidade', 'estado_civil', 'profissao',
+    'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep', 'email', 'telefone',
+    'representante_nome', 'representante_cpf', 'representante_cargo', 'chave_pix', 'banco', 'agencia', 'conta'];
+  const LIMITE_MB = 20;
+  let ctrAtual = null, ctrEditando = null, ctrMudou = false;
+
+  const digitos = v => String(v || '').replace(/\D/g, '');
+  const mesAno = s => s ? `${String(s).slice(5, 7)}/${String(s).slice(0, 4)}` : '—';
+  const stClasse = s => ['Em execução', 'Contrato assinado', 'Encerrada', 'Paga', 'Conciliada', 'Lançada no SIT'].includes(s) ? 'verde'
+    : ['Em cotação', 'Contrato em elaboração', 'NF solicitada', 'NF recebida'].includes(s) ? 'amarelo' : '';
+
+  function lerArquivo(file) {
+    return new Promise((ok, falha) => {
+      if (!file) return falha(new Error('Selecione um arquivo.'));
+      if (file.size > LIMITE_MB * 1024 * 1024) return falha(new Error(`Arquivo maior que ${LIMITE_MB} MB.`));
+      const fr = new FileReader();
+      fr.onload = () => ok({ nome: file.name, mime: file.type || 'application/octet-stream', base64: String(fr.result).split(',')[1] });
+      fr.onerror = () => falha(new Error('Não consegui ler o arquivo.'));
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function renderContratacoes() {
+    const cs = atual.contratacoes || [];
+    $('btnNovaCtr').classList.toggle('oculto', !atual.podeContratar);
+    if (!cs.length) {
+      $('tabelaCtr').innerHTML = `<div class="vazio">Nenhuma contratação cadastrada ainda.${atual.podeContratar ? '<br>Clique em “+ Nova contratação” para começar.' : ''}</div>`;
+      return;
+    }
+    $('tabelaCtr').innerHTML = `
+      <table>
+        <thead><tr><th>ID</th><th>Contratado</th><th>Rubrica</th><th>Execução</th>
+          <th class="num">Parcelas</th><th class="num">Total</th><th>Status</th><th>Contrato</th><th class="num">Docs</th></tr></thead>
+        <tbody>${cs.map(c => `<tr class="clicavel" data-ctr="${esc(c.id_contratacao)}" tabindex="0">
+          <td>${esc(c.id_contratacao)}</td>
+          <td><b>${esc(c.fornecedor_nome)}</b><br><span style="color:var(--suave)">${esc(c.objeto)}</span></td>
+          <td>${esc(c.rubrica_descricao)}</td>
+          <td style="white-space:nowrap">${dataBr(c.inicio_execucao)}<br>${c.fim_execucao ? 'a ' + dataBr(c.fim_execucao) : ''}</td>
+          <td class="num">${esc(c.num_parcelas)} × ${brl(c.valor_parcela)}</td>
+          <td class="num"><b>${brl(c.valor_total_contratado)}</b></td>
+          <td><span class="st ${stClasse(c.status)}">${esc(c.status)}</span></td>
+          <td>${c.tem_contrato ? '<span class="st verde">✓ anexado</span>' : '<span class="st amarelo">pendente</span>'}</td>
+          <td class="num">${c.qtd_documentos}</td></tr>`).join('')}</tbody>
+      </table>`;
+    $('tabelaCtr').querySelectorAll('[data-ctr]').forEach(tr => {
+      tr.addEventListener('click', () => abrirCtr(tr.dataset.ctr));
+      tr.addEventListener('keydown', e => { if (e.key === 'Enter') abrirCtr(tr.dataset.ctr); });
+    });
+  }
+
+  async function recarregarProjeto() {
+    atual = await api('obterProjeto', { id_projeto: atual.projeto.id_projeto });
+    renderDetalhe(); trocarAba('contratacoes');
+  }
+
+  // --- formulário (nova / editar)
+  function abrirFormCtr(det) {
+    ctrEditando = det ? det.contratacao : null;
+    const c = det ? det.contratacao : {}, f = det && det.fornecedor ? det.fornecedor : {};
+    $('tituloFormCtr').textContent = det ? `Editar ${c.id_contratacao}` : 'Nova contratação';
+    $('c_id_rubrica').innerHTML = '<option value="">Selecione…</option>' + atual.rubricas.map(r =>
+      `<option value="${esc(r.id_rubrica)}" ${r.id_rubrica === c.id_rubrica ? 'selected' : ''}>${esc(r.codigo ? r.codigo + ' – ' : '')}${esc(r.descricao)}</option>`).join('');
+    $('c_status').innerHTML = STATUS_CTR.map(s => `<option ${s === (c.status || 'Em execução') ? 'selected' : ''}>${s}</option>`).join('');
+    ['objeto', 'inicio_execucao', 'fim_execucao', 'data_cotacao', 'data_assinatura_contrato', 'observacoes', 'num_parcelas']
+      .forEach(k => $('c_' + k).value = c[k] ?? '');
+    $('c_valor_parcela').value = num2(c.valor_parcela ?? '');
+    CAMPOS_FORN.forEach(k => $('f_' + k).value = f[k] ?? '');
+    msg('msgCtr', ''); atualizarSaldoCtr(); atualizarTotalCtr();
+    $('dlgFormCtr').showModal();
+  }
+
+  function rubricaSel() { return atual.rubricas.find(r => r.id_rubrica === $('c_id_rubrica').value); }
+
+  function atualizarSaldoCtr() {
+    const r = rubricaSel();
+    if (!r) { $('c_saldo').textContent = ''; return; }
+    const desta = ctrEditando && ctrEditando.id_rubrica === r.id_rubrica ? Number(ctrEditando.valor_total_contratado || 0) : 0;
+    const disp = Number(r.valor_total_orcado || 0) - Number(r.valor_contratado || 0) + desta;
+    $('c_saldo').innerHTML = `Orçado: <b>${brl(r.valor_total_orcado)}</b> · já contratado: <b>${brl(Number(r.valor_contratado || 0) - desta)}</b> · disponível: <b>${brl(disp)}</b>`;
+  }
+
+  function atualizarTotalCtr() {
+    const n = parseInt($('c_num_parcelas').value, 10) || 0, v = lerNumero($('c_valor_parcela').value) || 0;
+    $('c_total').textContent = `Total do contrato: ${brl(n * v)}` + (n > 1 ? `  (${n} × ${brl(v)})` : '');
+  }
+
+  $('c_id_rubrica').addEventListener('change', () => {
+    const r = rubricaSel();
+    // Sugere parcelas e valor a partir da rubrica, se ainda estiverem vazios
+    if (r && !ctrEditando && !$('c_num_parcelas').value && !$('c_valor_parcela').value) {
+      const meses = Number(r.meses) > 0 ? Number(r.meses) : 0;
+      $('c_num_parcelas').value = meses || 1;
+      $('c_valor_parcela').value = num2(meses ? Number(r.quantidade) * Number(r.valor_unitario_max) : Number(r.valor_total_orcado));
+      if (!$('c_objeto').value) $('c_objeto').value = r.descricao;
+    }
+    atualizarSaldoCtr(); atualizarTotalCtr();
+  });
+  ['c_num_parcelas', 'c_valor_parcela'].forEach(id => $(id).addEventListener('input', atualizarTotalCtr));
+
+  $('f_cnpj_cpf').addEventListener('blur', () => {
+    const d = digitos($('f_cnpj_cpf').value);
+    const f = d && (atual.fornecedores || []).find(x => digitos(x.cnpj_cpf) === d);
+    if (f) CAMPOS_FORN.forEach(k => { if (f[k] !== undefined && f[k] !== '') $('f_' + k).value = f[k]; });
+  });
+
+  $('btnNovaCtr').addEventListener('click', () => abrirFormCtr(null));
+
+  $('formCtr').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.submitter; btn.disabled = true; msg('msgCtr', 'Salvando… (na primeira vez o sistema cria as parcelas e a pasta no Drive)', 'ok');
+    const dados = { id_projeto: atual.projeto.id_projeto, id_contratacao: ctrEditando ? ctrEditando.id_contratacao : '', fornecedor: {} };
+    ['id_rubrica', 'objeto', 'inicio_execucao', 'fim_execucao', 'num_parcelas', 'valor_parcela', 'data_cotacao',
+     'data_assinatura_contrato', 'status', 'observacoes'].forEach(k => dados[k] = $('c_' + k).value);
+    CAMPOS_FORN.forEach(k => dados.fornecedor[k] = $('f_' + k).value);
+    try {
+      ctrAtual = await api('salvarContratacao', dados);
+      $('dlgFormCtr').close();
+      await recarregarProjeto();
+      renderCtr();
+      if (!$('dlgCtr').open) $('dlgCtr').showModal();
+    } catch (err) { msg('msgCtr', err.message); }
+    btn.disabled = false;
+  });
+
+  // --- detalhe
+  async function abrirCtr(id) {
+    ctrMudou = false;
+    $('tituloCtr').textContent = 'Carregando…'; $('corpoCtr').innerHTML = '<div class="vazio">Carregando…</div>';
+    $('dlgCtr').showModal();
+    try { ctrAtual = await api('obterContratacao', { id_contratacao: id }); renderCtr(); }
+    catch (err) { $('corpoCtr').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
+  }
+
+  $('dlgCtr').addEventListener('close', () => { if (ctrMudou) recarregarProjeto().catch(() => {}); });
+
+  function renderCtr() {
+    const { contratacao: c, fornecedor: f = {}, rubrica: r = {}, parcelas, documentos, cotacoes } = ctrAtual;
+    const pode = ctrAtual.podeContratar;
+    const docDe = id => documentos.find(d => d.id_documento === id);
+    const contratoOficial = c.id_doc_contrato ? docDe(c.id_doc_contrato) : null;
+    const modelos = atual.modelos || [];
+    const gerado = ctrAtual.contrato_gerado;
+
+    $('tituloCtr').textContent = `${c.id_contratacao} · ${f ? f.razao_social : ''}`;
+    $('corpoCtr').innerHTML = `
+      <div class="info-grade">
+        <div><span>Contratado</span><b>${esc(f && f.razao_social)}</b></div>
+        <div><span>CPF / CNPJ</span>${esc(f && f.cnpj_cpf)}</div>
+        <div><span>Rubrica</span>${esc(r && r.descricao)}</div>
+        <div><span>Objeto</span>${esc(c.objeto)}</div>
+        <div><span>Execução</span>${dataBr(c.inicio_execucao)} a ${dataBr(c.fim_execucao)}</div>
+        <div><span>Parcelas</span>${esc(c.num_parcelas)} × ${brl(c.valor_parcela)}</div>
+        <div><span>Total do contrato</span><b>${brl(c.valor_total_contratado)}</b></div>
+        <div><span>Status</span><span class="st ${stClasse(c.status)}">${esc(c.status)}</span></div>
+        <div><span>Data da cotação</span>${dataBr(c.data_cotacao)}</div>
+        <div><span>Assinatura do contrato</span>${dataBr(c.data_assinatura_contrato)}</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        ${pode ? '<button class="btn-sec" id="btnEditarCtr">✏️ Editar dados</button>' : ''}
+        ${ctrAtual.pasta_url ? `<a class="btn-sec" href="${esc(ctrAtual.pasta_url)}" target="_blank" rel="noopener" style="text-decoration:none">📁 Pasta no Drive</a>` : ''}
+      </div>
+
+      <div class="secao">
+        <h4>Contrato</h4>
+        ${contratoOficial
+          ? `<div class="sucesso">✓ Contrato assinado anexado: <a href="${esc(contratoOficial.url)}" target="_blank" rel="noopener">${esc(contratoOficial.nome_arquivo)}</a></div>`
+          : '<div class="aviso">Nenhum contrato assinado anexado. Gere a minuta abaixo ou anexe o contrato assinado em “Documentos” com o tipo <b>Contrato</b>.</div>'}
+        ${pode ? (modelos.length ? `
+          <div class="linha-form" style="margin-top:12px">
+            <div style="grid-column:span 2"><label for="selModelo">Modelo de contrato</label>
+              <select id="selModelo">${modelos.map(m => `<option value="${esc(m.id_modelo)}">${esc(m.nome)}${m.tipo_despesa ? ' · ' + esc(m.tipo_despesa) : ''}</option>`).join('')}</select></div>
+            <div><button class="btn" id="btnGerarContrato" style="width:100%">📄 Gerar contrato</button></div>
+          </div>` : '<div class="aviso">Nenhum modelo de contrato cadastrado. Na planilha, use <b>Gestor > Cadastrar modelo de contrato</b>.</div>') : ''}
+        <div id="resContrato">${gerado ? `
+          <div class="sucesso">Minuta gerada e salva na pasta da contratação:
+            <a href="${esc(gerado.pdf_url)}" target="_blank" rel="noopener">abrir PDF</a> ·
+            <a href="${esc(gerado.doc_url)}" target="_blank" rel="noopener">abrir versão editável (Google Docs)</a></div>
+          ${gerado.pendentes.length ? `<div class="aviso">⚠️ Campos que ficaram sem preencher no modelo: ${gerado.pendentes.map(esc).join(', ')}. Confira se o nome está igual à lista de campos.</div>` : ''}` : ''}</div>
+        <div class="msg" id="msgContrato"></div>
+        <details><summary>Ver os campos que podem ser usados no modelo</summary>
+          <div class="lista-campos">${(atual.campos_contrato || []).map(([k, d]) => `<div><code>{{${esc(k)}}}</code> ${esc(d)}</div>`).join('')}</div>
+        </details>
+      </div>
+
+      <div class="secao">
+        <h4>Documentos</h4>
+        <div class="linha-form">
+          <div><label for="upTipo">Tipo</label><select id="upTipo">${TIPOS_UPLOAD.map(t => `<option>${t}</option>`).join('')}</select></div>
+          <div style="grid-column:span 2"><label for="upArquivo">Arquivo (até ${LIMITE_MB} MB)</label><input id="upArquivo" type="file"></div>
+          <div><button class="btn" id="btnUpload" style="width:100%">⬆️ Enviar</button></div>
+        </div>
+        <div class="msg" id="msgUpload"></div>
+        ${documentos.length ? `<div class="tabela-wrap"><table>
+          <thead><tr><th>Tipo</th><th>Arquivo</th><th>Enviado em</th>${pode ? '<th></th>' : ''}</tr></thead>
+          <tbody>${documentos.map(d => `<tr>
+            <td><span class="tag">${esc(d.tipo)}</span></td>
+            <td><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.nome_arquivo)}</a></td>
+            <td>${dataBr(d.enviado_em)}</td>
+            ${pode ? `<td><button class="btn-link perigo" data-exdoc="${esc(d.id_documento)}">Excluir</button></td>` : ''}</tr>`).join('')}</tbody>
+        </table></div>` : '<p class="dica">Nenhum documento ainda.</p>'}
+      </div>
+
+      <div class="secao">
+        <h4>Cotações <span class="dica" style="margin:0;font-weight:400">${cotacoes.length} de 3</span></h4>
+        ${cotacoes.length ? `<div class="tabela-wrap"><table>
+          <thead><tr><th>Fornecedor</th><th>CNPJ</th><th class="num">Valor</th><th>Data</th><th>Vencedora</th><th>Arquivo</th>${pode ? '<th></th>' : ''}</tr></thead>
+          <tbody>${cotacoes.map(q => { const d = q.id_documento ? docDe(q.id_documento) : null; return `<tr>
+            <td>${esc(q.razao_social)}</td><td>${esc(q.cnpj)}</td><td class="num">${brl(q.valor)}</td><td>${dataBr(q.data_cotacao)}</td>
+            <td>${q.vencedora === true ? '<span class="st verde">✓ vencedora</span>' : ''}</td>
+            <td>${d ? `<a href="${esc(d.url)}" target="_blank" rel="noopener">abrir</a>` : '—'}</td>
+            ${pode ? `<td><button class="btn-link perigo" data-excot="${esc(q.id_cotacao)}">Excluir</button></td>` : ''}</tr>`; }).join('')}</tbody>
+        </table></div>` : '<p class="dica">Nenhuma cotação registrada.</p>'}
+        ${pode ? `
+        <div class="linha-form" style="margin-top:10px">
+          <div><label for="q_razao">Fornecedor</label><input id="q_razao"></div>
+          <div><label for="q_cnpj">CNPJ</label><input id="q_cnpj"></div>
+          <div><label for="q_valor">Valor (R$)</label><input id="q_valor" inputmode="decimal"></div>
+          <div><label for="q_data">Data</label><input id="q_data" type="date"></div>
+          <div><label for="q_arquivo">Arquivo (opcional)</label><input id="q_arquivo" type="file"></div>
+          <div><label class="checkbox"><input type="checkbox" id="q_vencedora"> Vencedora</label>
+            <button class="btn-sec" id="btnAddCot" style="width:100%;margin-top:6px">+ Adicionar cotação</button></div>
+        </div>
+        <div class="msg" id="msgCot"></div>` : ''}
+      </div>
+
+      <div class="secao">
+        <h4>Parcelas previstas</h4>
+        <div class="tabela-wrap"><table>
+          <thead><tr><th>Nº</th><th>Competência</th><th class="num">Valor</th><th>Status</th></tr></thead>
+          <tbody>${parcelas.map(p => `<tr>
+            <td>${esc(p.num_parcela)}${p.primeiro_pagamento === true ? ' <span class="tag" title="No SIT, o 1º pagamento leva cotações + NF + comprovante">1º pagamento</span>' : ''}</td>
+            <td>${mesAno(p.competencia)}</td><td class="num">${brl(p.valor_previsto)}</td>
+            <td><span class="st ${stClasse(p.status)}">${esc(p.status)}</span></td></tr>`).join('')}</tbody>
+        </table></div>
+      </div>`;
+
+    const ligar = (id, fn) => { const el = $(id); if (el) el.addEventListener('click', fn); };
+    ligar('btnEditarCtr', () => abrirFormCtr(ctrAtual));
+    ligar('btnGerarContrato', gerarContrato);
+    ligar('btnUpload', enviarDoc);
+    ligar('btnAddCot', adicionarCotacao);
+    $('corpoCtr').querySelectorAll('[data-exdoc]').forEach(b => b.addEventListener('click', () => excluirDoc(b.dataset.exdoc)));
+    $('corpoCtr').querySelectorAll('[data-excot]').forEach(b => b.addEventListener('click', () => excluirCot(b.dataset.excot)));
+  }
+
+  async function gerarContrato(e) {
+    const btn = e.currentTarget; btn.disabled = true;
+    msg('msgContrato', 'Gerando o contrato… isso leva alguns segundos.', 'ok');
+    try {
+      ctrAtual = await api('gerarContrato', { id_contratacao: ctrAtual.contratacao.id_contratacao, id_modelo: $('selModelo').value });
+      ctrMudou = true; renderCtr();
+    } catch (err) { msg('msgContrato', err.message); btn.disabled = false; }
+  }
+
+  async function enviarDoc(e) {
+    const btn = e.currentTarget; btn.disabled = true; msg('msgUpload', 'Enviando…', 'ok');
+    try {
+      const arquivo = await lerArquivo($('upArquivo').files[0]);
+      ctrAtual = await api('enviarDocumento', { id_contratacao: ctrAtual.contratacao.id_contratacao, tipo: $('upTipo').value, arquivo });
+      ctrMudou = true; renderCtr();
+    } catch (err) { msg('msgUpload', err.message); btn.disabled = false; }
+  }
+
+  async function excluirDoc(id) {
+    if (!confirm('Excluir este documento? Ele vai para a lixeira do Drive.')) return;
+    try { ctrAtual = await api('excluirDocumento', { id_documento: id }); ctrMudou = true; renderCtr(); }
+    catch (err) { alert(err.message); }
+  }
+
+  async function adicionarCotacao(e) {
+    const btn = e.currentTarget; btn.disabled = true; msg('msgCot', 'Salvando…', 'ok');
+    try {
+      const file = $('q_arquivo').files[0];
+      ctrAtual = await api('salvarCotacao', {
+        id_contratacao: ctrAtual.contratacao.id_contratacao,
+        razao_social: $('q_razao').value, cnpj: $('q_cnpj').value, valor: $('q_valor').value,
+        data_cotacao: $('q_data').value, vencedora: $('q_vencedora').checked,
+        arquivo: file ? await lerArquivo(file) : null
+      });
+      ctrMudou = true; renderCtr();
+    } catch (err) { msg('msgCot', err.message); btn.disabled = false; }
+  }
+
+  async function excluirCot(id) {
+    if (!confirm('Excluir esta cotação?')) return;
+    try { ctrAtual = await api('excluirCotacao', { id_cotacao: id }); ctrMudou = true; renderCtr(); }
+    catch (err) { alert(err.message); }
+  }
+
   // ---------- reabrir sessão ao recarregar
   (async () => {
     if (!sessionStorage.getItem('token')) return;
