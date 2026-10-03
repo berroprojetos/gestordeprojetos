@@ -8,49 +8,105 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --azul: #1f3b57; --azul-claro: #2e5a85; --fundo: #f4f6f9; --card: #ffffff;
-    --texto: #1c2733; --suave: #5b6b7b; --borda: #dde3ea; --erro: #b42318; --ok: #1a7f4b;
+    --azul: #1f3b57; --azul-claro: #2e5a85; --azul-fundo: #e7eef6; --fundo: #f4f6f9; --card: #ffffff;
+    --texto: #1c2733; --suave: #5b6b7b; --borda: #dde3ea;
+    --erro: #b42318; --erro-fundo: #fdecea; --ok: #1a7f4b; --ok-fundo: #e6f4ec; --alerta: #8a5a00; --alerta-fundo: #fff4d6;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--fundo); color: var(--texto); }
+  body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--fundo); color: var(--texto); font-size: 14px; }
   .oculto { display: none !important; }
+  button { font: inherit; cursor: pointer; }
+  input, select, textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--borda); border-radius: 7px; font: inherit; background: #fff; color: inherit; }
+  input:focus, select:focus, textarea:focus, button:focus-visible, .projeto:focus-visible { outline: 2px solid var(--azul-claro); outline-offset: 1px; }
+  input:disabled, select:disabled, textarea:disabled { background: #f7f9fb; color: var(--texto); }
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--suave); margin-bottom: 5px; }
+
+  .btn { padding: 9px 16px; border: 0; border-radius: 7px; background: var(--azul); color: #fff; font-weight: 600; }
+  .btn:hover { background: var(--azul-claro); }
+  .btn:disabled { opacity: .6; cursor: wait; }
+  .btn-sec { padding: 9px 16px; border: 1px solid var(--borda); border-radius: 7px; background: #fff; color: var(--texto); font-weight: 500; }
+  .btn-sec:hover { border-color: var(--azul-claro); }
+  .btn-link { background: none; border: 0; color: var(--azul-claro); padding: 4px 6px; font-weight: 500; }
+  .btn-link.perigo { color: var(--erro); }
+  .btn-full { width: 100%; margin-top: 20px; padding: 12px; }
+
+  .msg { margin-top: 12px; font-size: 13px; min-height: 18px; }
+  .msg.erro { color: var(--erro); } .msg.ok { color: var(--ok); }
 
   /* Login */
   .tela-centro { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
-  .caixa { width: 100%; max-width: 380px; background: var(--card); border: 1px solid var(--borda);
-           border-radius: 12px; padding: 32px 28px; box-shadow: 0 8px 24px rgba(31,59,87,.08); }
+  .caixa { width: 100%; max-width: 380px; background: var(--card); border: 1px solid var(--borda); border-radius: 12px; padding: 32px 28px; box-shadow: 0 8px 24px rgba(31,59,87,.08); }
   .caixa h1 { margin: 0 0 4px; font-size: 22px; color: var(--azul); }
-  .caixa p.sub { margin: 0 0 24px; color: var(--suave); font-size: 14px; }
-  label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 6px; }
-  input { width: 100%; padding: 11px 12px; border: 1px solid var(--borda); border-radius: 8px; font: inherit; }
-  input:focus { outline: 2px solid var(--azul-claro); outline-offset: 1px; border-color: transparent; }
-  button { font: inherit; cursor: pointer; }
-  .btn { width: 100%; margin-top: 22px; padding: 12px; border: 0; border-radius: 8px;
-         background: var(--azul); color: #fff; font-weight: 600; }
-  .btn:hover { background: var(--azul-claro); }
-  .btn:disabled { opacity: .6; cursor: wait; }
-  .msg { margin-top: 14px; font-size: 14px; min-height: 20px; }
-  .msg.erro { color: var(--erro); } .msg.ok { color: var(--ok); }
+  .caixa p.sub { margin: 0 0 20px; color: var(--suave); }
+  .caixa label { margin-top: 14px; }
 
-  /* App */
-  header { background: var(--azul); color: #fff; padding: 14px 24px; display: flex;
-           align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  /* Topo */
+  header { background: var(--azul); color: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   header strong { font-size: 17px; }
   header .usuario { font-size: 13px; opacity: .9; }
-  header .acoes button { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.4);
-                         border-radius: 6px; padding: 6px 12px; margin-left: 8px; font-size: 13px; }
-  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
-  main h2 { font-size: 18px; margin: 0 0 16px; }
-  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-  .projeto { background: var(--card); border: 1px solid var(--borda); border-radius: 10px; padding: 18px; }
-  .projeto .sigla { display: inline-block; font-size: 12px; font-weight: 700; color: var(--azul);
-                    background: #e7eef6; padding: 3px 8px; border-radius: 4px; }
-  .projeto h3 { font-size: 16px; margin: 10px 0 4px; }
-  .projeto .inst { font-size: 13px; color: var(--suave); margin-bottom: 12px; }
+  header .acoes button { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.4); border-radius: 6px; padding: 6px 12px; margin-left: 8px; font-size: 13px; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
+  .titulo-linha { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .titulo-linha h2 { font-size: 18px; margin: 0; }
+
+  /* Lista de projetos */
+  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+  .projeto { background: var(--card); border: 1px solid var(--borda); border-radius: 10px; padding: 18px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+  .projeto:hover { border-color: var(--azul-claro); box-shadow: 0 4px 14px rgba(31,59,87,.08); }
+  .sigla { display: inline-block; font-size: 12px; font-weight: 700; color: var(--azul); background: var(--azul-fundo); padding: 3px 8px; border-radius: 4px; }
+  .projeto h3 { font-size: 15px; margin: 10px 0 4px; }
+  .projeto .inst { font-size: 13px; color: var(--suave); margin-bottom: 12px; min-height: 17px; }
   .projeto dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 13px; }
   .projeto dt { color: var(--suave); } .projeto dd { margin: 0; font-weight: 500; }
-  .vazio { color: var(--suave); background: var(--card); border: 1px dashed var(--borda);
-           border-radius: 10px; padding: 32px; text-align: center; }
+  .vazio { color: var(--suave); background: var(--card); border: 1px dashed var(--borda); border-radius: 10px; padding: 32px; text-align: center; }
+
+  /* Detalhe */
+  .voltar { margin-bottom: 12px; padding-left: 0; }
+  .cab-projeto { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+  .cab-projeto h2 { font-size: 20px; margin: 8px 0 4px; }
+  .cab-projeto .inst { color: var(--suave); }
+  .resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .kpi { background: var(--card); border: 1px solid var(--borda); border-radius: 10px; padding: 14px 16px; }
+  .kpi span { display: block; font-size: 12px; color: var(--suave); margin-bottom: 6px; }
+  .kpi strong { font-size: 20px; }
+  .kpi.alerta { background: var(--alerta-fundo); border-color: #f0d58a; } .kpi.alerta strong { color: var(--alerta); }
+  .kpi.ok strong { color: var(--ok); }
+  .kpi small { display: block; margin-top: 4px; font-size: 12px; color: var(--suave); }
+
+  .abas { display: flex; gap: 4px; border-bottom: 1px solid var(--borda); margin-bottom: 18px; overflow-x: auto; }
+  .aba { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; color: var(--suave); font-weight: 600; white-space: nowrap; }
+  .aba[aria-selected="true"] { color: var(--azul); border-bottom-color: var(--azul); }
+
+  .painel { background: var(--card); border: 1px solid var(--borda); border-radius: 10px; padding: 20px; }
+  .form-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 16px; }
+  .form-grade .largo { grid-column: 1 / -1; }
+  .form-acoes { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 18px; }
+  .form-acoes .msg { margin: 0 auto 0 0; }
+
+  .tabela-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 9px 10px; border-bottom: 1px solid var(--borda); text-align: left; vertical-align: top; }
+  th { font-size: 12px; color: var(--suave); font-weight: 600; background: #f9fafb; white-space: nowrap; }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  tfoot td { font-weight: 700; background: #f9fafb; }
+  .tag { font-size: 11px; padding: 2px 7px; border-radius: 10px; background: var(--azul-fundo); color: var(--azul); white-space: nowrap; }
+
+  /* Modais */
+  dialog { border: 0; border-radius: 12px; padding: 0; width: min(720px, calc(100vw - 32px)); box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(20,30,45,.45); }
+  .modal-cab { padding: 18px 22px; border-bottom: 1px solid var(--borda); display: flex; justify-content: space-between; align-items: center; }
+  .modal-cab h3 { margin: 0; font-size: 16px; }
+  .modal-corpo { padding: 20px 22px; max-height: 70vh; overflow-y: auto; }
+  .modal-rodape { padding: 14px 22px; border-top: 1px solid var(--borda); display: flex; justify-content: flex-end; gap: 10px; align-items: center; }
+  .modal-rodape .msg { margin: 0 auto 0 0; }
+  .total-preview { margin-top: 14px; padding: 12px 14px; background: var(--azul-fundo); border-radius: 8px; font-weight: 600; color: var(--azul); }
+  .dica { color: var(--suave); font-size: 13px; margin: 0 0 10px; line-height: 1.5; }
+  .linha-erro td { background: var(--erro-fundo); }
+
+  @media (max-width: 600px) {
+    header { padding: 12px 16px; }
+    .painel { padding: 14px; }
+  }
 </style>
 </head>
 <body>
@@ -64,7 +120,7 @@
     <input id="email" type="email" autocomplete="username" required>
     <label for="senha">Senha</label>
     <input id="senha" type="password" autocomplete="current-password" required>
-    <button class="btn" type="submit">Entrar</button>
+    <button class="btn btn-full" type="submit">Entrar</button>
     <div class="msg" id="msgLogin" role="alert"></div>
   </form>
 </section>
@@ -73,14 +129,15 @@
 <section id="telaSenha" class="tela-centro oculto">
   <form class="caixa" id="formSenha">
     <h1>Trocar senha</h1>
-    <p class="sub" id="subSenha">Mínimo de 8 caracteres, com letras e números.</p>
+    <p class="sub" id="subSenha"></p>
     <label for="senhaAtual">Senha atual</label>
     <input id="senhaAtual" type="password" autocomplete="current-password" required>
     <label for="novaSenha">Nova senha</label>
     <input id="novaSenha" type="password" autocomplete="new-password" required>
     <label for="confSenha">Confirmar nova senha</label>
     <input id="confSenha" type="password" autocomplete="new-password" required>
-    <button class="btn" type="submit">Salvar nova senha</button>
+    <button class="btn btn-full" type="submit">Salvar nova senha</button>
+    <button class="btn-sec btn-full" type="button" id="btnCancelarSenha" style="margin-top:8px">Cancelar</button>
     <div class="msg" id="msgSenha" role="alert"></div>
   </form>
 </section>
@@ -97,25 +154,141 @@
       <button id="btnSair">Sair</button>
     </div>
   </header>
+
   <main>
-    <h2>Meus projetos</h2>
-    <div id="listaProjetos" class="grade"></div>
+    <!-- Lista -->
+    <div id="viewLista">
+      <div class="titulo-linha">
+        <h2>Meus projetos</h2>
+        <button class="btn oculto" id="btnNovoProjeto">+ Novo projeto</button>
+      </div>
+      <div id="listaProjetos" class="grade"></div>
+    </div>
+
+    <!-- Detalhe -->
+    <div id="viewDetalhe" class="oculto">
+      <button class="btn-link voltar" id="btnVoltar">← Voltar para meus projetos</button>
+
+      <div class="cab-projeto">
+        <div>
+          <span class="sigla" id="detSigla"></span>
+          <h2 id="detNome"></h2>
+          <div class="inst" id="detInst"></div>
+        </div>
+        <a class="btn-sec oculto" id="detPasta" target="_blank" rel="noopener">📁 Abrir pasta no Drive</a>
+      </div>
+
+      <div class="resumo" id="detResumo"></div>
+
+      <div class="abas" role="tablist">
+        <button class="aba" role="tab" data-aba="dados" aria-selected="true">Dados gerais</button>
+        <button class="aba" role="tab" data-aba="orcamento" aria-selected="false">Orçamento (rubricas)</button>
+      </div>
+
+      <!-- Aba: dados gerais -->
+      <section class="painel" id="abaDados" role="tabpanel">
+        <form id="formProjeto">
+          <div class="form-grade" id="camposProjeto"></div>
+          <div class="form-acoes" id="acoesProjeto">
+            <div class="msg" id="msgProjeto" role="alert"></div>
+            <button class="btn" type="submit">Salvar dados do projeto</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Aba: orçamento -->
+      <section class="painel oculto" id="abaOrcamento" role="tabpanel">
+        <div class="titulo-linha">
+          <h2 style="font-size:16px">Rubricas do projeto</h2>
+          <div id="acoesRubricas" style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-sec" id="btnColar">📋 Colar da planilha</button>
+            <button class="btn" id="btnNovaRubrica">+ Nova rubrica</button>
+          </div>
+        </div>
+        <div class="tabela-wrap" id="tabelaRubricas"></div>
+      </section>
+    </div>
   </main>
 </section>
 
+<!-- MODAL: RUBRICA -->
+<dialog id="dlgRubrica">
+  <form id="formRubrica" method="dialog">
+    <div class="modal-cab"><h3 id="tituloRubrica">Nova rubrica</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+    <div class="modal-corpo">
+      <div class="form-grade">
+        <div><label for="r_codigo">Código / item</label><input id="r_codigo"></div>
+        <div class="largo"><label for="r_descricao">Descrição *</label><input id="r_descricao" required></div>
+        <div><label for="r_tipo_despesa">Tipo de despesa</label>
+          <select id="r_tipo_despesa"><option value="">—</option><option>Prestação de serviço</option><option>Compra de bens</option><option>Ativo imobilizado</option></select></div>
+        <div><label for="r_classificacao_contabil">Classificação contábil (CIT)</label><input id="r_classificacao_contabil"></div>
+        <div><label for="r_unidade">Unidade</label><input id="r_unidade" placeholder="un, mês, pacote…"></div>
+        <div><label for="r_quantidade">Quantidade *</label><input id="r_quantidade" inputmode="decimal" required></div>
+        <div><label for="r_valor_unitario_max">Valor unitário máximo (R$) *</label><input id="r_valor_unitario_max" inputmode="decimal" required></div>
+        <div><label for="r_meses">Nº de meses</label><input id="r_meses" inputmode="numeric" placeholder="vazio = compra única"></div>
+        <div class="largo"><label for="r_observacoes">Observações</label><input id="r_observacoes"></div>
+      </div>
+      <div class="total-preview" id="r_total">Total orçado: R$ 0,00</div>
+    </div>
+    <div class="modal-rodape">
+      <div class="msg" id="msgRubrica" role="alert"></div>
+      <button type="button" class="btn-sec" data-fechar>Cancelar</button>
+      <button type="submit" class="btn">Salvar rubrica</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- MODAL: COLAR DA PLANILHA -->
+<dialog id="dlgColar">
+  <div class="modal-cab"><h3>Colar rubricas da planilha</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+  <div class="modal-corpo">
+    <p class="dica">Na sua planilha, organize as colunas nesta ordem, selecione as linhas (sem o cabeçalho), copie com <b>Ctrl+C</b> e cole abaixo com <b>Ctrl+V</b>:<br>
+      <b>Descrição · Quantidade · Valor unitário</b> · Tipo de despesa (opcional) · Nº de meses (opcional)</p>
+    <textarea id="txtColar" rows="7" placeholder="Jogos educativos	15	191,90&#10;Papel sulfite	44	27,90"></textarea>
+    <div id="previaColar" style="margin-top:14px"></div>
+  </div>
+  <div class="modal-rodape">
+    <div class="msg" id="msgColar" role="alert"></div>
+    <button type="button" class="btn-sec" data-fechar>Cancelar</button>
+    <button type="button" class="btn" id="btnImportar" disabled>Importar</button>
+  </div>
+</dialog>
+
 <script>
   // >>> Cole aqui a URL do App da Web (Implantar > Gerenciar implantações)
-  const API_URL = 'https://script.google.com/macros/s/AKfycbwuthtTVEQ6doF05EMRTFbznYxQ_R7YInP3ee2VECyKAPPonqo6fxIjm75Bnl7IzIRBTA/exec';
+  const API_URL = 'COLE_AQUI_A_URL_DO_APP_DA_WEB';
 
   const $ = id => document.getElementById(id);
-  let usuario = null;
+  let usuario = null, instituicoes = [], atual = null, linhasColar = [];
 
+  const PERFIS_EDICAO = ['ADMIN', 'PRESTACAO_CONTAS', 'GERENTE_PROJETO'];
+  const STATUS_PROJETO = ['Em implantação', 'Em execução', 'Encerrado', 'Suspenso'];
+  const TIPOS = ['Prestação de serviço', 'Compra de bens', 'Ativo imobilizado'];
+
+  const CAMPOS_PROJETO = [
+    ['id_instituicao', 'Instituição *', 'inst', 'largo'],
+    ['nome_projeto', 'Nome do projeto *', 'text', 'largo'],
+    ['sigla', 'Sigla do projeto', 'text'],
+    ['num_edital', 'Nº do edital', 'text'],
+    ['data_publicacao_edital', 'Publicação do edital', 'date'],
+    ['num_proposta', 'Nº da proposta', 'text'],
+    ['termo_fomento_cit', 'Termo de fomento (CIT)', 'text'],
+    ['data_celebracao', 'Data da celebração', 'date'],
+    ['inicio_vigencia', 'Início da vigência', 'date'],
+    ['fim_vigencia', 'Fim da vigência', 'date'],
+    ['data_recebimento_recurso', 'Recebimento do recurso', 'date'],
+    ['valor_total', 'Valor total do projeto (R$)', 'money'],
+    ['status', 'Status', 'status'],
+    ['banco', 'Banco', 'text'],
+    ['agencia', 'Agência', 'text'],
+    ['conta_corrente', 'Conta corrente', 'text'],
+    ['observacoes', 'Observações', 'textarea', 'largo']
+  ];
+
+  // ---------- utilitários
   async function api(acao, dados = {}) {
     const token = sessionStorage.getItem('token');
-    const resp = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ acao, token, dados })   // text/plain: evita bloqueio de CORS
-    });
+    const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ acao, token, dados }) });
     const json = await resp.json();
     if (!json.ok) {
       if (json.erro === 'SESSAO_EXPIRADA') { sair(true); throw new Error('Sua sessão expirou. Entre novamente.'); }
@@ -123,39 +296,47 @@
     }
     return json.dados;
   }
-
-  function mostrar(tela) {
-    ['telaLogin', 'telaSenha', 'telaApp'].forEach(t => $(t).classList.toggle('oculto', t !== tela));
-  }
-
-  function msg(el, texto, tipo = 'erro') { $(el).textContent = texto; $(el).className = 'msg ' + tipo; }
-
-  const brl = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const data = s => s ? s.split('-').reverse().join('/') : '—';
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const brl = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const num2 = v => (v === '' || v == null) ? '' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const numBr = v => (v === '' || v == null) ? '' : Number(v).toLocaleString('pt-BR');
+  const dataBr = s => s ? String(s).split('-').reverse().join('/') : '—';
+  function lerNumero(v) {
+    if (v === '' || v == null) return '';
+    let s = String(v).replace(/[R$\s]/g, '');
+    if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+    else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+    const n = Number(s); return isNaN(n) ? NaN : n;
+  }
+  function msg(el, texto, tipo = 'erro') { $(el).textContent = texto; $(el).className = 'msg ' + tipo; }
+  function mostrar(tela) { ['telaLogin', 'telaSenha', 'telaApp'].forEach(t => $(t).classList.toggle('oculto', t !== tela)); }
+  const podeEditar = () => usuario && PERFIS_EDICAO.includes(usuario.perfil);
+  const ehGlobal = () => usuario && !usuario.id_instituicao;
 
-  // Login
+  document.querySelectorAll('[data-fechar]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
+
+  // ---------- login / senha
   $('formLogin').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = e.submitter; btn.disabled = true; msg('msgLogin', '');
     try {
       const r = await api('login', { email: $('email').value, senha: $('senha').value });
       sessionStorage.setItem('token', r.token);
-      usuario = r.usuario;
-      $('senha').value = '';
+      usuario = r.usuario; $('senha').value = '';
       usuario.deve_trocar_senha ? abrirTrocaSenha(true) : abrirApp();
     } catch (err) { msg('msgLogin', err.message); }
     btn.disabled = false;
   });
 
-  // Troca de senha
   function abrirTrocaSenha(obrigatoria) {
     $('subSenha').textContent = obrigatoria
       ? 'Primeiro acesso: defina sua senha pessoal (mín. 8 caracteres, letras e números).'
       : 'Mínimo de 8 caracteres, com letras e números.';
+    $('btnCancelarSenha').classList.toggle('oculto', obrigatoria);
     $('formSenha').reset(); msg('msgSenha', '');
     mostrar('telaSenha');
   }
+  $('btnCancelarSenha').addEventListener('click', () => mostrar('telaApp'));
 
   $('formSenha').addEventListener('submit', async e => {
     e.preventDefault();
@@ -165,48 +346,275 @@
       await api('trocarSenha', { senhaAtual: $('senhaAtual').value, novaSenha: $('novaSenha').value });
       usuario.deve_trocar_senha = false;
       msg('msgSenha', 'Senha alterada!', 'ok');
-      setTimeout(abrirApp, 800);
+      setTimeout(abrirApp, 700);
     } catch (err) { msg('msgSenha', err.message); }
     btn.disabled = false;
   });
 
-  // App
-  async function abrirApp() {
-    mostrar('telaApp');
-    $('infoUsuario').textContent = `${usuario.nome} · ${usuario.instituicao}`;
-    $('listaProjetos').innerHTML = '<div class="vazio">Carregando…</div>';
-    try {
-      const projetos = await api('listarProjetos');
-      $('listaProjetos').innerHTML = projetos.length
-        ? projetos.map(p => `
-          <article class="projeto">
-            <span class="sigla">${esc(p.sigla || p.id_projeto)}</span>
-            <h3>${esc(p.nome_projeto)}</h3>
-            <div class="inst">${esc(p.instituicao_sigla || p.instituicao_nome)}</div>
-            <dl>
-              <dt>Valor total</dt><dd>${brl(p.valor_total)}</dd>
-              <dt>Vigência</dt><dd>${data(p.inicio_vigencia)} a ${data(p.fim_vigencia)}</dd>
-              <dt>Termo</dt><dd>${esc(p.termo_fomento_cit || '—')}</dd>
-              <dt>Status</dt><dd>${esc(p.status || '—')}</dd>
-            </dl>
-          </article>`).join('')
-        : '<div class="vazio">Nenhum projeto vinculado ao seu acesso.</div>';
-    } catch (err) {
-      $('listaProjetos').innerHTML = `<div class="vazio">${esc(err.message)}</div>`;
-    }
-  }
-
   function sair(silencioso) {
     if (!silencioso) api('logout').catch(() => {});
-    sessionStorage.removeItem('token');
-    usuario = null;
-    mostrar('telaLogin');
+    sessionStorage.removeItem('token'); usuario = null; mostrar('telaLogin');
   }
-
   $('btnSair').addEventListener('click', () => sair(false));
   $('btnTrocarSenha').addEventListener('click', () => abrirTrocaSenha(false));
 
-  // Reabre a sessão se a página for recarregada
+  // ---------- lista de projetos
+  async function abrirApp() {
+    mostrar('telaApp');
+    $('infoUsuario').textContent = `${usuario.nome} · ${usuario.instituicao}`;
+    $('btnNovoProjeto').classList.toggle('oculto', !(podeEditar() && ehGlobal()));
+    try { instituicoes = await api('listarInstituicoes'); } catch {}
+    mostrarLista();
+  }
+
+  async function mostrarLista() {
+    $('viewDetalhe').classList.add('oculto'); $('viewLista').classList.remove('oculto');
+    $('listaProjetos').innerHTML = '<div class="vazio">Carregando…</div>';
+    try {
+      const projetos = await api('listarProjetos');
+      $('listaProjetos').innerHTML = projetos.length ? projetos.map(p => `
+        <article class="projeto" tabindex="0" data-id="${esc(p.id_projeto)}">
+          <span class="sigla">${esc(p.sigla || p.id_projeto)}</span>
+          <h3>${esc(p.nome_projeto)}</h3>
+          <div class="inst">${esc(p.instituicao_sigla || p.instituicao_nome || '⚠️ Sem instituição vinculada')}</div>
+          <dl>
+            <dt>Valor total</dt><dd>${brl(p.valor_total)}</dd>
+            <dt>Vigência</dt><dd>${dataBr(p.inicio_vigencia)} a ${dataBr(p.fim_vigencia)}</dd>
+            <dt>Termo</dt><dd>${esc(p.termo_fomento_cit || '—')}</dd>
+            <dt>Status</dt><dd>${esc(p.status || '—')}</dd>
+          </dl>
+        </article>`).join('')
+        : '<div class="vazio">Nenhum projeto vinculado ao seu acesso.</div>';
+      document.querySelectorAll('.projeto').forEach(el => {
+        el.addEventListener('click', () => abrirProjeto(el.dataset.id));
+        el.addEventListener('keydown', e => { if (e.key === 'Enter') abrirProjeto(el.dataset.id); });
+      });
+    } catch (err) { $('listaProjetos').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
+  }
+
+  $('btnVoltar').addEventListener('click', mostrarLista);
+  $('btnNovoProjeto').addEventListener('click', () => {
+    atual = { projeto: {}, instituicao: null, rubricas: [], resumo: null, podeEditar: true, novo: true };
+    renderDetalhe(); trocarAba('dados');
+  });
+
+  // ---------- detalhe do projeto
+  async function abrirProjeto(id) {
+    $('viewLista').classList.add('oculto'); $('viewDetalhe').classList.remove('oculto');
+    $('detNome').textContent = 'Carregando…'; $('detSigla').textContent = ''; $('detInst').textContent = '';
+    $('detResumo').innerHTML = ''; $('camposProjeto').innerHTML = ''; $('tabelaRubricas').innerHTML = '';
+    try {
+      atual = await api('obterProjeto', { id_projeto: id });
+      renderDetalhe(); trocarAba('dados');
+    } catch (err) { $('detNome').textContent = err.message; }
+  }
+
+  function renderDetalhe() {
+    const p = atual.projeto, novo = !!atual.novo;
+    $('detSigla').textContent = novo ? 'NOVO' : (p.sigla || p.id_projeto);
+    $('detNome').textContent = novo ? 'Novo projeto' : p.nome_projeto;
+    $('detInst').textContent = atual.instituicao
+      ? `${atual.instituicao.razao_social || atual.instituicao.sigla} · CNPJ ${atual.instituicao.cnpj || '—'}`
+      : (novo ? '' : '⚠️ Projeto sem instituição vinculada. Selecione abaixo e salve.');
+    $('detPasta').classList.toggle('oculto', !atual.pasta_url);
+    if (atual.pasta_url) $('detPasta').href = atual.pasta_url;
+
+    document.querySelector('[data-aba="orcamento"]').classList.toggle('oculto', novo);
+    renderResumo(); renderFormProjeto(); renderRubricas();
+  }
+
+  function renderResumo() {
+    const r = atual.resumo;
+    if (!r) { $('detResumo').innerHTML = ''; return; }
+    const dif = r.diferenca, bateu = Math.abs(dif) < 0.01;
+    $('detResumo').innerHTML = `
+      <div class="kpi"><span>Valor total do projeto</span><strong>${brl(r.valor_total)}</strong></div>
+      <div class="kpi"><span>Total orçado nas rubricas</span><strong>${brl(r.total_orcado)}</strong>
+        <small>${atual.rubricas.length} rubrica(s)</small></div>
+      <div class="kpi ${bateu ? 'ok' : 'alerta'}"><span>Diferença</span><strong>${brl(dif)}</strong>
+        <small>${bateu ? '✓ Orçamento confere com o valor do projeto' : (dif > 0 ? 'Falta distribuir nas rubricas' : 'Rubricas passam do valor do projeto')}</small></div>`;
+  }
+
+  function renderFormProjeto() {
+    const p = atual.projeto, edita = atual.podeEditar;
+    $('camposProjeto').innerHTML = CAMPOS_PROJETO.map(([campo, rotulo, tipo, largura]) => {
+      const v = p[campo] ?? '', id = 'p_' + campo;
+      let input;
+      if (tipo === 'inst') {
+        const travado = !ehGlobal();
+        input = `<select id="${id}" ${travado ? 'disabled' : ''}><option value="">Selecione…</option>${
+          instituicoes.map(i => `<option value="${esc(i.id_instituicao)}" ${i.id_instituicao === v ? 'selected' : ''}>${esc(i.id_instituicao)} – ${esc(i.sigla || i.razao_social)}</option>`).join('')}</select>`;
+      } else if (tipo === 'status') {
+        input = `<select id="${id}"><option value="">—</option>${STATUS_PROJETO.map(s => `<option ${s === v ? 'selected' : ''}>${s}</option>`).join('')}</select>`;
+      } else if (tipo === 'textarea') {
+        input = `<textarea id="${id}" rows="3">${esc(v)}</textarea>`;
+      } else if (tipo === 'money') {
+        input = `<input id="${id}" inputmode="decimal" value="${esc(num2(v))}">`;
+      } else {
+        input = `<input id="${id}" type="${tipo}" value="${esc(v)}">`;
+      }
+      return `<div class="${largura || ''}"><label for="${id}">${rotulo}</label>${input}</div>`;
+    }).join('');
+    if (!edita) $('camposProjeto').querySelectorAll('input,select,textarea').forEach(el => el.disabled = true);
+    $('acoesProjeto').classList.toggle('oculto', !edita);
+    msg('msgProjeto', '');
+  }
+
+  $('formProjeto').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.submitter; btn.disabled = true; msg('msgProjeto', 'Salvando…', 'ok');
+    const dados = { id_projeto: atual.novo ? '' : atual.projeto.id_projeto };
+    CAMPOS_PROJETO.forEach(([campo]) => { dados[campo] = $('p_' + campo).value; });
+    try {
+      atual = await api('salvarProjeto', dados);
+      renderDetalhe();
+      msg('msgProjeto', 'Dados salvos ✓', 'ok');
+    } catch (err) { msg('msgProjeto', err.message); }
+    btn.disabled = false;
+  });
+
+  // ---------- abas
+  function trocarAba(nome) {
+    document.querySelectorAll('.aba').forEach(a => a.setAttribute('aria-selected', a.dataset.aba === nome));
+    $('abaDados').classList.toggle('oculto', nome !== 'dados');
+    $('abaOrcamento').classList.toggle('oculto', nome !== 'orcamento');
+  }
+  document.querySelectorAll('.aba').forEach(a => a.addEventListener('click', () => trocarAba(a.dataset.aba)));
+
+  // ---------- rubricas
+  function renderRubricas() {
+    const rs = atual.rubricas || [], edita = atual.podeEditar;
+    $('acoesRubricas').classList.toggle('oculto', !edita);
+    if (!rs.length) {
+      $('tabelaRubricas').innerHTML = `<div class="vazio">Nenhuma rubrica cadastrada ainda.${edita ? '<br>Use “Colar da planilha” para trazer o orçamento de uma vez.' : ''}</div>`;
+      return;
+    }
+    const total = rs.reduce((s, r) => s + Number(r.valor_total_orcado || 0), 0);
+    $('tabelaRubricas').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Código</th><th>Descrição</th><th>Tipo</th>
+          <th class="num">Qtd</th><th>Unid.</th><th class="num">Valor unit. máx.</th><th class="num">Meses</th>
+          <th class="num">Total orçado</th>${edita ? '<th></th>' : ''}
+        </tr></thead>
+        <tbody>${rs.map(r => `<tr>
+          <td>${esc(r.codigo)}</td>
+          <td>${esc(r.descricao)}</td>
+          <td>${r.tipo_despesa ? `<span class="tag">${esc(r.tipo_despesa)}</span>` : '—'}</td>
+          <td class="num">${numBr(r.quantidade)}</td>
+          <td>${esc(r.unidade)}</td>
+          <td class="num">${brl(r.valor_unitario_max)}</td>
+          <td class="num">${r.meses || '—'}</td>
+          <td class="num"><b>${brl(r.valor_total_orcado)}</b></td>
+          ${edita ? `<td style="white-space:nowrap">
+            <button class="btn-link" data-editar="${esc(r.id_rubrica)}">Editar</button>
+            <button class="btn-link perigo" data-excluir="${esc(r.id_rubrica)}">Excluir</button></td>` : ''}
+        </tr>`).join('')}</tbody>
+        <tfoot><tr><td colspan="7">Total</td><td class="num">${brl(total)}</td>${edita ? '<td></td>' : ''}</tr></tfoot>
+      </table>`;
+    $('tabelaRubricas').querySelectorAll('[data-editar]').forEach(b =>
+      b.addEventListener('click', () => abrirRubrica(rs.find(r => r.id_rubrica === b.dataset.editar))));
+    $('tabelaRubricas').querySelectorAll('[data-excluir]').forEach(b =>
+      b.addEventListener('click', () => excluirRubrica(rs.find(r => r.id_rubrica === b.dataset.excluir))));
+  }
+
+  const CAMPOS_RUB = ['codigo', 'descricao', 'tipo_despesa', 'classificacao_contabil', 'unidade', 'quantidade', 'valor_unitario_max', 'meses', 'observacoes'];
+  let rubricaEditando = null;
+
+  function abrirRubrica(r) {
+    rubricaEditando = r || null;
+    $('tituloRubrica').textContent = r ? 'Editar rubrica' : 'Nova rubrica';
+    CAMPOS_RUB.forEach(c => {
+      let v = r ? (r[c] ?? '') : '';
+      if (c === 'valor_unitario_max') v = num2(v);
+      else if (c === 'quantidade') v = numBr(v);
+      $('r_' + c).value = v;
+    });
+    msg('msgRubrica', ''); atualizarTotalRubrica();
+    $('dlgRubrica').showModal();
+  }
+
+  function atualizarTotalRubrica() {
+    const q = lerNumero($('r_quantidade').value), v = lerNumero($('r_valor_unitario_max').value);
+    const m = lerNumero($('r_meses').value);
+    const t = (q || 0) * (v || 0) * (m > 0 ? m : 1);
+    $('r_total').textContent = 'Total orçado: ' + (isNaN(t) ? '—' : brl(t))
+      + (m > 0 ? `  (${numBr(q || 0)} × ${brl(v || 0)} × ${m} meses)` : '');
+  }
+  ['r_quantidade', 'r_valor_unitario_max', 'r_meses'].forEach(id => $(id).addEventListener('input', atualizarTotalRubrica));
+
+  $('btnNovaRubrica').addEventListener('click', () => abrirRubrica(null));
+
+  $('formRubrica').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.submitter; btn.disabled = true; msg('msgRubrica', 'Salvando…', 'ok');
+    const dados = { id_projeto: atual.projeto.id_projeto, id_rubrica: rubricaEditando ? rubricaEditando.id_rubrica : '' };
+    CAMPOS_RUB.forEach(c => dados[c] = $('r_' + c).value);
+    try {
+      atual = await api('salvarRubrica', dados);
+      $('dlgRubrica').close(); renderDetalhe(); trocarAba('orcamento');
+    } catch (err) { msg('msgRubrica', err.message); }
+    btn.disabled = false;
+  });
+
+  async function excluirRubrica(r) {
+    if (!confirm(`Excluir a rubrica "${r.descricao}"?`)) return;
+    try { atual = await api('excluirRubrica', { id_rubrica: r.id_rubrica }); renderDetalhe(); trocarAba('orcamento'); }
+    catch (err) { alert(err.message); }
+  }
+
+  // ---------- colar da planilha
+  $('btnColar').addEventListener('click', () => {
+    $('txtColar').value = ''; $('previaColar').innerHTML = ''; linhasColar = [];
+    $('btnImportar').disabled = true; $('btnImportar').textContent = 'Importar'; msg('msgColar', '');
+    $('dlgColar').showModal();
+  });
+
+  $('txtColar').addEventListener('input', () => {
+    const linhas = $('txtColar').value.split(/\r?\n/).filter(l => l.trim());
+    let erros = 0;
+    linhasColar = linhas.map(l => {
+      const c = l.split('\t').map(x => x.trim());
+      const r = { descricao: c[0] || '', quantidade: lerNumero(c[1]), valor_unitario_max: lerNumero(c[2]),
+                  tipo_despesa: TIPOS.find(t => t.toLowerCase() === (c[3] || '').toLowerCase()) || '',
+                  meses: c[4] ? lerNumero(c[4]) : '' };
+      r.erro = !r.descricao ? 'sem descrição' : !(r.quantidade > 0) ? 'quantidade inválida'
+             : !(r.valor_unitario_max > 0) ? 'valor inválido' : '';
+      if (r.erro) erros++;
+      r.total = (r.quantidade || 0) * (r.valor_unitario_max || 0) * (r.meses > 0 ? r.meses : 1);
+      return r;
+    });
+    if (!linhasColar.length) { $('previaColar').innerHTML = ''; $('btnImportar').disabled = true; return; }
+    const total = linhasColar.reduce((s, r) => s + (r.erro ? 0 : r.total), 0);
+    $('previaColar').innerHTML = `
+      <div class="tabela-wrap"><table>
+        <thead><tr><th>Descrição</th><th class="num">Qtd</th><th class="num">Valor unit.</th><th>Tipo</th><th class="num">Meses</th><th class="num">Total</th></tr></thead>
+        <tbody>${linhasColar.map(r => `<tr class="${r.erro ? 'linha-erro' : ''}">
+          <td>${esc(r.descricao)}${r.erro ? ` <b style="color:var(--erro)">(${r.erro})</b>` : ''}</td>
+          <td class="num">${isNaN(r.quantidade) ? '?' : numBr(r.quantidade)}</td>
+          <td class="num">${isNaN(r.valor_unitario_max) ? '?' : brl(r.valor_unitario_max)}</td>
+          <td>${esc(r.tipo_despesa || '—')}</td><td class="num">${r.meses || '—'}</td>
+          <td class="num">${r.erro ? '—' : brl(r.total)}</td></tr>`).join('')}</tbody>
+        <tfoot><tr><td colspan="5">Total a importar</td><td class="num">${brl(total)}</td></tr></tfoot>
+      </table></div>`;
+    $('btnImportar').disabled = erros > 0;
+    $('btnImportar').textContent = `Importar ${linhasColar.length} rubrica(s)`;
+    msg('msgColar', erros ? `Corrija ${erros} linha(s) em vermelho antes de importar.` : '');
+  });
+
+  $('btnImportar').addEventListener('click', async () => {
+    const btn = $('btnImportar'); btn.disabled = true; msg('msgColar', 'Importando…', 'ok');
+    try {
+      atual = await api('importarRubricas', {
+        id_projeto: atual.projeto.id_projeto,
+        linhas: linhasColar.map(({ descricao, quantidade, valor_unitario_max, tipo_despesa, meses }) =>
+          ({ descricao, quantidade, valor_unitario_max, tipo_despesa, meses }))
+      });
+      $('dlgColar').close(); renderDetalhe(); trocarAba('orcamento');
+    } catch (err) { msg('msgColar', err.message); btn.disabled = false; }
+  });
+
+  // ---------- reabrir sessão ao recarregar
   (async () => {
     if (!sessionStorage.getItem('token')) return;
     try {
