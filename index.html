@@ -103,6 +103,30 @@
   .dica { color: var(--suave); font-size: 13px; margin: 0 0 10px; line-height: 1.5; }
   .linha-erro td { background: var(--erro-fundo); }
 
+  /* Contratações */
+  dialog.grande { width: min(1000px, calc(100vw - 32px)); }
+  tr.clicavel { cursor: pointer; }
+  tr.clicavel:hover td { background: #f5f8fb; }
+  fieldset { border: 1px solid var(--borda); border-radius: 10px; padding: 14px 16px 16px; margin: 18px 0 0; }
+  legend { font-weight: 700; font-size: 13px; color: var(--azul); padding: 0 6px; }
+  .secao { margin-top: 22px; }
+  .secao h4 { font-size: 14px; margin: 0 0 10px; color: var(--azul); display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .linha-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; align-items: end; }
+  .info-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 18px; font-size: 13px; }
+  .info-grade span { display: block; color: var(--suave); font-size: 12px; }
+  .st { font-size: 11px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; background: #eef1f4; color: var(--suave); }
+  .st.verde { background: var(--ok-fundo); color: var(--ok); }
+  .st.amarelo { background: var(--alerta-fundo); color: var(--alerta); }
+  .aviso { padding: 12px 14px; border-radius: 8px; background: var(--alerta-fundo); color: var(--alerta); font-size: 13px; margin-top: 10px; }
+  .sucesso { padding: 12px 14px; border-radius: 8px; background: var(--ok-fundo); color: var(--ok); font-size: 13px; margin-top: 10px; }
+  .sucesso a, .aviso a { color: inherit; font-weight: 600; }
+  details summary { cursor: pointer; color: var(--azul-claro); font-size: 13px; margin-top: 10px; }
+  .lista-campos { columns: 2 260px; font-size: 12px; margin-top: 8px; }
+  .lista-campos div { break-inside: avoid; padding: 2px 0; }
+  .lista-campos code { background: #f1f4f8; padding: 1px 5px; border-radius: 4px; }
+  .checkbox { display: flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 500; color: var(--texto); }
+  .checkbox input { width: auto; }
+
   @media (max-width: 600px) {
     header { padding: 12px 16px; }
     .painel { padding: 14px; }
@@ -183,6 +207,7 @@
       <div class="abas" role="tablist">
         <button class="aba" role="tab" data-aba="dados" aria-selected="true">Dados gerais</button>
         <button class="aba" role="tab" data-aba="orcamento" aria-selected="false">Orçamento (rubricas)</button>
+        <button class="aba" role="tab" data-aba="contratacoes" aria-selected="false">Contratações</button>
       </div>
 
       <!-- Aba: dados gerais -->
@@ -206,6 +231,15 @@
           </div>
         </div>
         <div class="tabela-wrap" id="tabelaRubricas"></div>
+      </section>
+
+      <!-- Aba: contratações -->
+      <section class="painel oculto" id="abaContratacoes" role="tabpanel">
+        <div class="titulo-linha">
+          <h2 style="font-size:16px">Contratações</h2>
+          <button class="btn" id="btnNovaCtr">+ Nova contratação</button>
+        </div>
+        <div class="tabela-wrap" id="tabelaCtr"></div>
       </section>
     </div>
   </main>
@@ -252,6 +286,70 @@
     <button type="button" class="btn-sec" data-fechar>Cancelar</button>
     <button type="button" class="btn" id="btnImportar" disabled>Importar</button>
   </div>
+</dialog>
+
+<!-- MODAL: FORMULÁRIO DE CONTRATAÇÃO -->
+<dialog id="dlgFormCtr" class="grande">
+  <form id="formCtr">
+    <div class="modal-cab"><h3 id="tituloFormCtr">Nova contratação</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+    <div class="modal-corpo">
+      <div class="form-grade">
+        <div class="largo"><label for="c_id_rubrica">Rubrica *</label><select id="c_id_rubrica" required></select>
+          <div class="dica" id="c_saldo" style="margin:6px 0 0"></div></div>
+        <div class="largo"><label for="c_objeto">Objeto da contratação *</label><input id="c_objeto" required placeholder="Ex.: prestação de serviços de educador social"></div>
+        <div><label for="c_inicio_execucao">Início da execução *</label><input id="c_inicio_execucao" type="date" required></div>
+        <div><label for="c_fim_execucao">Fim da execução</label><input id="c_fim_execucao" type="date"></div>
+        <div><label for="c_num_parcelas">Nº de parcelas *</label><input id="c_num_parcelas" inputmode="numeric" required></div>
+        <div><label for="c_valor_parcela">Valor da parcela (R$) *</label><input id="c_valor_parcela" inputmode="decimal" required></div>
+        <div><label for="c_data_cotacao">Data da cotação</label><input id="c_data_cotacao" type="date"></div>
+        <div><label for="c_data_assinatura_contrato">Assinatura do contrato</label><input id="c_data_assinatura_contrato" type="date"></div>
+        <div><label for="c_status">Status</label><select id="c_status"></select></div>
+        <div class="largo"><label for="c_observacoes">Observações</label><input id="c_observacoes"></div>
+      </div>
+      <div class="total-preview" id="c_total">Total do contrato: R$ 0,00</div>
+
+      <fieldset>
+        <legend>Dados do contratado</legend>
+        <p class="dica">Digite o CPF ou CNPJ primeiro: se o contratado já estiver cadastrado, os dados são preenchidos sozinhos.</p>
+        <div class="form-grade">
+          <div><label for="f_cnpj_cpf">CPF / CNPJ *</label><input id="f_cnpj_cpf" required></div>
+          <div class="largo"><label for="f_razao_social">Nome completo / razão social *</label><input id="f_razao_social" required></div>
+          <div><label for="f_nome_fantasia">Nome fantasia</label><input id="f_nome_fantasia"></div>
+          <div><label for="f_rg">RG</label><input id="f_rg"></div>
+          <div><label for="f_nacionalidade">Nacionalidade</label><input id="f_nacionalidade"></div>
+          <div><label for="f_estado_civil">Estado civil</label><input id="f_estado_civil"></div>
+          <div><label for="f_profissao">Profissão</label><input id="f_profissao"></div>
+          <div class="largo"><label for="f_endereco">Endereço (rua)</label><input id="f_endereco"></div>
+          <div><label for="f_numero">Número</label><input id="f_numero"></div>
+          <div><label for="f_complemento">Complemento</label><input id="f_complemento"></div>
+          <div><label for="f_bairro">Bairro</label><input id="f_bairro"></div>
+          <div><label for="f_cidade">Cidade</label><input id="f_cidade"></div>
+          <div><label for="f_uf">UF</label><input id="f_uf" maxlength="2"></div>
+          <div><label for="f_cep">CEP</label><input id="f_cep"></div>
+          <div><label for="f_email">E-mail</label><input id="f_email" type="email"></div>
+          <div><label for="f_telefone">Telefone</label><input id="f_telefone"></div>
+          <div><label for="f_representante_nome">Representante (se empresa)</label><input id="f_representante_nome"></div>
+          <div><label for="f_representante_cpf">CPF do representante</label><input id="f_representante_cpf"></div>
+          <div><label for="f_representante_cargo">Cargo do representante</label><input id="f_representante_cargo"></div>
+          <div><label for="f_chave_pix">Chave PIX</label><input id="f_chave_pix"></div>
+          <div><label for="f_banco">Banco</label><input id="f_banco"></div>
+          <div><label for="f_agencia">Agência</label><input id="f_agencia"></div>
+          <div><label for="f_conta">Conta</label><input id="f_conta"></div>
+        </div>
+      </fieldset>
+    </div>
+    <div class="modal-rodape">
+      <div class="msg" id="msgCtr" role="alert"></div>
+      <button type="button" class="btn-sec" data-fechar>Cancelar</button>
+      <button type="submit" class="btn">Salvar contratação</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- MODAL: DETALHE DA CONTRATAÇÃO -->
+<dialog id="dlgCtr" class="grande">
+  <div class="modal-cab"><h3 id="tituloCtr">Contratação</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+  <div class="modal-corpo" id="corpoCtr"></div>
 </dialog>
 
 <script>
@@ -420,7 +518,8 @@
     if (atual.pasta_url) $('detPasta').href = atual.pasta_url;
 
     document.querySelector('[data-aba="orcamento"]').classList.toggle('oculto', novo);
-    renderResumo(); renderFormProjeto(); renderRubricas();
+    document.querySelector('[data-aba="contratacoes"]').classList.toggle('oculto', novo);
+    renderResumo(); renderFormProjeto(); renderRubricas(); renderContratacoes();
   }
 
   function renderResumo() {
@@ -432,7 +531,11 @@
       <div class="kpi"><span>Total orçado nas rubricas</span><strong>${brl(r.total_orcado)}</strong>
         <small>${atual.rubricas.length} rubrica(s)</small></div>
       <div class="kpi ${bateu ? 'ok' : 'alerta'}"><span>Diferença</span><strong>${brl(dif)}</strong>
-        <small>${bateu ? '✓ Orçamento confere com o valor do projeto' : (dif > 0 ? 'Falta distribuir nas rubricas' : 'Rubricas passam do valor do projeto')}</small></div>`;
+        <small>${bateu ? '✓ Orçamento confere com o valor do projeto' : (dif > 0 ? 'Falta distribuir nas rubricas' : 'Rubricas passam do valor do projeto')}</small></div>
+      <div class="kpi"><span>Total contratado</span><strong>${brl(r.total_contratado)}</strong>
+        <small>${(atual.contratacoes || []).length} contratação(ões)</small></div>
+      <div class="kpi"><span>Saldo a contratar</span><strong>${brl(r.saldo_a_contratar)}</strong>
+        <small>${r.valor_total ? Math.round(r.total_contratado / r.valor_total * 100) : 0}% do projeto já contratado</small></div>`;
   }
 
   function renderFormProjeto() {
@@ -478,6 +581,7 @@
     document.querySelectorAll('.aba').forEach(a => a.setAttribute('aria-selected', a.dataset.aba === nome));
     $('abaDados').classList.toggle('oculto', nome !== 'dados');
     $('abaOrcamento').classList.toggle('oculto', nome !== 'orcamento');
+    $('abaContratacoes').classList.toggle('oculto', nome !== 'contratacoes');
   }
   document.querySelectorAll('.aba').forEach(a => a.addEventListener('click', () => trocarAba(a.dataset.aba)));
 
@@ -495,7 +599,7 @@
         <thead><tr>
           <th>Item</th><th>Descrição rubrica</th><th>Tipo</th><th>Classificação contábil (SIT)</th>
           <th class="num">Qtd</th><th>Unid.</th><th class="num">Valor unit. máx.</th><th class="num">Meses</th>
-          <th class="num">Total orçado</th>${edita ? '<th></th>' : ''}
+          <th class="num">Total orçado</th><th class="num">Contratado</th>${edita ? '<th></th>' : ''}
         </tr></thead>
         <tbody>${rs.map(r => `<tr>
           <td>${esc(r.codigo)}</td>
@@ -506,18 +610,24 @@
           <td>${esc(r.unidade)}</td>
           <td class="num">${brl(r.valor_unitario_max)}</td>
           <td class="num">${r.meses || '—'}</td>
-          <td class="num"><b>${brl(r.valor_total_orcado)}</b></td>
+          <td class="num"><b>${brl(r.valor_total_orcado)}</b>${totalNaoBate(r)
+            ? `<br><span style="color:var(--alerta);font-size:11px" title="Qtd × valor × meses dá ${brl(calcRubrica(r))}">⚠️ não bate com qtd × valor × meses</span>` : ''}</td>
+          <td class="num">${brl(r.valor_contratado)}</td>
           ${edita ? `<td style="white-space:nowrap">
             <button class="btn-link" data-editar="${esc(r.id_rubrica)}">Editar</button>
             <button class="btn-link perigo" data-excluir="${esc(r.id_rubrica)}">Excluir</button></td>` : ''}
         </tr>`).join('')}</tbody>
-        <tfoot><tr><td colspan="8">Total</td><td class="num">${brl(total)}</td>${edita ? '<td></td>' : ''}</tr></tfoot>
+        <tfoot><tr><td colspan="8">Total</td><td class="num">${brl(total)}</td>
+          <td class="num">${brl(rs.reduce((s, r) => s + Number(r.valor_contratado || 0), 0))}</td>${edita ? '<td></td>' : ''}</tr></tfoot>
       </table>`;
     $('tabelaRubricas').querySelectorAll('[data-editar]').forEach(b =>
       b.addEventListener('click', () => abrirRubrica(rs.find(r => r.id_rubrica === b.dataset.editar))));
     $('tabelaRubricas').querySelectorAll('[data-excluir]').forEach(b =>
       b.addEventListener('click', () => excluirRubrica(rs.find(r => r.id_rubrica === b.dataset.excluir))));
   }
+
+  const calcRubrica = r => Number(r.quantidade || 0) * Number(r.valor_unitario_max || 0) * (Number(r.meses) > 0 ? Number(r.meses) : 1);
+  const totalNaoBate = r => Math.abs(calcRubrica(r) - Number(r.valor_total_orcado || 0)) > 0.01;
 
   const CAMPOS_RUB = ['codigo', 'descricao', 'tipo_despesa', 'classificacao_contabil', 'unidade', 'quantidade', 'valor_unitario_max', 'meses', 'observacoes'];
   let rubricaEditando = null;
