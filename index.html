@@ -217,11 +217,11 @@
     <div class="modal-cab"><h3 id="tituloRubrica">Nova rubrica</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
     <div class="modal-corpo">
       <div class="form-grade">
-        <div><label for="r_codigo">Código / item</label><input id="r_codigo"></div>
-        <div class="largo"><label for="r_descricao">Descrição *</label><input id="r_descricao" required></div>
+        <div><label for="r_codigo">Item</label><input id="r_codigo"></div>
+        <div class="largo"><label for="r_descricao">Descrição rubrica *</label><input id="r_descricao" required></div>
         <div><label for="r_tipo_despesa">Tipo de despesa</label>
           <select id="r_tipo_despesa"><option value="">—</option><option>Prestação de serviço</option><option>Compra de bens</option><option>Ativo imobilizado</option></select></div>
-        <div><label for="r_classificacao_contabil">Classificação contábil (CIT)</label><input id="r_classificacao_contabil"></div>
+        <div><label for="r_classificacao_contabil">Classificação contábil (SIT)</label><input id="r_classificacao_contabil"></div>
         <div><label for="r_unidade">Unidade</label><input id="r_unidade" placeholder="un, mês, pacote…"></div>
         <div><label for="r_quantidade">Quantidade *</label><input id="r_quantidade" inputmode="decimal" required></div>
         <div><label for="r_valor_unitario_max">Valor unitário máximo (R$) *</label><input id="r_valor_unitario_max" inputmode="decimal" required></div>
@@ -272,7 +272,7 @@
     ['num_edital', 'Nº do edital', 'text'],
     ['data_publicacao_edital', 'Publicação do edital', 'date'],
     ['num_proposta', 'Nº da proposta', 'text'],
-    ['termo_fomento_cit', 'Termo de fomento (CIT)', 'text'],
+    ['termo_fomento_cit', 'Termo de fomento (SIT)', 'text'],
     ['data_celebracao', 'Data da celebração', 'date'],
     ['inicio_vigencia', 'Início da vigência', 'date'],
     ['fim_vigencia', 'Fim da vigência', 'date'],
@@ -493,7 +493,7 @@
     $('tabelaRubricas').innerHTML = `
       <table>
         <thead><tr>
-          <th>Código</th><th>Descrição</th><th>Tipo</th>
+          <th>Item</th><th>Descrição rubrica</th><th>Tipo</th><th>Classificação contábil (SIT)</th>
           <th class="num">Qtd</th><th>Unid.</th><th class="num">Valor unit. máx.</th><th class="num">Meses</th>
           <th class="num">Total orçado</th>${edita ? '<th></th>' : ''}
         </tr></thead>
@@ -501,6 +501,7 @@
           <td>${esc(r.codigo)}</td>
           <td>${esc(r.descricao)}</td>
           <td>${r.tipo_despesa ? `<span class="tag">${esc(r.tipo_despesa)}</span>` : '—'}</td>
+          <td>${esc(r.classificacao_contabil) || '<span style="color:var(--alerta)">⚠️ preencher</span>'}</td>
           <td class="num">${numBr(r.quantidade)}</td>
           <td>${esc(r.unidade)}</td>
           <td class="num">${brl(r.valor_unitario_max)}</td>
@@ -510,7 +511,7 @@
             <button class="btn-link" data-editar="${esc(r.id_rubrica)}">Editar</button>
             <button class="btn-link perigo" data-excluir="${esc(r.id_rubrica)}">Excluir</button></td>` : ''}
         </tr>`).join('')}</tbody>
-        <tfoot><tr><td colspan="7">Total</td><td class="num">${brl(total)}</td>${edita ? '<td></td>' : ''}</tr></tfoot>
+        <tfoot><tr><td colspan="8">Total</td><td class="num">${brl(total)}</td>${edita ? '<td></td>' : ''}</tr></tfoot>
       </table>`;
     $('tabelaRubricas').querySelectorAll('[data-editar]').forEach(b =>
       b.addEventListener('click', () => abrirRubrica(rs.find(r => r.id_rubrica === b.dataset.editar))));
