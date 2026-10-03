@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestor de Projetos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --azul: #1f3b57; --azul-claro: #2e5a85; --fundo: #f4f6f9; --card: #ffffff;
+    --texto: #1c2733; --suave: #5b6b7b; --borda: #dde3ea; --erro: #b42318; --ok: #1a7f4b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--fundo); color: var(--texto); }
+  .oculto { display: none !important; }
+
+  /* Login */
+  .tela-centro { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+  .caixa { width: 100%; max-width: 380px; background: var(--card); border: 1px solid var(--borda);
+           border-radius: 12px; padding: 32px 28px; box-shadow: 0 8px 24px rgba(31,59,87,.08); }
+  .caixa h1 { margin: 0 0 4px; font-size: 22px; color: var(--azul); }
+  .caixa p.sub { margin: 0 0 24px; color: var(--suave); font-size: 14px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 6px; }
+  input { width: 100%; padding: 11px 12px; border: 1px solid var(--borda); border-radius: 8px; font: inherit; }
+  input:focus { outline: 2px solid var(--azul-claro); outline-offset: 1px; border-color: transparent; }
+  button { font: inherit; cursor: pointer; }
+  .btn { width: 100%; margin-top: 22px; padding: 12px; border: 0; border-radius: 8px;
+         background: var(--azul); color: #fff; font-weight: 600; }
+  .btn:hover { background: var(--azul-claro); }
+  .btn:disabled { opacity: .6; cursor: wait; }
+  .msg { margin-top: 14px; font-size: 14px; min-height: 20px; }
+  .msg.erro { color: var(--erro); } .msg.ok { color: var(--ok); }
+
+  /* App */
+  header { background: var(--azul); color: #fff; padding: 14px 24px; display: flex;
+           align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  header strong { font-size: 17px; }
+  header .usuario { font-size: 13px; opacity: .9; }
+  header .acoes button { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.4);
+                         border-radius: 6px; padding: 6px 12px; margin-left: 8px; font-size: 13px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  main h2 { font-size: 18px; margin: 0 0 16px; }
+  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .projeto { background: var(--card); border: 1px solid var(--borda); border-radius: 10px; padding: 18px; }
+  .projeto .sigla { display: inline-block; font-size: 12px; font-weight: 700; color: var(--azul);
+                    background: #e7eef6; padding: 3px 8px; border-radius: 4px; }
+  .projeto h3 { font-size: 16px; margin: 10px 0 4px; }
+  .projeto .inst { font-size: 13px; color: var(--suave); margin-bottom: 12px; }
+  .projeto dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 13px; }
+  .projeto dt { color: var(--suave); } .projeto dd { margin: 0; font-weight: 500; }
+  .vazio { color: var(--suave); background: var(--card); border: 1px dashed var(--borda);
+           border-radius: 10px; padding: 32px; text-align: center; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="telaLogin" class="tela-centro">
+  <form class="caixa" id="formLogin">
+    <h1>Gestor de Projetos</h1>
+    <p class="sub">Acompanhamento e prestação de contas</p>
+    <label for="email">E-mail</label>
+    <input id="email" type="email" autocomplete="username" required>
+    <label for="senha">Senha</label>
+    <input id="senha" type="password" autocomplete="current-password" required>
+    <button class="btn" type="submit">Entrar</button>
+    <div class="msg" id="msgLogin" role="alert"></div>
+  </form>
+</section>
+
+<!-- TROCA DE SENHA -->
+<section id="telaSenha" class="tela-centro oculto">
+  <form class="caixa" id="formSenha">
+    <h1>Trocar senha</h1>
+    <p class="sub" id="subSenha">Mínimo de 8 caracteres, com letras e números.</p>
+    <label for="senhaAtual">Senha atual</label>
+    <input id="senhaAtual" type="password" autocomplete="current-password" required>
+    <label for="novaSenha">Nova senha</label>
+    <input id="novaSenha" type="password" autocomplete="new-password" required>
+    <label for="confSenha">Confirmar nova senha</label>
+    <input id="confSenha" type="password" autocomplete="new-password" required>
+    <button class="btn" type="submit">Salvar nova senha</button>
+    <div class="msg" id="msgSenha" role="alert"></div>
+  </form>
+</section>
+
+<!-- APLICAÇÃO -->
+<section id="telaApp" class="oculto">
+  <header>
+    <div>
+      <strong>Gestor de Projetos</strong>
+      <div class="usuario" id="infoUsuario"></div>
+    </div>
+    <div class="acoes">
+      <button id="btnTrocarSenha">Trocar senha</button>
+      <button id="btnSair">Sair</button>
+    </div>
+  </header>
+  <main>
+    <h2>Meus projetos</h2>
+    <div id="listaProjetos" class="grade"></div>
+  </main>
+</section>
+
+<script>
+  // >>> Cole aqui a URL do App da Web (Implantar > Gerenciar implantações)
+  const API_URL = 'COLE_AQUI_A_URL_DO_APP_DA_WEB';
+
+  const $ = id => document.getElementById(id);
+  let usuario = null;
+
+  async function api(acao, dados = {}) {
+    const token = sessionStorage.getItem('token');
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ acao, token, dados })   // text/plain: evita bloqueio de CORS
+    });
+    const json = await resp.json();
+    if (!json.ok) {
+      if (json.erro === 'SESSAO_EXPIRADA') { sair(true); throw new Error('Sua sessão expirou. Entre novamente.'); }
+      throw new Error(json.erro);
+    }
+    return json.dados;
+  }
+
+  function mostrar(tela) {
+    ['telaLogin', 'telaSenha', 'telaApp'].forEach(t => $(t).classList.toggle('oculto', t !== tela));
+  }
+
+  function msg(el, texto, tipo = 'erro') { $(el).textContent = texto; $(el).className = 'msg ' + tipo; }
+
+  const brl = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const data = s => s ? s.split('-').reverse().join('/') : '—';
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  // Login
+  $('formLogin').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.submitter; btn.disabled = true; msg('msgLogin', '');
+    try {
+      const r = await api('login', { email: $('email').value, senha: $('senha').value });
+      sessionStorage.setItem('token', r.token);
+      usuario = r.usuario;
+      $('senha').value = '';
+      usuario.deve_trocar_senha ? abrirTrocaSenha(true) : abrirApp();
+    } catch (err) { msg('msgLogin', err.message); }
+    btn.disabled = false;
+  });
+
+  // Troca de senha
+  function abrirTrocaSenha(obrigatoria) {
+    $('subSenha').textContent = obrigatoria
+      ? 'Primeiro acesso: defina sua senha pessoal (mín. 8 caracteres, letras e números).'
+      : 'Mínimo de 8 caracteres, com letras e números.';
+    $('formSenha').reset(); msg('msgSenha', '');
+    mostrar('telaSenha');
+  }
+
+  $('formSenha').addEventListener('submit', async e => {
+    e.preventDefault();
+    if ($('novaSenha').value !== $('confSenha').value) return msg('msgSenha', 'As senhas não conferem.');
+    const btn = e.submitter; btn.disabled = true;
+    try {
+      await api('trocarSenha', { senhaAtual: $('senhaAtual').value, novaSenha: $('novaSenha').value });
+      usuario.deve_trocar_senha = false;
+      msg('msgSenha', 'Senha alterada!', 'ok');
+      setTimeout(abrirApp, 800);
+    } catch (err) { msg('msgSenha', err.message); }
+    btn.disabled = false;
+  });
+
+  // App
+  async function abrirApp() {
+    mostrar('telaApp');
+    $('infoUsuario').textContent = `${usuario.nome} · ${usuario.instituicao}`;
+    $('listaProjetos').innerHTML = '<div class="vazio">Carregando…</div>';
+    try {
+      const projetos = await api('listarProjetos');
+      $('listaProjetos').innerHTML = projetos.length
+        ? projetos.map(p => `
+          <article class="projeto">
+            <span class="sigla">${esc(p.sigla || p.id_projeto)}</span>
+            <h3>${esc(p.nome_projeto)}</h3>
+            <div class="inst">${esc(p.instituicao_sigla || p.instituicao_nome)}</div>
+            <dl>
+              <dt>Valor total</dt><dd>${brl(p.valor_total)}</dd>
+              <dt>Vigência</dt><dd>${data(p.inicio_vigencia)} a ${data(p.fim_vigencia)}</dd>
+              <dt>Termo</dt><dd>${esc(p.termo_fomento_cit || '—')}</dd>
+              <dt>Status</dt><dd>${esc(p.status || '—')}</dd>
+            </dl>
+          </article>`).join('')
+        : '<div class="vazio">Nenhum projeto vinculado ao seu acesso.</div>';
+    } catch (err) {
+      $('listaProjetos').innerHTML = `<div class="vazio">${esc(err.message)}</div>`;
+    }
+  }
+
+  function sair(silencioso) {
+    if (!silencioso) api('logout').catch(() => {});
+    sessionStorage.removeItem('token');
+    usuario = null;
+    mostrar('telaLogin');
+  }
+
+  $('btnSair').addEventListener('click', () => sair(false));
+  $('btnTrocarSenha').addEventListener('click', () => abrirTrocaSenha(false));
+
+  // Reabre a sessão se a página for recarregada
+  (async () => {
+    if (!sessionStorage.getItem('token')) return;
+    try {
+      usuario = await api('me');
+      usuario.deve_trocar_senha ? abrirTrocaSenha(true) : abrirApp();
+    } catch { sair(true); }
+  })();
+</script>
+</body>
+</html>
