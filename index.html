@@ -1423,6 +1423,13 @@
   }
 
   $('dlgCtr').addEventListener('close', () => { if (ctrMudou) recarregarProjeto().catch(() => {}); });
+  // Janela da parcela aberta a partir da contratação
+  const ctxCtr = {
+    lista: () => (ctrAtual && ctrAtual.parcelas_det) || [],
+    recarregar: async () => { ctrAtual = await api('obterContratacao', { id_contratacao: ctrAtual.contratacao.id_contratacao }); ctrMudou = true; renderCtr(); },
+    get pode_conferir() { return ctrAtual && ctrAtual.pode_conferir; },
+    get pode_lancar_direto() { return ctrAtual && ctrAtual.pode_lancar_direto; }
+  };
 
   function renderCtr() {
     const { contratacao: c, fornecedor: f = {}, rubrica: r = {}, parcelas, documentos, cotacoes } = ctrAtual;
@@ -1532,11 +1539,15 @@
       <div class="secao">
         <h4>${ehCompra ? 'Pagamento' : 'Parcelas previstas'}</h4>
         <div class="tabela-wrap"><table>
-          <thead><tr><th>Nº</th><th>Competência</th><th class="num">Valor</th><th>Status</th></tr></thead>
-          <tbody>${parcelas.map(p => `<tr>
+          <thead><tr><th>Nº</th><th>Competência</th><th class="num">Valor</th><th>Status</th><th>NF</th><th>Pagamento / débito</th><th class="num">Valor pago</th><th></th></tr></thead>
+          <tbody>${(ctrAtual.parcelas_det || parcelas).map(p => { const nf = p.nf || {}, pg = p.pagamento || {}; return `<tr>
             <td>${esc(p.num_parcela)}${p.primeiro_pagamento === true ? ' <span class="tag" title="No SIT, o 1º pagamento leva cotações + NF + comprovante">1º pagamento</span>' : ''}</td>
             <td>${mesAno(p.competencia)}</td><td class="num">${brl(p.valor_previsto)}</td>
-            <td><span class="st ${stClasse(p.status)}">${esc(p.status)}</span></td></tr>`).join('')}</tbody>
+            <td><span class="st ${stClasse(p.status)}">${esc(p.status)}</span></td>
+            <td>${nf.numero ? (nf.url ? `<a href="${esc(nf.url)}" target="_blank" rel="noopener">nº ${esc(nf.numero)}</a>` : 'nº ' + esc(nf.numero)) : '—'}</td>
+            <td>${pg.data_pagamento ? dataBr(pg.data_pagamento) + (pg.data_debito_conta && pg.data_debito_conta !== pg.data_pagamento ? ' / ' + dataBr(pg.data_debito_conta) : '') : '—'}</td>
+            <td class="num">${pg.valor ? brl(pg.valor) : '—'}</td>
+            <td>${ctrAtual.parcelas_det ? `<button class="btn-sec" style="padding:5px 10px" data-ctrparc="${esc(p.id_parcela)}">Abrir</button>` : ''}</td></tr>`; }).join('')}</tbody>
         </table></div>
       </div>`;
 
@@ -1548,6 +1559,7 @@
     ligar('btnAddCot', adicionarCotacao);
     $('corpoCtr').querySelectorAll('[data-exdoc]').forEach(b => b.addEventListener('click', () => excluirDoc(b.dataset.exdoc)));
     $('corpoCtr').querySelectorAll('[data-excot]').forEach(b => b.addEventListener('click', () => excluirCot(b.dataset.excot)));
+    $('corpoCtr').querySelectorAll('[data-ctrparc]').forEach(b => b.addEventListener('click', () => abrirParcela(b.dataset.ctrparc, ctxCtr)));
   }
 
   async function gerarContrato(e) {
@@ -2136,7 +2148,20 @@
         <div><span>E-mail</span>${esc(x.contratado_email || '—')}</div>
       </div>
       <div class="trilha">${TRILHA.map(t => `<span class="${idxSt(t) < i || (t === x.status && t === 'Lançada no SIT') ? 'feito' : t === x.status ? 'agora' : ''}">${t}</span>`).join('')}</div>
-      ${blocoNF}${blocoPg}${blocoSit}`;
+      ${blocoNF}${blocoPg}${blocoSit}
+      ${ctxParc.pode_lancar_direto && (x.nf || x.pagamento) ? `
+      <div class="secao"><h4><span>🛠 Corrigir lançamento</span></h4>
+        <p class="dica">Use quando a nota e o pagamento foram lançados na parcela errada (ou em duplicidade). Para mudar o bimestre, corrija a <b>data do débito</b> no bloco ③.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+          <button class="btn-sec" id="pAcMoverAbrir">↔ Mover para outra parcela</button>
+          <button class="btn-sec" id="pAcExcluir" style="color:#b3261e">🗑 Excluir lançamento</button>
+        </div>
+        <div id="pMover" class="oculto" style="margin-top:12px">
+          <div class="linha-form"><div style="grid-column:span 2"><label for="pDestino">Mover para</label><select id="pDestino"><option>Carregando…</option></select></div>
+          <div><button class="btn" id="pAcMover" style="width:100%">Mover</button></div></div>
+        </div>
+        <div class="msg" id="msgCorrigir"></div>
+      </div>` : ''}`;
 
     const b = [];
     if (i < idxSt('NF recebida') && x.contratado_email) b.push('<button class="btn-sec" id="pAcPedir">✉️ Pedir NF por e-mail</button>');
@@ -2150,6 +2175,32 @@
     on('pAcPedir', () => acaoParc('solicitarNFs', { ids: [x.id_parcela], mes: $('pagMes').value || hojeYM(), id_projeto: x.id_projeto }, 'Pedido de NF enviado ✓'));
     on('pAcLiberar', () => acaoParc('liberarParcelas', { ids: [x.id_parcela] }, 'Liberada para pagamento ✓'));
     on('pAcVoltar', () => acaoParc('voltarEtapaParcela', { id_parcela: x.id_parcela }, 'Etapa desfeita'));
+    on('pAcExcluir', async () => {
+      if (!confirm(`Excluir a NF e o pagamento lançados nesta parcela (${x.contratado}, ${mesExt(x.competencia_mes)})?\n\nA parcela volta para "Prevista". O arquivo continua na pasta do Drive.`)) return;
+      msg('msgCorrigir', 'Excluindo…', 'ok');
+      try { await api('excluirLancamento', { id_parcela: x.id_parcela }); toast('Lançamento excluído'); await atualizarParcAberta(); }
+      catch (err) { msg('msgCorrigir', err.message); }
+    });
+    on('pAcMoverAbrir', async () => {
+      $('pMover').classList.remove('oculto');
+      try {
+        const d = await api('listarParcelasProjeto', { id_projeto: x.id_projeto });
+        const livres = d.parcelas.filter(p => p.id_parcela !== x.id_parcela && !p.tem_pagamento && !p.tem_nf);
+        const mesmas = livres.filter(p => p.id_contratacao === x.id_contratacao), outras = livres.filter(p => p.id_contratacao !== x.id_contratacao);
+        const opt = p => `<option value="${esc(p.id_parcela)}">${esc(p.contratado)} · parcela ${p.num_parcela}/${p.total_parcelas} · ${mesExt(p.competencia_mes)} · ${brl(p.valor_previsto)}</option>`;
+        $('pDestino').innerHTML = (mesmas.length ? `<optgroup label="Mesma contratação">${mesmas.map(opt).join('')}</optgroup>` : '') +
+          (outras.length ? `<optgroup label="Outras contratações do projeto">${outras.map(opt).join('')}</optgroup>` : '') ||
+          '<option value="">Nenhuma parcela livre</option>';
+      } catch (err) { msg('msgCorrigir', err.message); }
+    });
+    on('pAcMover', async () => {
+      const dest = $('pDestino').value; if (!dest) return;
+      msg('msgCorrigir', 'Movendo…', 'ok');
+      try {
+        await api('moverLancamento', { id_parcela: x.id_parcela, id_destino: dest });
+        toast('Lançamento movido ✓'); $('dlgParc').close(); await ctxParc.recarregar();
+      } catch (err) { msg('msgCorrigir', err.message); }
+    });
     document.querySelector('[data-fechar-parc]').addEventListener('click', () => $('dlgParc').close());
   }
 
@@ -2623,6 +2674,7 @@
       return `<tr>
         <td>${ed && conf ? `<input type="checkbox" data-sitsel value="${esc(x.id_parcela)}" aria-label="Selecionar">` : ''}</td>
         <td><b>${cp(nf.razao_social_emitente || x.contratado)}</b><br><small>${cp(nf.cnpj_emitente || x.contratado_cnpj)}</small><br><small>${esc(x.rubrica)}</small>
+          <br><small>parcela ${esc(x.num_parcela)}${x.total_parcelas ? '/' + esc(x.total_parcelas) : ''} · ${x.tipo_despesa === 'Compra de bens' ? 'compra de' : 'serviço de'} ${mesExt(x.competencia_mes)}</small>
           ${x.primeiro_pagamento === true ? '<br><span class="tag">1º pagamento</span>' : ''}</td>
         <td>${esc(nf.tipo_documento || 'Nota fiscal')} nº ${cp(nf.numero)}<br><small>emissão</small> ${cp(dataBr(nf.data_emissao))}</td>
         <td style="max-width:240px">${cp(nf.descricao)}</td>
