@@ -127,6 +127,27 @@
   .checkbox { display: flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 500; color: var(--texto); }
   .checkbox input { width: auto; }
 
+  /* Instituições */
+  .inst-card { background: var(--card); border: 1px solid var(--borda); border-radius: 12px; margin-bottom: 18px; overflow: hidden; }
+  .inst-cab { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 14px 18px; background: var(--azul-fundo); border-bottom: 1px solid var(--borda); }
+  .inst-cab h3 { margin: 0; font-size: 17px; color: var(--azul); display: flex; align-items: center; gap: 8px; }
+  .inst-cab h3 small { font-weight: 500; color: var(--suave); font-size: 13px; }
+  .inst-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .inst-col { padding: 14px 18px; border-right: 1px solid var(--borda); }
+  .inst-col:last-child { border-right: 0; }
+  .inst-col h5 { margin: 0 0 8px; font-size: 11px; letter-spacing: .08em; color: var(--suave); text-transform: uppercase; }
+  .inst-linha { display: grid; grid-template-columns: 110px 1fr 28px; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px dashed var(--borda); font-size: 13px; }
+  .inst-linha:last-child { border-bottom: 0; }
+  .inst-linha .rot { color: var(--suave); font-size: 12px; }
+  .inst-linha .vazio-campo { color: #a8b3bf; }
+  .copiar { background: none; border: 0; padding: 2px; color: var(--suave); border-radius: 4px; }
+  .copiar:hover { color: var(--azul); background: var(--azul-fundo); }
+  .inst-rodape { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 12px 18px; border-top: 1px solid var(--borda); }
+  .inst-rodape b { font-size: 11px; letter-spacing: .08em; color: var(--suave); margin-right: 4px; }
+  .chip { border: 1px solid var(--borda); border-radius: 16px; padding: 5px 12px; background: #fff; font-size: 13px; color: var(--texto); }
+  .chip:hover { border-color: var(--azul-claro); }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--azul); color: #fff; padding: 9px 16px; border-radius: 8px; font-size: 13px; z-index: 50; }
+
   @media (max-width: 600px) {
     header { padding: 12px 16px; }
     .painel { padding: 14px; }
@@ -174,6 +195,7 @@
       <div class="usuario" id="infoUsuario"></div>
     </div>
     <div class="acoes">
+      <button id="btnInstituicoes">🏛️ Instituições</button>
       <button id="btnTrocarSenha">Trocar senha</button>
       <button id="btnSair">Sair</button>
     </div>
@@ -187,6 +209,16 @@
         <button class="btn oculto" id="btnNovoProjeto">+ Novo projeto</button>
       </div>
       <div id="listaProjetos" class="grade"></div>
+    </div>
+
+    <!-- Instituições -->
+    <div id="viewInst" class="oculto">
+      <button class="btn-link voltar" id="btnVoltarInst">← Voltar para meus projetos</button>
+      <div class="titulo-linha">
+        <h2>Instituições</h2>
+        <button class="btn oculto" id="btnNovaInst">+ Nova instituição</button>
+      </div>
+      <div id="listaInst"></div>
     </div>
 
     <!-- Detalhe -->
@@ -301,6 +333,7 @@
         <div><label for="c_fim_execucao">Fim da execução</label><input id="c_fim_execucao" type="date"></div>
         <div><label for="c_num_parcelas">Nº de parcelas *</label><input id="c_num_parcelas" inputmode="numeric" required></div>
         <div><label for="c_valor_parcela">Valor da parcela (R$) *</label><input id="c_valor_parcela" inputmode="decimal" required></div>
+        <div><label for="c_carga_horaria_mensal">Carga horária mensal (h)</label><input id="c_carga_horaria_mensal" inputmode="numeric" placeholder="ex.: 60"></div>
         <div><label for="c_data_cotacao">Data da cotação</label><input id="c_data_cotacao" type="date"></div>
         <div><label for="c_data_assinatura_contrato">Assinatura do contrato</label><input id="c_data_assinatura_contrato" type="date"></div>
         <div><label for="c_status">Status</label><select id="c_status"></select></div>
@@ -342,6 +375,19 @@
       <div class="msg" id="msgCtr" role="alert"></div>
       <button type="button" class="btn-sec" data-fechar>Cancelar</button>
       <button type="submit" class="btn">Salvar contratação</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- MODAL: INSTITUIÇÃO -->
+<dialog id="dlgInst" class="grande">
+  <form id="formInst">
+    <div class="modal-cab"><h3 id="tituloInst">Nova instituição</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+    <div class="modal-corpo" id="camposInst"></div>
+    <div class="modal-rodape">
+      <div class="msg" id="msgInst" role="alert"></div>
+      <button type="button" class="btn-sec" data-fechar>Cancelar</button>
+      <button type="submit" class="btn">Salvar instituição</button>
     </div>
   </form>
 </dialog>
@@ -466,7 +512,7 @@
   }
 
   async function mostrarLista() {
-    $('viewDetalhe').classList.add('oculto'); $('viewLista').classList.remove('oculto');
+    $('viewDetalhe').classList.add('oculto'); $('viewInst').classList.add('oculto'); $('viewLista').classList.remove('oculto');
     $('listaProjetos').innerHTML = '<div class="vazio">Carregando…</div>';
     try {
       const projetos = await api('listarProjetos');
@@ -498,7 +544,7 @@
 
   // ---------- detalhe do projeto
   async function abrirProjeto(id) {
-    $('viewLista').classList.add('oculto'); $('viewDetalhe').classList.remove('oculto');
+    $('viewLista').classList.add('oculto'); $('viewInst').classList.add('oculto'); $('viewDetalhe').classList.remove('oculto');
     $('detNome').textContent = 'Carregando…'; $('detSigla').textContent = ''; $('detInst').textContent = '';
     $('detResumo').innerHTML = ''; $('camposProjeto').innerHTML = ''; $('tabelaRubricas').innerHTML = '';
     try {
@@ -791,7 +837,7 @@
     $('c_id_rubrica').innerHTML = '<option value="">Selecione…</option>' + atual.rubricas.map(r =>
       `<option value="${esc(r.id_rubrica)}" ${r.id_rubrica === c.id_rubrica ? 'selected' : ''}>${esc(r.codigo ? r.codigo + ' – ' : '')}${esc(r.descricao)}</option>`).join('');
     $('c_status').innerHTML = STATUS_CTR.map(s => `<option ${s === (c.status || 'Em execução') ? 'selected' : ''}>${s}</option>`).join('');
-    ['objeto', 'inicio_execucao', 'fim_execucao', 'data_cotacao', 'data_assinatura_contrato', 'observacoes', 'num_parcelas']
+    ['objeto', 'inicio_execucao', 'fim_execucao', 'data_cotacao', 'data_assinatura_contrato', 'observacoes', 'num_parcelas', 'carga_horaria_mensal']
       .forEach(k => $('c_' + k).value = c[k] ?? '');
     $('c_valor_parcela').value = num2(c.valor_parcela ?? '');
     CAMPOS_FORN.forEach(k => $('f_' + k).value = f[k] ?? '');
@@ -840,7 +886,7 @@
     const btn = e.submitter; btn.disabled = true; msg('msgCtr', 'Salvando… (na primeira vez o sistema cria as parcelas e a pasta no Drive)', 'ok');
     const dados = { id_projeto: atual.projeto.id_projeto, id_contratacao: ctrEditando ? ctrEditando.id_contratacao : '', fornecedor: {} };
     ['id_rubrica', 'objeto', 'inicio_execucao', 'fim_execucao', 'num_parcelas', 'valor_parcela', 'data_cotacao',
-     'data_assinatura_contrato', 'status', 'observacoes'].forEach(k => dados[k] = $('c_' + k).value);
+     'data_assinatura_contrato', 'status', 'observacoes', 'carga_horaria_mensal'].forEach(k => dados[k] = $('c_' + k).value);
     CAMPOS_FORN.forEach(k => dados.fornecedor[k] = $('f_' + k).value);
     try {
       ctrAtual = await api('salvarContratacao', dados);
@@ -1016,6 +1062,126 @@
     try { ctrAtual = await api('excluirCotacao', { id_cotacao: id }); ctrMudou = true; renderCtr(); }
     catch (err) { alert(err.message); }
   }
+
+  // ---------- instituições
+  const SECOES_INST = [
+    ['Dados da instituição', [
+      ['razao_social', 'Razão social *', 'largo'], ['sigla', 'Sigla *'], ['nome_fantasia', 'Nome fantasia'],
+      ['cnpj', 'CNPJ *'], ['email_contato', 'E-mail'], ['telefone', 'Telefone'], ['data_inscricao', 'Data de inscrição', '', 'date'],
+      ['endereco', 'Endereço (rua)', 'largo'], ['numero', 'Número'], ['complemento', 'Complemento'], ['bairro', 'Bairro'],
+      ['cidade', 'Cidade'], ['uf', 'UF'], ['cep', 'CEP'], ['foro_cidade_uf', 'Foro dos contratos (Cidade/UF)']]],
+    ['Representante legal (dirigente)', [
+      ['representante_nome', 'Nome', 'largo'], ['representante_cargo', 'Cargo (ex.: Presidente)'], ['representante_cpf', 'CPF'],
+      ['representante_rg', 'RG'], ['representante_profissao', 'Profissão'], ['representante_nacionalidade', 'Nacionalidade'],
+      ['representante_estado_civil', 'Estado civil'], ['representante_email', 'E-mail'], ['representante_telefone', 'Telefone'],
+      ['representante_endereco', 'Endereço completo', 'largo']]],
+    ['Contador', [
+      ['contador_nome', 'Nome', 'largo'], ['contador_cpf', 'CPF'], ['contador_rg', 'RG'], ['contador_profissao', 'Profissão'],
+      ['contador_crc', 'CRC'], ['contador_email', 'E-mail'], ['contador_telefone', 'Telefone'], ['contador_endereco', 'Endereço completo', 'largo']]],
+    ['Testemunhas dos contratos', [
+      ['testemunha1_nome', 'Testemunha 1 – nome', 'largo'], ['testemunha1_cpf', 'Testemunha 1 – CPF'],
+      ['testemunha2_nome', 'Testemunha 2 – nome', 'largo'], ['testemunha2_cpf', 'Testemunha 2 – CPF']]]
+  ];
+  const PERFIS_CAD_INST = ['ADMIN', 'PRESTACAO_CONTAS'];
+  let listaInst = [], instEditando = null;
+  const podeCadInst = () => usuario && PERFIS_CAD_INST.includes(usuario.perfil) && ehGlobal();
+
+  function endInst(i) {
+    let t = [i.endereco, i.numero].filter(Boolean).join(', ');
+    if (i.complemento) t += ' (' + i.complemento + ')';
+    const resto = [i.bairro, i.cidade ? i.cidade + (i.uf ? '/' + i.uf : '') : '', i.cep ? 'CEP ' + i.cep : ''].filter(Boolean).join(', ');
+    return [t, resto].filter(Boolean).join(' – ');
+  }
+
+  function toast(texto) {
+    const t = document.createElement('div'); t.className = 'toast'; t.textContent = texto;
+    document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
+  }
+  async function copiar(texto) {
+    try { await navigator.clipboard.writeText(texto); toast('Copiado ✓'); } catch { prompt('Copie o texto:', texto); }
+  }
+
+  async function abrirInstituicoes() {
+    $('viewLista').classList.add('oculto'); $('viewDetalhe').classList.add('oculto'); $('viewInst').classList.remove('oculto');
+    $('btnNovaInst').classList.toggle('oculto', !podeCadInst());
+    $('listaInst').innerHTML = '<div class="vazio">Carregando…</div>';
+    try { listaInst = await api('listarInstituicoesCompleto'); renderInstituicoes(); }
+    catch (err) { $('listaInst').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
+  }
+
+  function renderInstituicoes() {
+    if (!listaInst.length) { $('listaInst').innerHTML = '<div class="vazio">Nenhuma instituição cadastrada.</div>'; return; }
+    const linha = (rot, v) => `<div class="inst-linha"><span class="rot">${rot}</span>
+      ${v ? `<span>${esc(v)}</span><button type="button" class="copiar" data-copiar="${esc(v)}" title="Copiar" aria-label="Copiar ${rot}">📋</button>`
+          : '<span class="vazio-campo">não informado</span><span></span>'}</div>`;
+    $('listaInst').innerHTML = listaInst.map((i, idx) => {
+      const colunas = [
+        ['Dados da instituição', [['Nome', i.razao_social], ['Sigla', i.sigla], ['CNPJ', i.cnpj], ['E-mail', i.email_contato],
+          ['Telefone', i.telefone], ['Endereço', endInst(i)], ['Data de inscrição', i.data_inscricao ? dataBr(i.data_inscricao) : ''],
+          ['Foro', i.foro_cidade_uf]]],
+        ['Representante legal', [['Nome', i.representante_nome], ['Cargo', i.representante_cargo], ['CPF', i.representante_cpf],
+          ['RG', i.representante_rg], ['Profissão', i.representante_profissao], ['Nacionalidade', i.representante_nacionalidade],
+          ['Estado civil', i.representante_estado_civil], ['Endereço', i.representante_endereco],
+          ['E-mail', i.representante_email], ['Telefone', i.representante_telefone]]],
+        ['Contador', [['Nome', i.contador_nome], ['CPF', i.contador_cpf], ['RG', i.contador_rg], ['Profissão', i.contador_profissao],
+          ['CRC', i.contador_crc], ['E-mail', i.contador_email], ['Telefone', i.contador_telefone], ['Endereço', i.contador_endereco]]],
+        ['Testemunhas dos contratos', [['Testemunha 1', i.testemunha1_nome], ['CPF', i.testemunha1_cpf],
+          ['Testemunha 2', i.testemunha2_nome], ['CPF', i.testemunha2_cpf]]]
+      ];
+      return `<article class="inst-card">
+        <div class="inst-cab">
+          <h3>${esc(i.sigla || i.id_instituicao)} <small>${esc(i.id_instituicao)}</small></h3>
+          <div style="display:flex;gap:8px">
+            <button class="btn-sec" data-copiartudo="${idx}">📋 Copiar todos os dados</button>
+            ${podeCadInst() ? `<button class="btn-sec" data-editinst="${idx}">✏️ Editar</button>` : ''}
+          </div>
+        </div>
+        <div class="inst-colunas">${colunas.map(([tit, ls]) =>
+          `<div class="inst-col"><h5>${tit}</h5>${ls.map(([r, v]) => linha(r, v)).join('')}</div>`).join('')}</div>
+        <div class="inst-rodape"><b>PROJETOS</b>
+          ${(i.projetos || []).map(p => `<button class="chip" data-abrirproj="${esc(p.id_projeto)}">${esc(p.sigla || p.nome_projeto)}${p.termo_fomento_cit ? ' (' + esc(p.termo_fomento_cit) + ')' : ''}</button>`).join('') || '<span class="dica" style="margin:0">nenhum projeto ainda</span>'}
+        </div>
+      </article>`;
+    }).join('');
+
+    $('listaInst').querySelectorAll('[data-copiar]').forEach(b => b.addEventListener('click', () => copiar(b.dataset.copiar)));
+    $('listaInst').querySelectorAll('[data-editinst]').forEach(b => b.addEventListener('click', () => abrirFormInst(listaInst[b.dataset.editinst])));
+    $('listaInst').querySelectorAll('[data-abrirproj]').forEach(b => b.addEventListener('click', () => abrirProjeto(b.dataset.abrirproj)));
+    $('listaInst').querySelectorAll('[data-copiartudo]').forEach(b => b.addEventListener('click', () => {
+      const i = listaInst[b.dataset.copiartudo];
+      copiar(SECOES_INST.map(([tit, campos]) => tit.toUpperCase() + '\n' + campos.map(([k, rot]) => {
+        const v = k === 'data_inscricao' && i[k] ? dataBr(i[k]) : i[k];
+        return v ? `${rot.replace(' *', '')}: ${v}` : '';
+      }).filter(Boolean).join('\n')).join('\n\n'));
+    }));
+  }
+
+  function abrirFormInst(i) {
+    instEditando = i || null;
+    $('tituloInst').textContent = i ? `Editar ${i.sigla || i.id_instituicao}` : 'Nova instituição';
+    $('camposInst').innerHTML = SECOES_INST.map(([tit, campos]) => `<fieldset><legend>${tit}</legend><div class="form-grade">${
+      campos.map(([k, rot, larg, tipo]) => `<div class="${larg || ''}"><label for="i_${k}">${rot}</label>
+        <input id="i_${k}" type="${tipo || 'text'}" value="${esc(i ? i[k] ?? '' : '')}"${k === 'uf' ? ' maxlength="2"' : ''}></div>`).join('')
+    }</div></fieldset>`).join('');
+    msg('msgInst', ''); $('dlgInst').showModal();
+  }
+
+  $('formInst').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.submitter; btn.disabled = true; msg('msgInst', 'Salvando…', 'ok');
+    const dados = { id_instituicao: instEditando ? instEditando.id_instituicao : '' };
+    SECOES_INST.forEach(([, campos]) => campos.forEach(([k]) => dados[k] = $('i_' + k).value));
+    try {
+      listaInst = await api('salvarInstituicao', dados);
+      instituicoes = await api('listarInstituicoes');
+      $('dlgInst').close(); renderInstituicoes(); toast('Instituição salva ✓');
+    } catch (err) { msg('msgInst', err.message); }
+    btn.disabled = false;
+  });
+
+  $('btnInstituicoes').addEventListener('click', abrirInstituicoes);
+  $('btnVoltarInst').addEventListener('click', mostrarLista);
+  $('btnNovaInst').addEventListener('click', () => abrirFormInst(null));
 
   // ---------- reabrir sessão ao recarregar
   (async () => {
