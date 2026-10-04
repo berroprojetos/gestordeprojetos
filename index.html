@@ -2575,7 +2575,7 @@
     get pode_conferir() { return sit && sit.pode_conferir; },
     get pode_lancar_direto() { return sit && sit.pode_lancar_direto; }
   };
-  const STATUS_BIM = { 'Aberto': 'azul', 'Em conferência': 'amarelo', 'Pronto para envio': 'verde', 'Enviado ao SIT': 'verde', 'Futuro': '', 'Sem movimento': '' };
+  const STATUS_BIM = { 'Aberto': 'azul', 'Em conferência': 'amarelo', 'Pronto para envio': 'verde', 'Enviado ao SIT': 'verde', 'Futuro': '', 'Sem movimento': '', 'Sem despesas': 'amarelo' };
   const periodoBim = b => `${mesExt(b.meses[0])} a ${mesExt(b.meses[1])}`;
 
   async function abrirSit(idProjeto, numero) {
@@ -2713,7 +2713,7 @@
           <thead><tr><th>${ed ? '<input type="checkbox" id="sitTodos" aria-label="Selecionar todas">' : ''}</th><th>Favorecido</th><th>Documento</th><th>Descrição</th><th class="num">Valor NF</th><th>Pagamento</th><th class="num">Valor pago</th><th>Situação</th><th></th></tr></thead>
           <tbody>${linhas}</tbody>
           <tfoot><tr><td></td><td colspan="3">Total do bimestre</td><td class="num">${brl(lanc.reduce((s, x) => s + Number((x.nf || {}).valor || 0), 0))}</td><td></td><td class="num">${brl(b.valor)}</td><td colspan="2"></td></tr></tfoot>
-        </table></div><div class="msg" id="msgSitLanc"></div>` : '<div class="vazio">Nenhum pagamento com débito neste bimestre.</div>'}
+        </table></div><div class="msg" id="msgSitLanc"></div>` : '<div class="vazio">Nenhum pagamento com débito neste bimestre.<br>Mesmo sem despesas, preencha abaixo o saldo, o repasse e os rendimentos para prestar contas do bimestre.</div>'}
       </section>
 
       <section class="painel" style="margin-bottom:20px">
@@ -2738,7 +2738,10 @@
           ${enviado ? `<span class="st verde">✓ Enviado ao SIT em ${dataBr(b.enviado_cit_em)}</span>` : ''}</div>
         <div class="form-grade">
           <div><label for="bim_prazo">Prazo de envio</label><input id="bim_prazo" type="date" value="${esc(r.prazo_envio || '')}"></div>
-          <div><label for="bim_saldo_ini">Saldo inicial da conta (R$)</label><input id="bim_saldo_ini" inputmode="decimal" value="${esc(num2(r.saldo_inicial))}"></div>
+          <div><label for="bim_saldo_ini">Saldo inicial da conta (R$)</label><input id="bim_saldo_ini" inputmode="decimal" value="${esc(num2(r.saldo_inicial !== undefined && r.saldo_inicial !== '' ? r.saldo_inicial : (b.saldo_final_anterior ?? (b.recurso_neste_bimestre ? 0 : ''))))}">
+            ${(r.saldo_inicial === undefined || r.saldo_inicial === '') && b.saldo_final_anterior != null ? '<div class="dica" style="margin:4px 0 0">sugerido: saldo final do bimestre anterior</div>' : ''}</div>
+          <div><label for="bim_creditos">Repasse / créditos recebidos (R$)</label><input id="bim_creditos" inputmode="decimal" value="${esc(num2(r.creditos !== undefined && r.creditos !== '' ? r.creditos : (b.recurso_neste_bimestre ? b.valor_recurso : '')))}">
+            ${(r.creditos === undefined || r.creditos === '') && b.recurso_neste_bimestre ? '<div class="dica" style="margin:4px 0 0">sugerido: valor do projeto (recurso caiu neste bimestre)</div>' : ''}</div>
           <div><label for="bim_rend">Rendimentos de aplicação (R$)</label><input id="bim_rend" inputmode="decimal" value="${esc(num2(r.rendimentos))}"></div>
           <div><label for="bim_saldo_fim">Saldo final da conta (R$)</label><input id="bim_saldo_fim" inputmode="decimal" value="${esc(num2(r.saldo_final))}"></div>
           <div><label for="bim_protocolo">Protocolo / nº no SIT</label><input id="bim_protocolo" value="${esc(r.protocolo_sit || '')}"></div>
@@ -2755,10 +2758,10 @@
   }
 
   function contaBim() {
-    const ini = lerNumero($('bim_saldo_ini').value), rend = lerNumero($('bim_rend').value), fim = lerNumero($('bim_saldo_fim').value);
+    const ini = lerNumero($('bim_saldo_ini').value), cred = lerNumero($('bim_creditos').value), rend = lerNumero($('bim_rend').value), fim = lerNumero($('bim_saldo_fim').value);
     if (ini === '' || isNaN(ini)) { $('sitConta').textContent = ''; return; }
-    const esperado = ini + (Number(rend) || 0) - sitBim.valor;
-    let t = `Conta: saldo inicial ${brl(ini)} + rendimentos ${brl(rend || 0)} − despesas ${brl(sitBim.valor)} = ${brl(esperado)}`;
+    const esperado = ini + (Number(cred) || 0) + (Number(rend) || 0) - sitBim.valor;
+    let t = `Conta: saldo inicial ${brl(ini)}${cred ? ' + repasse ' + brl(cred) : ''} + rendimentos ${brl(rend || 0)} − despesas ${brl(sitBim.valor)} = ${brl(esperado)}`;
     if (fim !== '' && !isNaN(fim)) t += Math.abs(fim - esperado) < 0.01 ? ' ✓ confere com o saldo final.' : ` ⚠️ diferença de ${brl(fim - esperado)} para o saldo final (créditos, tarifas ou devoluções?).`;
     $('sitConta').textContent = t;
   }
@@ -2776,7 +2779,7 @@
     on('btnSitLancar', 'click', () => marcarSit(false));
     on('btnSitDesfazer', 'click', () => marcarSit(true));
     on('btnSitCsv', 'click', baixarCsvSit);
-    ['bim_saldo_ini', 'bim_rend', 'bim_saldo_fim'].forEach(id => on(id, 'input', contaBim));
+    ['bim_saldo_ini', 'bim_creditos', 'bim_rend', 'bim_saldo_fim'].forEach(id => on(id, 'input', contaBim));
     on('btnBimSalvar', 'click', e => salvarBim(e));
     on('btnBimEnviar', 'click', e => {
       const pend = sitBim.qtd - sitBim.lancadas;
@@ -2802,7 +2805,7 @@
     const btn = e.currentTarget; btn.disabled = true; msg('msgBim', 'Salvando…', 'ok');
     try {
       const dados = { id_projeto: sit.projeto.id_projeto, numero: sitBim.numero, prazo_envio: $('bim_prazo').value,
-        saldo_inicial: $('bim_saldo_ini').value, rendimentos: $('bim_rend').value, saldo_final: $('bim_saldo_fim').value,
+        saldo_inicial: $('bim_saldo_ini').value, creditos: $('bim_creditos').value, rendimentos: $('bim_rend').value, saldo_final: $('bim_saldo_fim').value,
         protocolo_sit: $('bim_protocolo').value, observacoes: $('bim_obs').value };
       if (enviar !== undefined) dados.enviar = enviar;
       await api('salvarBimestre', dados);
