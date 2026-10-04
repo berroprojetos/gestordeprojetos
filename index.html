@@ -1909,10 +1909,24 @@
     return { ok, ignoradas };
   }
 
+  // Compara nomes tolerando acento, H mudo (Ester/Esther, Thais/Tais) e uma letra de diferença
+  const simplificar = w => w.replace(/([ctp])h/g, '$1').replace(/^h/, '').replace(/h$/, '').replace(/y/g, 'i').replace(/(.)\1/g, '$1');
+  function distancia(a, b) {
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length][b.length];
+  }
+  function parecido(alvo, w) {
+    const a = simplificar(alvo), b = simplificar(w);
+    if (b.startsWith(a) || (a.length >= 5 && a.startsWith(b) && b.length >= 4)) return true;
+    return a.length >= 4 && distancia(a, b.slice(0, Math.max(a.length, Math.min(b.length, a.length + 1)))) <= 1;
+  }
   function acharContratacao(nome, contratacoes) {
     const alvo = palavras(nome)[0];
     if (!alvo || alvo.length < 3) return [];
-    return contratacoes.filter(c => palavras(c.contratado + ' ' + (c.representante || '')).some(w => w.startsWith(alvo) || (alvo.length >= 5 && alvo.startsWith(w) && w.length >= 4)));
+    return contratacoes.filter(c => palavras(c.contratado + ' ' + (c.representante || '') + ' ' + (c.rubrica || '')).some(w => parecido(alvo, w)));
   }
 
   function competenciaAnterior(isoData) {
