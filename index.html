@@ -752,7 +752,6 @@
     ['inicio_vigencia', 'Início da vigência', 'date'],
     ['fim_vigencia', 'Fim da vigência', 'date'],
     ['data_recebimento_recurso', 'Recebimento do recurso', 'date'],
-    ['inicio_bimestres', 'Início do 1º bimestre do SIT', 'date'],
     ['valor_total', 'Valor total do projeto (R$)', 'money'],
     ['status', 'Status', 'status'],
     ['banco', 'Banco', 'text'],
@@ -2286,8 +2285,7 @@
     $('sitProjeto').innerHTML = sit.projetos.map(p =>
       `<option value="${esc(p.id_projeto)}" ${p.id_projeto === idProjeto ? 'selected' : ''}>${esc(p.sigla || p.nome_projeto)}</option>`).join('');
     const pr = sit.projeto;
-    $('sitSub').innerHTML = `${esc(pr.nome_projeto)}${pr.termo ? ' · Termo ' + esc(pr.termo) : ''} · bimestres a partir de <b>${mesExt(pr.inicio_bimestres)}</b>` +
-      (pr.base_definida ? '' : ' <span class="tag" title="Defina o campo “Início do 1º bimestre do SIT” nos dados gerais do projeto, se for diferente">pela vigência</span>');
+    $('sitSub').innerHTML = `${esc(pr.nome_projeto)}${pr.termo ? ' · Termo ' + esc(pr.termo) : ''} · bimestres do calendário (jan–fev = 1º … nov–dez = 6º), pela data do débito`;
     // bimestre inicial: o pedido, senão o mais antigo ainda não enviado que já tenha movimento, senão o atual
     let n = Number(numero);
     if (!sit.bimestres.some(b => b.numero === n)) {
@@ -2303,7 +2301,7 @@
   function renderTrilhoSit() {
     $('sitBimestres').innerHTML = sit.bimestres.map(b => `
       <button class="bim ${b.numero === sitBim.numero ? 'sel' : ''} ${b.status === 'Futuro' ? 'futuro' : ''}" data-bim="${b.numero}">
-        <b>${b.numero}º bimestre</b><small>${periodoBim(b)}</small>
+        <b>${b.ordem}º bimestre/${b.ano}</b><small>${periodoBim(b)}</small>
         <div class="valor">${b.qtd ? brl(b.valor) + ' · ' + b.qtd + ' lanç.' : '—'}</div>
         <span class="st ${STATUS_BIM[b.status] || ''}">${b.status === 'Enviado ao SIT' ? '✓ ' : ''}${esc(b.status)}</span>
       </button>`).join('');
@@ -2490,7 +2488,7 @@
                  'Forma pagamento', 'Nº identificação', 'Data pagamento', 'Data débito', 'Valor pago', 'Situação', 'Serviço de'];
     const linhas = b.lancamentos.map(x => {
       const nf = x.nf || {}, pg = x.pagamento || {};
-      return [b.numero + 'º', nf.razao_social_emitente || x.contratado, nf.cnpj_emitente || x.contratado_cnpj, x.rubrica,
+      return [b.rotulo, nf.razao_social_emitente || x.contratado, nf.cnpj_emitente || x.contratado_cnpj, x.rubrica,
         nf.tipo_documento || 'Nota fiscal', nf.numero, dataBr(nf.data_emissao), nf.descricao, num2(nf.valor),
         pg.forma_pagamento, pg.num_identificacao_pix, dataBr(pg.data_pagamento), dataBr(pg.data_debito_conta), num2(pg.valor),
         x.status, mesExt(x.competencia_mes)];
@@ -2498,7 +2496,7 @@
     const csv = '﻿' + [cab].concat(linhas).map(l => l.map(c).join(';')).join('\r\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    a.download = `SIT_${sit.projeto.sigla || sit.projeto.id_projeto}_${b.numero}o_bimestre.csv`;
+    a.download = `SIT_${sit.projeto.sigla || sit.projeto.id_projeto}_${b.ordem}o_bimestre_${b.ano}.csv`;
     document.body.appendChild(a); a.click(); a.remove();
   }
 
