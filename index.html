@@ -863,14 +863,14 @@
     try { Object.keys(sessionStorage).filter(k => k.startsWith('c:')).forEach(k => sessionStorage.removeItem(k)); } catch {}
   }
   let seqTela = 0;              // muda a cada troca de tela: respostas atrasadas de telas antigas são ignoradas
-  async function apiRapida(acao, dados, mostrarDados) {
+  async function apiRapida(acao, dados, mostrarDados, qualquerTela) {
     const k = acao + '|' + JSON.stringify(dados || {}), velho = lerCache(k), minhaTela = seqTela;
     if (velho !== undefined) mostrarDados(velho, true);
     let novo;
     try { novo = await api(acao, dados); }
     catch (err) { if (velho === undefined) throw err; console.warn(err); return velho; }
     gravarCache(k, novo);
-    if (minhaTela === seqTela && (velho === undefined || JSON.stringify(velho) !== JSON.stringify(novo))) mostrarDados(novo, false, velho !== undefined);
+    if ((qualquerTela || minhaTela === seqTela) && (velho === undefined || JSON.stringify(velho) !== JSON.stringify(novo))) mostrarDados(novo, false, velho !== undefined);
     return novo;
   }
   // Não redesenha uma tela enquanto a pessoa está digitando nela ou com uma janela aberta
@@ -980,8 +980,8 @@
     try { if (!history.state) history.replaceState({ prof: 0 }, '', location.href); } catch {}
     apiRapida('listarInstituicoes', {}, d => {
       instituicoes = d;
-      if (atual && !$('viewDetalhe').classList.contains('oculto') && !ocupado($('viewDetalhe'))) renderFormProjeto();
-    }).catch(() => {});
+      if (atual && atual.projeto && !$('viewDetalhe').classList.contains('oculto') && !ocupado($('viewDetalhe'))) renderFormProjeto();
+    }, true).catch(() => {});   // lista usada em várias telas: não depende da tela aberta
     await irParaRota(lerRota());
   }
 
@@ -1101,8 +1101,10 @@
       let input;
       if (tipo === 'inst') {
         const travado = !ehGlobal();
+        const lista = instituicoes.some(i => i.id_instituicao === v) || !v ? instituicoes
+          : instituicoes.concat([{ id_instituicao: v, sigla: atual.instituicao ? (atual.instituicao.sigla || atual.instituicao.razao_social) : '' }]);
         input = `<select id="${id}" ${travado ? 'disabled' : ''}><option value="">Selecione…</option>${
-          instituicoes.map(i => `<option value="${esc(i.id_instituicao)}" ${i.id_instituicao === v ? 'selected' : ''}>${esc(i.id_instituicao)} – ${esc(i.sigla || i.razao_social)}</option>`).join('')}</select>`;
+          lista.map(i => `<option value="${esc(i.id_instituicao)}" ${i.id_instituicao === v ? 'selected' : ''}>${esc(i.id_instituicao)} – ${esc(i.sigla || i.razao_social)}</option>`).join('')}</select>`;
       } else if (tipo === 'status') {
         input = `<select id="${id}"><option value="">—</option>${STATUS_PROJETO.map(s => `<option ${s === v ? 'selected' : ''}>${s}</option>`).join('')}</select>`;
       } else if (tipo === 'textarea') {
@@ -1124,6 +1126,8 @@
     const btn = e.submitter; btn.disabled = true; msg('msgProjeto', 'Salvando…', 'ok');
     const dados = { id_projeto: atual.novo ? '' : atual.projeto.id_projeto };
     CAMPOS_PROJETO.forEach(([campo]) => { dados[campo] = $('p_' + campo).value; });
+    // se a lista de instituições ainda não tinha carregado, mantém a instituição que o projeto já tem
+    if (!dados.id_instituicao && atual.projeto && atual.projeto.id_instituicao) dados.id_instituicao = atual.projeto.id_instituicao;
     try {
       atual = await api('salvarProjeto', dados);
       renderDetalhe();
