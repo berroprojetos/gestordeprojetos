@@ -77,7 +77,7 @@
   .caixa label { margin-top: 14px; }
 
   /* Estrutura do app: menu lateral + conteúdo */
-  .app { display: grid; grid-template-columns: 264px 1fr; min-height: 100vh; }
+  .app { display: grid; grid-template-columns: 264px 1fr; min-height: 100vh; background: linear-gradient(to right, var(--lateral) 264px, transparent 264px); }
   .lateral { background: var(--lateral); border-right: 1px solid var(--borda); padding: 26px 20px 20px; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
   .lateral-rotulo { font-size: 10px; letter-spacing: .18em; font-weight: 700; color: var(--suave-2); margin: 34px 10px 12px; }
   .nav { display: flex; flex-direction: column; gap: 4px; }
@@ -222,6 +222,28 @@
   .chip:hover { border-color: var(--azul-claro); background: var(--azul-fundo); }
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--azul-escuro); color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
 
+  /* Pagamentos */
+  .pag-filtros { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  .pag-filtros > div { min-width: 180px; }
+  .etapas { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 22px; }
+  .etapa { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); padding: 14px 16px; box-shadow: var(--sombra); position: relative; }
+  .etapa .num { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; background: #eeeae4; color: var(--suave); margin-bottom: 10px; }
+  .etapa.feita .num { background: var(--ok-fundo); color: var(--ok); }
+  .etapa.atual { border-color: var(--azul-claro); box-shadow: 0 0 0 3px rgba(63,116,166,.12), var(--sombra); }
+  .etapa.atual .num { background: var(--azul); color: #fff; }
+  .etapa b { display: block; font-size: 14px; margin-bottom: 2px; }
+  .etapa small { color: var(--suave); font-size: 12px; }
+  .barra { height: 6px; border-radius: 6px; background: #eeeae4; margin-top: 10px; overflow: hidden; }
+  .barra i { display: block; height: 100%; background: var(--azul-claro); border-radius: 6px; }
+  .etapa.feita .barra i { background: var(--ok); }
+  .acoes-lote { display: flex; gap: 8px; flex-wrap: wrap; }
+  .trilha { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0 4px; }
+  .trilha span { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: #eeeae4; color: var(--suave-2); }
+  .trilha span.feito { background: var(--ok-fundo); color: var(--ok); }
+  .trilha span.agora { background: var(--azul); color: #fff; }
+  .previa-email { background: #fff; border: 1px solid var(--borda); border-radius: var(--raio-p); padding: 16px 18px; font-size: 13px; line-height: 1.55; }
+  td input[type=checkbox], th input[type=checkbox] { width: 16px; height: 16px; }
+
   /* Responsivo */
   .menu-btn { display: none; }
   @media (max-width: 900px) {
@@ -290,7 +312,7 @@
     <nav class="nav" aria-label="Menu principal">
       <button class="nav-item ativo" id="navProjetos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Projetos</button>
       <button class="nav-item" id="btnInstituicoes"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6M9 11h.01M15 11h.01"/></svg>Instituições</button>
-      <button class="nav-item desativado" type="button" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>Pagamentos<span class="em-breve">em breve</span></button>
+      <button class="nav-item" id="navPagamentos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>Pagamentos</button>
       <button class="nav-item desativado" type="button" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Prestação SIT<span class="em-breve">em breve</span></button>
     </nav>
     <div class="lateral-rodape">
@@ -346,6 +368,34 @@
       </div>
       <button class="oculto" id="btnVoltarInst"></button>
       <div id="listaInst"></div>
+    </div>
+
+    <!-- Pagamentos -->
+    <div id="viewPag" class="oculto">
+      <div class="pagina-cab">
+        <div>
+          <p class="sobretitulo">Ciclo mensal</p>
+          <h1>Pagamentos</h1>
+          <p class="subtitulo" id="pagSub"></p>
+        </div>
+        <div class="pag-filtros">
+          <div><label for="pagMes">Mês de pagamento</label><input type="month" id="pagMes"></div>
+          <div><label for="pagProjeto">Projeto</label><select id="pagProjeto"></select></div>
+        </div>
+      </div>
+      <div class="etapas" id="pagEtapas"></div>
+      <section class="painel">
+        <div class="titulo-linha">
+          <h2 style="font-size:16px">Parcelas do mês</h2>
+          <div class="acoes-lote">
+            <button class="btn-sec oculto" id="btnModeloEmail">⚙️ Modelo do e-mail</button>
+            <button class="btn-sec" id="btnSolicitar">✉️ Pedir notas fiscais</button>
+            <button class="btn-sec" id="btnLiberar">✓ Liberar selecionadas</button>
+          </div>
+        </div>
+        <div id="pagTabela"></div>
+        <div id="pagAtrasadas"></div>
+      </section>
     </div>
 
     <!-- Detalhe -->
@@ -478,6 +528,8 @@
         <div><label for="c_data_cotacao">Data da cotação</label><input id="c_data_cotacao" type="date"></div>
         <div><label for="c_data_assinatura_contrato">Assinatura do contrato</label><input id="c_data_assinatura_contrato" type="date"></div>
         <div><label for="c_status">Status</label><select id="c_status"></select></div>
+        <div class="largo"><label for="c_descricao_nf">Descrição que deve constar na nota fiscal (opcional)</label>
+          <input id="c_descricao_nf" placeholder="ex.: prestação de serviço de assistente administrativo e financeiro — se vazio, usa a rubrica"></div>
         <div class="largo"><label for="c_observacoes">Observações</label><input id="c_observacoes"></div>
       </div>
       <div class="total-preview" id="c_total">Total do contrato: R$ 0,00</div>
@@ -543,6 +595,49 @@
       <div class="msg" id="msgProc" role="alert"></div>
       <button type="button" class="btn-sec" data-fechar>Cancelar</button>
       <button type="submit" class="btn">Salvar e gerar cotações</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- MODAL: PARCELA (NF e pagamento) -->
+<dialog id="dlgParc" class="grande">
+  <div class="modal-cab"><h3 id="tituloParc">Parcela</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+  <div class="modal-corpo" id="corpoParc"></div>
+  <div class="modal-rodape" id="rodapeParc"></div>
+</dialog>
+
+<!-- MODAL: PEDIR NOTAS FISCAIS -->
+<dialog id="dlgSolic" class="grande">
+  <div class="modal-cab"><h3>Pedir notas fiscais por e-mail</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+  <div class="modal-corpo" id="corpoSolic"></div>
+  <div class="modal-rodape">
+    <div class="msg" id="msgSolic" role="alert"></div>
+    <button type="button" class="btn-sec" data-fechar>Fechar</button>
+    <button type="button" class="btn" id="btnEnviarSolic">Enviar e-mails</button>
+  </div>
+</dialog>
+
+<!-- MODAL: MODELO DO E-MAIL -->
+<dialog id="dlgModeloEmail" class="grande">
+  <form id="formModeloEmail">
+    <div class="modal-cab"><h3>Modelo do e-mail de pedido de NF</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+    <div class="modal-corpo">
+      <div class="form-grade">
+        <div class="largo"><label for="me_assunto">Assunto</label><input id="me_assunto" required></div>
+        <div class="largo"><label for="me_corpo">Texto do e-mail</label><textarea id="me_corpo" rows="16" required style="font-family:ui-monospace,Consolas,monospace;font-size:13px"></textarea></div>
+        <div><label for="me_assinatura">Assinatura</label><input id="me_assinatura"></div>
+        <div><label for="me_dia_util">Prazo da NF: até o __º dia útil</label><input id="me_dia_util" inputmode="numeric"></div>
+      </div>
+      <p class="dica" style="margin-top:14px">Formatação: <code>**texto**</code> fica em <b>negrito</b> e linhas começando com <code>- </code> viram lista com marcadores.<br>
+        Campos preenchidos automaticamente: <code>{{prezado_a}}</code> (Prezado/Prezada) <code>{{nome}}</code> <code>{{mes_referencia}}</code> <code>{{valor}}</code>
+        <code>{{descricao_nf}}</code> <code>{{projeto_nome}}</code> <code>{{projeto_sigla}}</code> <code>{{termo_fomento}}</code> <code>{{instituicao}}</code>
+        <code>{{instituicao_cnpj}}</code> <code>{{instituicao_sigla}}</code> <code>{{parcela}}</code> <code>{{prazo}}</code> <code>{{assinatura}}</code></p>
+    </div>
+    <div class="modal-rodape">
+      <div class="msg" id="msgModeloEmail" role="alert"></div>
+      <button type="button" class="btn-link" id="btnRestaurarModelo">Restaurar modelo padrão</button>
+      <button type="button" class="btn-sec" data-fechar>Cancelar</button>
+      <button type="submit" class="btn">Salvar modelo</button>
     </div>
   </form>
 </dialog>
@@ -715,6 +810,8 @@
       if (rota.aba && document.querySelector(`[data-aba="${rota.aba}"]`)) trocarAba(rota.aba);
     } else if (rota.tipo === 'instituicoes') {
       abrirInstituicoes();
+    } else if (rota.tipo === 'pagamentos') {
+      abrirPagamentos(rota.id);
     } else {
       mostrarLista();
     }
@@ -732,7 +829,7 @@
   async function mostrarLista() {
     navAtivo('navProjetos', 'Projetos');
     gravarRota('projetos');
-    $('viewDetalhe').classList.add('oculto'); $('viewInst').classList.add('oculto'); $('viewLista').classList.remove('oculto');
+    $('viewDetalhe').classList.add('oculto'); $('viewInst').classList.add('oculto'); $('viewPag').classList.add('oculto'); $('viewLista').classList.remove('oculto');
     $('listaProjetos').innerHTML = '<div class="vazio">Carregando…</div>';
     try {
       const projetos = await api('listarProjetos');
@@ -765,7 +862,7 @@
   // ---------- detalhe do projeto
   async function abrirProjeto(id) {
     navAtivo('navProjetos', 'Projetos  /  Detalhe do projeto');
-    $('viewLista').classList.add('oculto'); $('viewInst').classList.add('oculto'); $('viewDetalhe').classList.remove('oculto');
+    $('viewLista').classList.add('oculto'); $('viewInst').classList.add('oculto'); $('viewPag').classList.add('oculto'); $('viewDetalhe').classList.remove('oculto');
     $('detNome').textContent = 'Carregando…'; $('detSigla').textContent = ''; $('detInst').textContent = '';
     $('detResumo').innerHTML = ''; $('camposProjeto').innerHTML = ''; $('tabelaRubricas').innerHTML = '';
     try {
@@ -1007,8 +1104,8 @@
 
   const digitos = v => String(v || '').replace(/\D/g, '');
   const mesAno = s => s ? `${String(s).slice(5, 7)}/${String(s).slice(0, 4)}` : '—';
-  const stClasse = s => ['Em execução', 'Contrato assinado', 'Encerrada', 'Paga', 'Conciliada', 'Lançada no SIT'].includes(s) ? 'verde'
-    : ['Em cotação', 'Contrato em elaboração', 'NF solicitada', 'NF recebida'].includes(s) ? 'amarelo' : '';
+  const stClasse = s => ['Em execução', 'Contrato assinado', 'Encerrada', 'Paga', 'Conciliada', 'Conferida', 'Lançada no SIT'].includes(s) ? 'verde'
+    : ['Em cotação', 'Contrato em elaboração', 'NF solicitada', 'NF recebida', 'Liberada para pagamento'].includes(s) ? 'amarelo' : '';
 
   function lerArquivo(file) {
     return new Promise((ok, falha) => {
@@ -1063,7 +1160,7 @@
     $('c_id_rubrica').innerHTML = '<option value="">Selecione…</option>' + atual.rubricas.map(r =>
       `<option value="${esc(r.id_rubrica)}" ${r.id_rubrica === c.id_rubrica ? 'selected' : ''}>${esc(r.codigo ? r.codigo + ' – ' : '')}${esc(r.descricao)}</option>`).join('');
     $('c_status').innerHTML = STATUS_CTR.map(s => `<option ${s === (c.status || 'Em execução') ? 'selected' : ''}>${s}</option>`).join('');
-    ['objeto', 'inicio_execucao', 'fim_execucao', 'data_cotacao', 'data_assinatura_contrato', 'observacoes', 'num_parcelas', 'carga_horaria_mensal']
+    ['objeto', 'inicio_execucao', 'fim_execucao', 'data_cotacao', 'data_assinatura_contrato', 'observacoes', 'num_parcelas', 'carga_horaria_mensal', 'descricao_nf']
       .forEach(k => $('c_' + k).value = c[k] ?? '');
     $('c_valor_parcela').value = num2(c.valor_parcela ?? '');
     CAMPOS_FORN.forEach(k => $('f_' + k).value = f[k] ?? '');
@@ -1113,7 +1210,7 @@
     const dados = { id_projeto: atual.projeto.id_projeto, id_contratacao: ctrEditando ? ctrEditando.id_contratacao : '',
                     id_processo_cotacao: ctrEditando ? '' : procParaContratar, fornecedor: {} };
     ['id_rubrica', 'objeto', 'inicio_execucao', 'fim_execucao', 'num_parcelas', 'valor_parcela', 'data_cotacao',
-     'data_assinatura_contrato', 'status', 'observacoes', 'carga_horaria_mensal'].forEach(k => dados[k] = $('c_' + k).value);
+     'data_assinatura_contrato', 'status', 'observacoes', 'carga_horaria_mensal', 'descricao_nf'].forEach(k => dados[k] = $('c_' + k).value);
     CAMPOS_FORN.forEach(k => dados.fornecedor[k] = $('f_' + k).value);
     try {
       ctrAtual = await api('salvarContratacao', dados);
@@ -1447,6 +1544,321 @@
     msg('msgCtr', 'Dados trazidos da cotação vencedora. Confira, complete o que faltar (ex.: nacionalidade, início da execução) e salve.', 'ok');
   }
 
+  // ---------- pagamentos (ciclo mensal)
+  const ORDEM_ST = ['Prevista', 'NF solicitada', 'NF recebida', 'NF conferida', 'Liberada para pagamento', 'Paga', 'Conciliada', 'Conferida', 'Lançada no SIT'];
+  const TRILHA = ['Prevista', 'NF solicitada', 'NF recebida', 'Liberada para pagamento', 'Paga', 'Conferida'];
+  const MESES_NOME = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const idxSt = st => Math.max(0, ORDEM_ST.indexOf(st));
+  const mesExt = ym => { const [a, m] = String(ym).split('-'); return `${MESES_NOME[Number(m) - 1]}/${a}`; };
+  const hojeYM = () => new Date().toLocaleDateString('sv-SE').slice(0, 7);
+  let pag = null, parcAtual = null;
+
+  async function abrirPagamentos(mes) {
+    navAtivo('navPagamentos', 'Pagamentos');
+    ['viewLista', 'viewDetalhe', 'viewInst'].forEach(v => $(v).classList.add('oculto'));
+    $('viewPag').classList.remove('oculto');
+    $('pagMes').value = /^\d{4}-\d{2}$/.test(mes || '') ? mes : ($('pagMes').value || hojeYM());
+    await carregarPag();
+  }
+
+  async function carregarPag() {
+    gravarRota('pagamentos/' + $('pagMes').value);
+    $('pagTabela').innerHTML = '<div class="vazio">Carregando…</div>'; $('pagAtrasadas').innerHTML = '';
+    try {
+      pag = await api('listarMesPagamentos', { mes: $('pagMes').value, id_projeto: $('pagProjeto').value || '' });
+      renderPag();
+    } catch (err) { $('pagTabela').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
+  }
+
+  function renderPag() {
+    const r = pag.resumo, sel = $('pagProjeto').value;
+    $('pagSub').innerHTML = `Pagamento de <b>${esc(pag.mes_extenso)}</b> · serviços prestados em <b>${esc(pag.competencia_extenso)}</b> · ${r.total} parcela(s), ${brl(r.valor_total)}`;
+    $('pagProjeto').innerHTML = '<option value="">Todos os projetos</option>' + pag.projetos.map(p =>
+      `<option value="${esc(p.id_projeto)}" ${p.id_projeto === sel ? 'selected' : ''}>${esc(p.sigla || p.nome_projeto)}</option>`).join('');
+    $('btnModeloEmail').classList.toggle('oculto', !pag.pode_editar_modelo);
+
+    const etapas = [
+      ['Pedir notas fiscais', r.solicitadas, 'prazo: ' + pag.prazo_nf],
+      ['Anexar as notas', r.recebidas, 'na pasta do mês'],
+      ['Liberar o lote', r.liberadas, 'com as NFs recebidas'],
+      ['Pagar e anexar comprovante', r.pagas, brl(r.valor_pago) + ' pagos'],
+      ['Conferir (dados do SIT)', r.conferidas, 'pronto para lançar']
+    ];
+    const atualIdx = etapas.findIndex(e => e[1] < r.total);
+    $('pagEtapas').innerHTML = etapas.map(([t, n, sub], i) => {
+      const feita = r.total > 0 && n >= r.total;
+      return `<div class="etapa ${feita ? 'feita' : ''} ${i === atualIdx && r.total ? 'atual' : ''}">
+        <div class="num">${feita ? '✓' : i + 1}</div><b>${t}</b><small>${n} de ${r.total} · ${esc(sub)}</small>
+        <div class="barra"><i style="width:${r.total ? Math.round(n / r.total * 100) : 0}%"></i></div></div>`;
+    }).join('');
+
+    $('pagTabela').innerHTML = tabelaParcelas(pag.parcelas, 'mes') ||
+      `<div class="vazio">Nenhuma parcela com serviços de ${esc(pag.competencia_extenso)}.</div>`;
+    $('pagAtrasadas').innerHTML = pag.atrasadas.length
+      ? `<div class="secao"><h4>⚠️ Pendentes de meses anteriores (${pag.atrasadas.length})</h4>${tabelaParcelas(pag.atrasadas, 'atras')}</div>` : '';
+    ligarTabelaPag();
+  }
+
+  function tabelaParcelas(lista, grupo) {
+    if (!lista.length) return '';
+    return `<div class="tabela-wrap"><table>
+      <thead><tr><th><input type="checkbox" data-todos="${grupo}" aria-label="Selecionar todas"></th>
+        <th>Projeto</th><th>Contratado</th><th>Parcela</th><th>Serviço de</th><th class="num">Valor</th><th>Etapa</th><th>NF</th><th>Comprovante</th><th>Dados SIT</th><th></th></tr></thead>
+      <tbody>${lista.map(x => `<tr>
+        <td><input type="checkbox" data-sel="${grupo}" value="${esc(x.id_parcela)}" aria-label="Selecionar"></td>
+        <td><span class="sigla">${esc(x.projeto_sigla)}</span></td>
+        <td><b>${esc(x.contratado)}</b><br><span style="color:var(--suave)">${esc(x.rubrica)}</span>
+          ${x.contratado_email ? '' : '<br><span style="color:var(--alerta);font-size:12px">sem e-mail</span>'}</td>
+        <td style="white-space:nowrap">${esc(x.num_parcela)}${x.total_parcelas ? '/' + esc(x.total_parcelas) : ''}
+          ${x.primeiro_pagamento === true ? '<br><span class="tag" title="No SIT, o 1º pagamento vai com cotações + NF + comprovante">1º pagamento</span>' : ''}</td>
+        <td>${mesExt(x.competencia_mes)}</td>
+        <td class="num"><b>${brl(x.valor_previsto)}</b></td>
+        <td><span class="st ${stClasse(x.status)}">${esc(x.status)}</span></td>
+        <td>${x.nf && x.nf.url ? `<a href="${esc(x.nf.url)}" target="_blank" rel="noopener">📄 ${x.nf.numero ? 'nº ' + esc(x.nf.numero) : 'abrir'}</a>${x.nf.divergencias ? ' <span title="' + esc(x.nf.divergencias) + '">⚠️</span>' : ''}` : '—'}</td>
+        <td>${x.pagamento && x.pagamento.url ? `<a href="${esc(x.pagamento.url)}" target="_blank" rel="noopener">🧾 ${x.pagamento.data_pagamento ? dataBr(x.pagamento.data_pagamento) : 'abrir'}</a>` : '—'}</td>
+        <td>${x.dados_sit_ok ? '<span class="st verde">✓ completos</span>' : (x.pagamento ? '<span class="st amarelo">a preencher</span>' : '—')}</td>
+        <td><button class="btn-sec" style="padding:6px 12px" data-parc="${esc(x.id_parcela)}">Abrir</button></td>
+      </tr>`).join('')}</tbody></table></div>`;
+  }
+
+  function ligarTabelaPag() {
+    document.querySelectorAll('[data-todos]').forEach(cb => cb.addEventListener('change', () =>
+      document.querySelectorAll(`[data-sel="${cb.dataset.todos}"]`).forEach(x => x.checked = cb.checked)));
+    document.querySelectorAll('[data-parc]').forEach(b => b.addEventListener('click', () => abrirParcela(b.dataset.parc)));
+  }
+
+  const todasParcelas = () => (pag ? pag.parcelas.concat(pag.atrasadas) : []);
+  const selecionadas = () => [...document.querySelectorAll('[data-sel]:checked')].map(x => x.value);
+
+  async function acaoLote(acao, ids, rotulo) {
+    if (!ids.length) return alert('Selecione as parcelas na tabela.');
+    try {
+      const r = await api(acao, { ids });
+      const ok = r.liberadas || r.conferidas || [];
+      const ign = r.ignoradas || [];
+      toast(`${ok.length} parcela(s) ${rotulo}` + (ign.length ? ` · ${ign.length} ignorada(s)` : ''));
+      if (ign.length) alert('Não foram alteradas:\n' + ign.map(i => {
+        const x = todasParcelas().find(p => p.id_parcela === i.id); return `• ${x ? x.contratado : i.id}: ${i.motivo}`; }).join('\n'));
+      await carregarPag();
+    } catch (err) { alert(err.message); }
+  }
+
+  $('btnLiberar').addEventListener('click', () => acaoLote('liberarParcelas', selecionadas(), 'liberada(s) para pagamento'));
+  $('pagMes').addEventListener('change', carregarPag);
+  $('pagProjeto').addEventListener('change', carregarPag);
+  $('navPagamentos').addEventListener('click', () => abrirPagamentos());
+
+  // --- pedir NFs
+  $('btnSolicitar').addEventListener('click', () => {
+    const lista = todasParcelas().filter(x => idxSt(x.status) < idxSt('NF recebida'));
+    $('corpoSolic').innerHTML = lista.length ? `
+      <p class="dica">Um e-mail para cada contratado, pedindo a nota do mês de serviço. Desmarque quem não deve receber.</p>
+      <div class="tabela-wrap"><table><thead><tr><th></th><th>Contratado</th><th>E-mail</th><th>Serviço de</th><th class="num">Valor</th><th>Situação</th></tr></thead>
+      <tbody>${lista.map(x => `<tr>
+        <td><input type="checkbox" data-solic value="${esc(x.id_parcela)}" ${x.contratado_email && x.status === 'Prevista' ? 'checked' : ''} ${x.contratado_email ? '' : 'disabled'}></td>
+        <td><b>${esc(x.contratado)}</b> <span class="sigla">${esc(x.projeto_sigla)}</span></td>
+        <td>${x.contratado_email ? esc(x.contratado_email) : '<span style="color:var(--alerta)">sem e-mail – cadastre na contratação</span>'}</td>
+        <td>${mesExt(x.competencia_mes)}</td><td class="num">${brl(x.valor_previsto)}</td>
+        <td><span class="st ${stClasse(x.status)}">${esc(x.status)}</span>${x.nf_solicitada_em ? '<br><small>pedido em ' + dataBr(x.nf_solicitada_em) + '</small>' : ''}</td></tr>`).join('')}</tbody></table></div>
+      <div class="secao"><h4>Prévia do primeiro e-mail</h4><div id="previaSolic" class="previa-email">Carregando…</div></div>`
+      : '<div class="vazio">Todas as parcelas do mês já têm nota fiscal. 🎉</div>';
+    $('btnEnviarSolic').disabled = !lista.length; msg('msgSolic', '');
+    $('dlgSolic').showModal();
+    const primeira = lista.find(x => x.contratado_email);
+    if (primeira) api('previaEmailNF', { id_parcela: primeira.id_parcela })
+      .then(p => { $('previaSolic').innerHTML = `<div style="color:var(--suave);font-size:12px;margin-bottom:10px">Para: <b>${esc(p.para)}</b>${p.responder_para ? ' · respostas para: <b>' + esc(p.responder_para) + '</b>' : ''}<br>Assunto: <b>${esc(p.assunto)}</b></div>` + p.html; })
+      .catch(err => { $('previaSolic').textContent = err.message; });
+  });
+
+  $('btnEnviarSolic').addEventListener('click', async () => {
+    const ids = [...document.querySelectorAll('[data-solic]:checked')].map(x => x.value);
+    if (!ids.length) return msg('msgSolic', 'Marque pelo menos um contratado.');
+    if (!confirm(`Enviar ${ids.length} e-mail(s) agora?`)) return;
+    const btn = $('btnEnviarSolic'); btn.disabled = true; msg('msgSolic', 'Enviando…', 'ok');
+    try {
+      const r = await api('solicitarNFs', { ids, mes: $('pagMes').value, id_projeto: $('pagProjeto').value || '' });
+      pag = r.mes; renderPag();
+      msg('msgSolic', `${r.enviados.length} e-mail(s) enviado(s).` + (r.falhas.length ? ` ${r.falhas.length} falha(s): ` +
+        r.falhas.map(f => `${f.nome || f.id} (${f.motivo})`).join('; ') : '') + ` · Cota restante hoje: ${r.cota_restante}`, r.falhas.length ? 'erro' : 'ok');
+    } catch (err) { msg('msgSolic', err.message); }
+    btn.disabled = false;
+  });
+
+  // --- modelo do e-mail
+  $('btnModeloEmail').addEventListener('click', () => {
+    const m = pag.modelo_email;
+    $('me_assunto').value = m.assunto; $('me_corpo').value = m.corpo; $('me_assinatura').value = m.assinatura; $('me_dia_util').value = m.dia_util;
+    msg('msgModeloEmail', ''); $('dlgModeloEmail').showModal();
+  });
+  $('formModeloEmail').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.submitter; btn.disabled = true;
+    try {
+      pag.modelo_email = await api('salvarModeloEmail', { assunto: $('me_assunto').value, corpo: $('me_corpo').value,
+        assinatura: $('me_assinatura').value, dia_util: $('me_dia_util').value });
+      $('dlgModeloEmail').close(); toast('Modelo do e-mail salvo ✓');
+    } catch (err) { msg('msgModeloEmail', err.message); }
+    btn.disabled = false;
+  });
+
+  $('btnRestaurarModelo').addEventListener('click', async () => {
+    if (!confirm('Voltar o e-mail para o modelo padrão?')) return;
+    try {
+      const m = await api('restaurarModeloEmail');
+      pag.modelo_email = m;
+      $('me_assunto').value = m.assunto; $('me_corpo').value = m.corpo; $('me_assinatura').value = m.assinatura; $('me_dia_util').value = m.dia_util;
+      toast('Modelo padrão restaurado');
+    } catch (err) { msg('msgModeloEmail', err.message); }
+  });
+
+  // --- janela da parcela
+  function descricaoSugerida(x) {
+    return x.descricao_nf_ctr || ('prestação de serviço de ' + String(x.rubrica || '').toLowerCase());
+  }
+
+  function abrirParcela(id) {
+    parcAtual = todasParcelas().find(x => x.id_parcela === id);
+    if (!parcAtual) return;
+    renderParcela();
+    $('dlgParc').showModal();
+  }
+
+  function renderParcela() {
+    const x = parcAtual, nf = x.nf || {}, pg = x.pagamento || {};
+    const i = idxSt(x.status);
+    const temNF = !!(x.nf && x.nf.url), temComp = !!(x.pagamento && x.pagamento.url);
+    const liberada = i >= idxSt('Liberada para pagamento');
+    const hoje = new Date().toLocaleDateString('sv-SE');
+    $('tituloParc').textContent = `${x.contratado} · parcela ${x.num_parcela}${x.total_parcelas ? '/' + x.total_parcelas : ''}`;
+
+    const passo = (n, titulo, feito, corpo) => `<div class="secao"><h4><span>${feito ? '✅' : n} &nbsp;${titulo}</span></h4>${corpo}</div>`;
+
+    const blocoNF = passo('①', 'Nota fiscal', temNF, `
+      ${temNF ? `<div class="sucesso">Nota anexada · <a href="${esc(nf.url)}" target="_blank" rel="noopener">abrir arquivo</a></div>` : '<p class="dica">Quando o contratado enviar a nota, anexe o arquivo aqui. Ele vai para a pasta do mês no Drive.</p>'}
+      <div class="linha-form" style="margin-top:10px">
+        <div style="grid-column:span 2"><label for="up_nf">${temNF ? 'Trocar arquivo da nota' : 'Arquivo da nota fiscal'}</label><input id="up_nf" type="file"></div>
+        <div><button class="btn" id="btnAnexarNF" style="width:100%">📎 ${temNF ? 'Trocar' : 'Anexar nota'}</button></div>
+      </div><div class="msg" id="msgNF"></div>`);
+
+    let corpoPg;
+    if (!temNF) corpoPg = '<div class="aviso">Disponível depois que a nota fiscal for anexada.</div>';
+    else if (!liberada && !pag.pode_lancar_direto) corpoPg = '<div class="aviso">Aguardando a liberação do lote para pagamento.</div>';
+    else corpoPg = `
+      ${temComp ? `<div class="sucesso">Comprovante anexado · <a href="${esc(pg.url)}" target="_blank" rel="noopener">abrir arquivo</a></div>` : ''}
+      ${!liberada ? '<div class="aviso">Parcela ainda não liberada. Como prestação de contas, você pode anexar mesmo assim (ex.: meses que já foram pagos).</div>' : ''}
+      <div class="linha-form" style="margin-top:10px">
+        <div style="grid-column:span 2"><label for="up_comp">${temComp ? 'Trocar comprovante' : 'Comprovante de pagamento'}</label><input id="up_comp" type="file"></div>
+        <div><label for="comp_data">Data do pagamento</label><input id="comp_data" type="date" value="${esc(pg.data_pagamento || hoje)}"></div>
+        <div><button class="btn" id="btnAnexarComp" style="width:100%">📎 ${temComp ? 'Trocar' : 'Anexar comprovante'}</button></div>
+      </div><div class="msg" id="msgPG"></div>`;
+    const blocoPg = passo('②', 'Pagamento', temComp, corpoPg);
+
+    let blocoSit = '';
+    if (pag.pode_conferir) {
+      const corpoSit = !(temNF && temComp)
+        ? '<div class="aviso">A conferência fica disponível depois que a nota e o comprovante forem anexados.</div>'
+        : `${nf.divergencias ? `<div class="aviso">⚠️ ${esc(nf.divergencias)}</div>` : ''}
+        <p class="dica">Confira os documentos e preencha os campos exigidos no SIT. ${x.primeiro_pagamento === true ? '<b>1º pagamento:</b> no SIT vai junto com cotações + NF + comprovante.' : ''}</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <a class="btn-sec" href="${esc(nf.url)}" target="_blank" rel="noopener">📄 Ver nota</a>
+          <a class="btn-sec" href="${esc(pg.url)}" target="_blank" rel="noopener">🧾 Ver comprovante</a>
+        </div>
+        <fieldset style="margin-top:0"><legend>Documento fiscal</legend><div class="form-grade">
+          <div><label for="nf_tipo">Tipo</label><select id="nf_tipo">${['Nota fiscal', 'Guia', 'Recibo', 'Outro'].map(t => `<option ${t === (nf.tipo_documento || 'Nota fiscal') ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+          <div><label for="nf_numero">Número</label><input id="nf_numero" value="${esc(nf.numero || '')}"></div>
+          <div><label for="nf_data">Data de emissão</label><input id="nf_data" type="date" value="${esc(nf.data_emissao || '')}"></div>
+          <div><label for="nf_valor">Valor da nota (R$)</label><input id="nf_valor" inputmode="decimal" value="${esc(num2(nf.valor || x.valor_previsto))}"></div>
+          <div class="largo"><label for="nf_descricao">Descrição da nota</label><input id="nf_descricao" value="${esc(nf.descricao || descricaoSugerida(x) + ' referente ao mês de ' + mesExt(x.competencia_mes))}"></div>
+          <div><label for="nf_cnpj">CNPJ/CPF do emitente</label><input id="nf_cnpj" value="${esc(nf.cnpj_emitente || x.contratado_cnpj)}"></div>
+          <div class="largo"><label for="nf_razao">Razão social</label><input id="nf_razao" value="${esc(nf.razao_social_emitente || x.contratado)}"></div>
+        </div></fieldset>
+        <fieldset><legend>Pagamento</legend><div class="form-grade">
+          <div><label for="pg_forma">Forma</label><select id="pg_forma">${['PIX', 'Transferência'].map(t => `<option ${t === (pg.forma_pagamento || 'PIX') ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+          <div><label for="pg_pix">Nº de identificação (extrato)</label><input id="pg_pix" value="${esc(pg.num_identificacao_pix || '')}"></div>
+          <div><label for="pg_data">Data do pagamento</label><input id="pg_data" type="date" value="${esc(pg.data_pagamento || '')}"></div>
+          <div><label for="pg_debito">Data do débito na conta</label><input id="pg_debito" type="date" value="${esc(pg.data_debito_conta || '')}"></div>
+          <div><label for="pg_valor">Valor pago (R$)</label><input id="pg_valor" inputmode="decimal" value="${esc(num2(pg.valor || nf.valor || x.valor_previsto))}"></div>
+        </div></fieldset>
+        <div class="form-acoes"><div class="msg" id="msgSIT"></div>
+          <button class="btn-sec" id="btnSalvarSIT">Salvar dados</button>
+          <button class="btn" id="btnConferirSIT">☑ Salvar e marcar conferida</button></div>`;
+      blocoSit = passo('③', 'Conferência – dados do SIT', i >= idxSt('Conferida'), corpoSit);
+    }
+
+    $('corpoParc').innerHTML = `
+      <div class="info-grade">
+        <div><span>Projeto</span>${esc(x.projeto_sigla)} · ${esc(x.instituicao_sigla)}</div>
+        <div><span>Rubrica</span>${esc(x.rubrica)}</div>
+        <div><span>Serviço de</span>${mesExt(x.competencia_mes)}</div>
+        <div><span>Valor previsto</span><b>${brl(x.valor_previsto)}</b></div>
+        <div><span>CPF/CNPJ do contratado</span>${esc(x.contratado_cnpj)}</div>
+        <div><span>E-mail</span>${esc(x.contratado_email || '—')}</div>
+      </div>
+      <div class="trilha">${TRILHA.map(t => `<span class="${idxSt(t) < i || (t === x.status && t === 'Conferida') ? 'feito' : t === x.status ? 'agora' : ''}">${t}</span>`).join('')}</div>
+      ${blocoNF}${blocoPg}${blocoSit}`;
+
+    const b = [];
+    if (i < idxSt('NF recebida') && x.contratado_email) b.push('<button class="btn-sec" id="pAcPedir">✉️ Pedir NF por e-mail</button>');
+    if (temNF && i < idxSt('Liberada para pagamento')) b.push('<button class="btn-sec" id="pAcLiberar">✓ Liberar para pagamento</button>');
+    if (pag.pode_conferir && ['Conferida', 'Liberada para pagamento', 'NF solicitada'].includes(x.status)) b.push('<button class="btn-link" id="pAcVoltar">↩ Voltar uma etapa</button>');
+    $('rodapeParc').innerHTML = `<div class="msg" id="msgParc"></div>${b.join('')}<button class="btn-sec" data-fechar-parc>Fechar</button>`;
+
+    const on = (id, fn) => { const el = $(id); if (el) el.addEventListener('click', fn); };
+    on('btnAnexarNF', anexarNFParc); on('btnAnexarComp', anexarCompParc);
+    on('btnSalvarSIT', e => salvarSIT(e, false)); on('btnConferirSIT', e => salvarSIT(e, true));
+    on('pAcPedir', () => acaoParc('solicitarNFs', { ids: [x.id_parcela], mes: $('pagMes').value, id_projeto: $('pagProjeto').value || '' }, 'Pedido de NF enviado ✓'));
+    on('pAcLiberar', () => acaoParc('liberarParcelas', { ids: [x.id_parcela] }, 'Liberada para pagamento ✓'));
+    on('pAcVoltar', () => acaoParc('voltarEtapaParcela', { id_parcela: x.id_parcela }, 'Etapa desfeita'));
+    document.querySelector('[data-fechar-parc]').addEventListener('click', () => $('dlgParc').close());
+  }
+
+  async function atualizarParcAberta() {
+    await carregarPag();
+    const nova = todasParcelas().find(p => p.id_parcela === parcAtual.id_parcela);
+    if (nova) { parcAtual = nova; renderParcela(); } else $('dlgParc').close();
+  }
+
+  async function acaoParc(acao, dados, ok) {
+    msg('msgParc', 'Aguarde…', 'ok');
+    try {
+      const r = await api(acao, dados);
+      if (r && r.falhas && r.falhas.length) throw new Error(r.falhas.map(f => f.motivo).join('; '));
+      if (r && r.ignoradas && r.ignoradas.length) throw new Error(r.ignoradas.map(f => f.motivo).join('; '));
+      toast(ok); await atualizarParcAberta();
+    } catch (err) { msg('msgParc', err.message); }
+  }
+
+  async function anexarNFParc(e) {
+    const btn = e.currentTarget; btn.disabled = true; msg('msgNF', 'Enviando…', 'ok');
+    try {
+      const f = $('up_nf').files[0]; if (!f) throw new Error('Selecione o arquivo da nota.');
+      await api('anexarNF', { id_parcela: parcAtual.id_parcela, arquivo: await lerArquivo(f) });
+      toast('Nota fiscal anexada ✓'); await atualizarParcAberta();
+    } catch (err) { msg('msgNF', err.message); btn.disabled = false; }
+  }
+
+  async function anexarCompParc(e) {
+    const btn = e.currentTarget; btn.disabled = true; msg('msgPG', 'Enviando…', 'ok');
+    try {
+      const f = $('up_comp').files[0]; if (!f) throw new Error('Selecione o arquivo do comprovante.');
+      await api('anexarComprovante', { id_parcela: parcAtual.id_parcela, arquivo: await lerArquivo(f), data_pagamento: $('comp_data').value });
+      toast('Comprovante anexado ✓'); await atualizarParcAberta();
+    } catch (err) { msg('msgPG', err.message); btn.disabled = false; }
+  }
+
+  async function salvarSIT(e, marcar) {
+    const btn = e.currentTarget; btn.disabled = true; msg('msgSIT', 'Salvando…', 'ok');
+    try {
+      const r = await api('conferirParcela', { id_parcela: parcAtual.id_parcela, marcar_conferida: marcar,
+        nf: { tipo_documento: $('nf_tipo').value, numero: $('nf_numero').value, data_emissao: $('nf_data').value, valor: $('nf_valor').value,
+              descricao: $('nf_descricao').value, cnpj_emitente: $('nf_cnpj').value, razao_social_emitente: $('nf_razao').value },
+        pagamento: { forma_pagamento: $('pg_forma').value, num_identificacao_pix: $('pg_pix').value, data_pagamento: $('pg_data').value,
+                     data_debito_conta: $('pg_debito').value, valor: $('pg_valor').value } });
+      toast((marcar ? 'Conferida ✓' : 'Dados salvos ✓') + (r.divergencias.length ? ' (com avisos)' : ''));
+      await atualizarParcAberta();
+    } catch (err) { msg('msgSIT', err.message); btn.disabled = false; carregarPag().catch(() => {}); }
+  }
+
   // ---------- instituições
   const SECOES_INST = [
     ['Dados da instituição', [
@@ -1489,7 +1901,7 @@
   async function abrirInstituicoes() {
     navAtivo('btnInstituicoes', 'Instituições');
     gravarRota('instituicoes');
-    $('viewLista').classList.add('oculto'); $('viewDetalhe').classList.add('oculto'); $('viewInst').classList.remove('oculto');
+    $('viewLista').classList.add('oculto'); $('viewDetalhe').classList.add('oculto'); $('viewPag').classList.add('oculto'); $('viewInst').classList.remove('oculto');
     $('btnNovaInst').classList.toggle('oculto', !podeCadInst());
     $('listaInst').innerHTML = '<div class="vazio">Carregando…</div>';
     try { listaInst = await api('listarInstituicoesCompleto'); renderInstituicoes(); }
