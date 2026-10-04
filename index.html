@@ -255,9 +255,9 @@
   .bim small { display: block; color: var(--suave); font-size: 12px; margin: 2px 0 8px; }
   .bim .valor { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
   .st.azul { background: var(--azul-fundo); color: var(--azul-escuro); }
-  .copiar { cursor: copy; border-radius: 4px; padding: 1px 3px; margin: -1px -3px; }
-  .copiar:hover { background: var(--azul-fundo); }
-  .copiar.copiado { background: var(--ok-fundo); }
+  .cp-sit { cursor: copy; border-radius: 4px; padding: 1px 3px; margin: -1px -3px; }
+  .cp-sit:hover { background: var(--azul-fundo); }
+  .cp-sit.copiado { background: var(--ok-fundo); }
   .tab-sit td { vertical-align: top; font-size: 13px; }
   .tab-sit small { color: var(--suave); font-size: 11.5px; }
   .sit-acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -768,11 +768,57 @@
   };
 
   // Rota atual na URL (#projeto/PRJ-0001/contratacoes), para o F5 voltar ao mesmo lugar
-  function gravarRota(r) { try { history.replaceState(null, '', r ? '#' + r : location.pathname + location.search); } catch {} }
-  function lerRota() {
-    const partes = decodeURIComponent(location.hash.replace(/^#/, '')).split('/').filter(Boolean);
+  // Cada tela nova entra no histórico do navegador: o botão "voltar" volta para a tela anterior.
+  // Trocar só a aba, o mês ou o bimestre dentro da mesma tela não cria passo novo no histórico.
+  function partesRota(h) {
+    const partes = decodeURIComponent(String(h || '').replace(/^#/, '')).split('/').filter(Boolean);
     return { tipo: partes[0] || '', id: partes[1] || '', aba: partes[2] || '' };
   }
+  function gravarRota(r) {
+    const novo = r ? '#' + r : '';
+    if (novo === location.hash) return;
+    const a = partesRota(location.hash), b = partesRota(novo);
+    const mesmaTela = a.tipo === b.tipo && (['projeto', 'sit'].includes(b.tipo) ? a.id === b.id : true);
+    const prof = (history.state && history.state.prof) || 0;
+    try {
+      if (!r || !location.hash || mesmaTela) history.replaceState({ prof }, '', novo || location.pathname + location.search);
+      else history.pushState({ prof: prof + 1 }, '', novo);
+    } catch {}
+  }
+  const lerRota = () => partesRota(location.hash);
+  // "← Voltar" das telas: volta no histórico se viemos de outra tela do sistema
+  function voltarTela(senao) {
+    if (history.state && history.state.prof > 0) history.back(); else senao();
+  }
+
+  // ---------- respostas guardadas: a tela aparece na hora com o que já foi carregado
+  // e é atualizada assim que a resposta nova chega do servidor.
+  const memCache = new Map();
+  function lerCache(k) {
+    if (memCache.has(k)) return memCache.get(k);
+    try { const v = sessionStorage.getItem('c:' + k); if (v) { const o = JSON.parse(v); memCache.set(k, o); return o; } } catch {}
+  }
+  function gravarCache(k, v) {
+    memCache.set(k, v);
+    try { sessionStorage.setItem('c:' + k, JSON.stringify(v)); } catch {}
+  }
+  function limparCache() {
+    memCache.clear();
+    try { Object.keys(sessionStorage).filter(k => k.startsWith('c:')).forEach(k => sessionStorage.removeItem(k)); } catch {}
+  }
+  let seqTela = 0;              // muda a cada troca de tela: respostas atrasadas de telas antigas são ignoradas
+  async function apiRapida(acao, dados, mostrarDados) {
+    const k = acao + '|' + JSON.stringify(dados || {}), velho = lerCache(k), minhaTela = seqTela;
+    if (velho !== undefined) mostrarDados(velho, true);
+    let novo;
+    try { novo = await api(acao, dados); }
+    catch (err) { if (velho === undefined) throw err; console.warn(err); return velho; }
+    gravarCache(k, novo);
+    if (minhaTela === seqTela && (velho === undefined || JSON.stringify(velho) !== JSON.stringify(novo))) mostrarDados(novo, false, velho !== undefined);
+    return novo;
+  }
+  // Não redesenha uma tela enquanto a pessoa está digitando nela ou com uma janela aberta
+  const ocupado = el => !!document.querySelector('dialog[open]') || (document.activeElement && el.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
 
   let pendentes = 0;
   function sinc(delta) {
@@ -791,6 +837,8 @@
       const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ acao, token, dados }) });
       json = await resp.json();
     } finally { sinc(-1); }
+    // Depois de qualquer gravação, as telas guardadas ficam velhas: descarta para não mostrar dado antigo
+    if (!/^(listar|obter|me$|previa|login$|logout$)/.test(acao)) limparCache();
     if (!json.ok) {
       if (json.erro === 'SESSAO_EXPIRADA') { sair(true); throw new Error('Sua sessão expirou. Entre novamente.'); }
       throw new Error(json.erro);
@@ -854,7 +902,8 @@
 
   function sair(silencioso) {
     if (!silencioso) api('logout').catch(() => {});
-    sessao.del(); usuario = null; gravarRota(''); mostrar('telaLogin');
+    sessao.del(); usuario = null; limparCache(); try { sessionStorage.removeItem('usuario'); } catch {}
+    gravarRota(''); mostrar('telaLogin');
   }
   $('btnSair').addEventListener('click', () => sair(false));
   $('btnTrocarSenha').addEventListener('click', () => abrirTrocaSenha(false));
@@ -871,23 +920,28 @@
     $('avatarLateral').textContent = ini; $('avatarTopo').textContent = ini; $('avatarTopo').title = usuario.nome;
     $('dataHoje').textContent = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
     $('btnNovoProjeto').classList.toggle('oculto', !(podeEditar() && ehGlobal()));
-    try { instituicoes = await api('listarInstituicoes'); } catch {}
-    const rota = lerRota();
-    if (rota.tipo === 'projeto' && rota.id) {
-      await abrirProjeto(rota.id);
-      if (rota.aba && document.querySelector(`[data-aba="${rota.aba}"]`)) trocarAba(rota.aba);
-    } else if (rota.tipo === 'instituicoes') {
-      abrirInstituicoes();
-    } else if (rota.tipo === 'pagamentos') {
-      abrirPagamentos(rota.id);
-    } else if (rota.tipo === 'sit') {
-      abrirSit(rota.id, rota.aba);
-    } else {
-      mostrarLista();
-    }
+    try { sessionStorage.setItem('usuario', JSON.stringify(usuario)); } catch {}
+    try { if (!history.state) history.replaceState({ prof: 0 }, '', location.href); } catch {}
+    apiRapida('listarInstituicoes', {}, d => {
+      instituicoes = d;
+      if (atual && !$('viewDetalhe').classList.contains('oculto') && !ocupado($('viewDetalhe'))) renderFormProjeto();
+    }).catch(() => {});
+    await irParaRota(lerRota());
   }
 
+  function irParaRota(rota) {
+    document.querySelectorAll('dialog[open]').forEach(d => d.close());
+    if (rota.tipo === 'projeto' && rota.id) return abrirProjeto(rota.id, rota.aba);
+    if (rota.tipo === 'instituicoes') return abrirInstituicoes();
+    if (rota.tipo === 'pagamentos') return abrirPagamentos(rota.id, rota.aba);
+    if (rota.tipo === 'sit') return abrirSit(rota.id, rota.aba);
+    return mostrarLista();
+  }
+  // Botões voltar/avançar do navegador (e do mouse)
+  window.addEventListener('popstate', () => { if (usuario && sessao.get()) irParaRota(lerRota()); });
+
   function navAtivo(id, migalha) {
+    seqTela++;
     document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('ativo', b.id === id));
     $('migalha').textContent = migalha;
     $('lateral').classList.remove('aberta');
@@ -900,9 +954,9 @@
     navAtivo('navProjetos', 'Projetos');
     gravarRota('projetos');
     $('viewDetalhe').classList.add('oculto'); $('viewInst').classList.add('oculto'); $('viewPag').classList.add('oculto'); $('viewSit').classList.add('oculto'); $('viewLista').classList.remove('oculto');
-    $('listaProjetos').innerHTML = '<div class="vazio">Carregando…</div>';
+    if (!lerCache('listarProjetos|{}')) $('listaProjetos').innerHTML = '<div class="vazio">Carregando…</div>';
     try {
-      const projetos = await api('listarProjetos');
+      await apiRapida('listarProjetos', {}, projetos => {
       $('listaProjetos').innerHTML = projetos.length ? projetos.map(p => `
         <article class="projeto" tabindex="0" data-id="${esc(p.id_projeto)}">
           <span class="sigla">${esc(p.sigla || p.id_projeto)}</span>
@@ -920,25 +974,35 @@
         el.addEventListener('click', () => abrirProjeto(el.dataset.id));
         el.addEventListener('keydown', e => { if (e.key === 'Enter') abrirProjeto(el.dataset.id); });
       });
+      });
     } catch (err) { $('listaProjetos').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
   }
 
-  $('btnVoltar').addEventListener('click', mostrarLista);
+  $('btnVoltar').addEventListener('click', () => voltarTela(mostrarLista));
   $('btnNovoProjeto').addEventListener('click', () => {
     atual = { projeto: {}, instituicao: null, rubricas: [], resumo: null, podeEditar: true, novo: true };
     renderDetalhe(); trocarAba('dados');
   });
 
   // ---------- detalhe do projeto
-  async function abrirProjeto(id) {
+  async function abrirProjeto(id, aba) {
     navAtivo('navProjetos', 'Projetos  /  Detalhe do projeto');
     $('viewLista').classList.add('oculto'); $('viewInst').classList.add('oculto'); $('viewPag').classList.add('oculto'); $('viewSit').classList.add('oculto'); $('viewDetalhe').classList.remove('oculto');
-    $('detNome').textContent = 'Carregando…'; $('detSigla').textContent = ''; $('detInst').textContent = '';
-    $('detResumo').innerHTML = ''; $('camposProjeto').innerHTML = ''; $('tabelaRubricas').innerHTML = '';
+    if (!lerCache('obterProjeto|' + JSON.stringify({ id_projeto: id }))) {
+      $('detNome').textContent = 'Carregando…'; $('detSigla').textContent = ''; $('detInst').textContent = '';
+      $('detResumo').innerHTML = ''; $('camposProjeto').innerHTML = ''; $('tabelaRubricas').innerHTML = '';
+      $('tabelaCtr') && ($('tabelaCtr').innerHTML = '');
+    }
+    let primeira = true;
     try {
-      atual = await api('obterProjeto', { id_projeto: id });
-      renderDetalhe(); trocarAba('dados');
-      $('migalha').textContent = 'Projetos  /  ' + (atual.projeto.sigla || atual.projeto.id_projeto);
+      await apiRapida('obterProjeto', { id_projeto: id }, dados => {
+        if (!primeira && ocupado($('viewDetalhe'))) return;   // não atrapalha quem está editando
+        const abaAgora = document.querySelector('.aba[aria-selected="true"]');
+        const abaUsar = primeira ? (aba && document.querySelector(`[data-aba="${aba}"]`) ? aba : 'dados') : (abaAgora ? abaAgora.dataset.aba : 'dados');
+        atual = dados; primeira = false;
+        renderDetalhe(); trocarAba(abaUsar);
+        $('migalha').textContent = 'Projetos  /  ' + (atual.projeto.sigla || atual.projeto.id_projeto);
+      });
     } catch (err) { $('detNome').textContent = err.message; }
   }
 
@@ -1623,8 +1687,10 @@
   const hojeYM = () => new Date().toLocaleDateString('sv-SE').slice(0, 7);
   let pag = null, parcAtual = null;
 
-  async function abrirPagamentos(mes) {
+  let pagFiltro = '';
+  async function abrirPagamentos(mes, projeto) {
     navAtivo('navPagamentos', 'Pagamentos');
+    if (projeto !== undefined) pagFiltro = projeto || '';
     ['viewLista', 'viewDetalhe', 'viewInst', 'viewSit'].forEach(v => $(v).classList.add('oculto'));
     $('viewPag').classList.remove('oculto');
     $('pagMes').value = /^\d{4}-\d{2}$/.test(mes || '') ? mes : ($('pagMes').value || hojeYM());
@@ -1632,16 +1698,19 @@
   }
 
   async function carregarPag() {
-    gravarRota('pagamentos/' + $('pagMes').value);
-    $('pagTabela').innerHTML = '<div class="vazio">Carregando…</div>'; $('pagAtrasadas').innerHTML = '';
+    gravarRota('pagamentos/' + $('pagMes').value + (pagFiltro ? '/' + pagFiltro : ''));
+    const dados = { mes: $('pagMes').value, id_projeto: pagFiltro };
+    if (!lerCache('listarMesPagamentos|' + JSON.stringify(dados))) { $('pagTabela').innerHTML = '<div class="vazio">Carregando…</div>'; $('pagAtrasadas').innerHTML = ''; }
     try {
-      pag = await api('listarMesPagamentos', { mes: $('pagMes').value, id_projeto: $('pagProjeto').value || '' });
-      renderPag();
+      await apiRapida('listarMesPagamentos', dados, (d, _c, atualizacao) => {
+        if (atualizacao && ocupado($('viewPag'))) { pag = d; return; }
+        pag = d; renderPag();
+      });
     } catch (err) { $('pagTabela').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
   }
 
   function renderPag() {
-    const r = pag.resumo, sel = $('pagProjeto').value;
+    const r = pag.resumo, sel = pagFiltro;
     $('pagSub').innerHTML = `Pagamento de <b>${esc(pag.mes_extenso)}</b> · serviços prestados em <b>${esc(pag.competencia_extenso)}</b> · ${r.total} parcela(s), ${brl(r.valor_total)}`;
     $('pagProjeto').innerHTML = '<option value="">Todos os projetos</option>' + pag.projetos.map(p =>
       `<option value="${esc(p.id_projeto)}" ${p.id_projeto === sel ? 'selected' : ''}>${esc(p.sigla || p.nome_projeto)}</option>`).join('');
@@ -1716,7 +1785,7 @@
 
   $('btnLiberar').addEventListener('click', () => acaoLote('liberarParcelas', selecionadas(), 'liberada(s) para pagamento'));
   $('pagMes').addEventListener('change', carregarPag);
-  $('pagProjeto').addEventListener('change', carregarPag);
+  $('pagProjeto').addEventListener('change', () => { pagFiltro = $('pagProjeto').value; carregarPag(); });
   $('navPagamentos').addEventListener('click', () => abrirPagamentos());
 
   // --- pedir NFs
@@ -1747,7 +1816,7 @@
     if (!confirm(`Enviar ${ids.length} e-mail(s) agora?`)) return;
     const btn = $('btnEnviarSolic'); btn.disabled = true; msg('msgSolic', 'Enviando…', 'ok');
     try {
-      const r = await api('solicitarNFs', { ids, mes: $('pagMes').value, id_projeto: $('pagProjeto').value || '' });
+      const r = await api('solicitarNFs', { ids, mes: $('pagMes').value, id_projeto: pagFiltro });
       pag = r.mes; renderPag();
       msg('msgSolic', `${r.enviados.length} e-mail(s) enviado(s).` + (r.falhas.length ? ` ${r.falhas.length} falha(s): ` +
         r.falhas.map(f => `${f.nome || f.id} (${f.motivo})`).join('; ') : '') + ` · Cota restante hoje: ${r.cota_restante}`, r.falhas.length ? 'erro' : 'ok');
@@ -2172,8 +2241,8 @@
     gravarRota('instituicoes');
     $('viewLista').classList.add('oculto'); $('viewDetalhe').classList.add('oculto'); $('viewPag').classList.add('oculto'); $('viewSit').classList.add('oculto'); $('viewInst').classList.remove('oculto');
     $('btnNovaInst').classList.toggle('oculto', !podeCadInst());
-    $('listaInst').innerHTML = '<div class="vazio">Carregando…</div>';
-    try { listaInst = await api('listarInstituicoesCompleto'); renderInstituicoes(); }
+    if (!lerCache('listarInstituicoesCompleto|{}')) $('listaInst').innerHTML = '<div class="vazio">Carregando…</div>';
+    try { await apiRapida('listarInstituicoesCompleto', {}, d => { listaInst = d; renderInstituicoes(); }); }
     catch (err) { $('listaInst').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
   }
 
@@ -2269,10 +2338,10 @@
     navAtivo('navSit', 'Prestação SIT');
     ['viewLista', 'viewDetalhe', 'viewInst', 'viewPag'].forEach(v => $(v).classList.add('oculto'));
     $('viewSit').classList.remove('oculto');
-    $('sitBimestres').innerHTML = ''; $('sitCorpo').innerHTML = '<div class="vazio">Carregando…</div>';
+    if (!sit || !idProjeto || sit.projeto.id_projeto !== idProjeto) { $('sitBimestres').innerHTML = ''; $('sitCorpo').innerHTML = '<div class="vazio">Carregando…</div>'; }
     try {
       if (!idProjeto) {
-        const projetos = await api('listarProjetos');
+        const projetos = lerCache('listarProjetos|{}') || await api('listarProjetos');
         if (!projetos.length) { $('sitCorpo').innerHTML = '<div class="vazio">Nenhum projeto disponível.</div>'; return; }
         idProjeto = (projetos.find(p => p.id_projeto === $('sitProjeto').value) || projetos[0]).id_projeto;
       }
@@ -2281,7 +2350,15 @@
   }
 
   async function carregarBimestres(idProjeto, numero) {
-    sit = await api('listarBimestres', { id_projeto: idProjeto });
+    let primeira = true;
+    await apiRapida('listarBimestres', { id_projeto: idProjeto }, d => {
+      sit = d;
+      if (primeira) { primeira = false; mostrarBimestres(idProjeto, numero); }
+      else renderTrilhoSit();
+    });
+  }
+
+  function mostrarBimestres(idProjeto, numero) {
     $('sitProjeto').innerHTML = sit.projetos.map(p =>
       `<option value="${esc(p.id_projeto)}" ${p.id_projeto === idProjeto ? 'selected' : ''}>${esc(p.sigla || p.nome_projeto)}</option>`).join('');
     const pr = sit.projeto;
@@ -2295,7 +2372,7 @@
     }
     sitBim = { numero: n };
     renderTrilhoSit();
-    await carregarBimestre();
+    carregarBimestre();
   }
 
   function renderTrilhoSit() {
@@ -2315,17 +2392,24 @@
   async function carregarBimestre(manterTela) {
     const idProjeto = sit.projeto.id_projeto, n = sitBim.numero;
     gravarRota(`sit/${idProjeto}/${n}`);
-    if (!manterTela) $('sitCorpo').innerHTML = '<div class="vazio">Carregando…</div>';
-    try {
-      sitBim = await api('obterBimestre', { id_projeto: idProjeto, numero: n });
+    const dados = { id_projeto: idProjeto, numero: n };
+    const mostrarBim = (d, _c, atualizacao) => {
+      if (sitBim && sitBim.numero !== n) return;           // a pessoa já trocou de bimestre
+      if (atualizacao && ocupado($('viewSit'))) { sitBim = d; return; }
+      sitBim = d;
       const i = sit.bimestres.findIndex(b => b.numero === n);
-      if (i > -1) { Object.assign(sit.bimestres[i], { qtd: sitBim.qtd, valor: sitBim.valor, status: sitBim.status }); renderTrilhoSit(); }
+      if (i > -1) { Object.assign(sit.bimestres[i], { qtd: d.qtd, valor: d.valor, status: d.status }); renderTrilhoSit(); }
       renderBimestre();
+    };
+    if (!manterTela && !lerCache('obterBimestre|' + JSON.stringify(dados))) $('sitCorpo').innerHTML = '<div class="vazio">Carregando…</div>';
+    try {
+      if (manterTela) { const d = await api('obterBimestre', dados); gravarCache('obterBimestre|' + JSON.stringify(dados), d); mostrarBim(d); }
+      else await apiRapida('obterBimestre', dados, mostrarBim);
     } catch (err) { $('sitCorpo').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
   }
 
   const cp = (v, mostrar) => (v === '' || v == null) ? '<span style="color:var(--suave)">—</span>'
-    : `<span class="copiar" data-copiar="${esc(v)}" title="Clique para copiar">${esc(mostrar ?? v)}</span>`;
+    : `<span class="cp-sit" data-copiar="${esc(v)}" title="Clique para copiar">${esc(mostrar ?? v)}</span>`;
 
   function renderBimestre() {
     const b = sitBim, r = b.registro || {}, ed = sit.pode_editar, enviado = b.status === 'Enviado ao SIT';
@@ -2599,6 +2683,15 @@
   // ---------- reabrir sessão ao recarregar
   (async () => {
     if (!sessao.get()) return;              // sem sessão: fica no login
+    // Recarregou a página (F5): abre na hora com o usuário guardado e confere a sessão em paralelo
+    let guardado = null;
+    try { guardado = JSON.parse(sessionStorage.getItem('usuario') || 'null'); } catch {}
+    if (guardado && !guardado.deve_trocar_senha) {
+      usuario = guardado;
+      abrirApp();
+      api('me').then(u => { usuario = u; try { sessionStorage.setItem('usuario', JSON.stringify(u)); } catch {} }).catch(() => {});
+      return;
+    }
     mostrar('telaCarregando');
     try {
       usuario = await api('me');
