@@ -388,6 +388,7 @@
         <div class="titulo-linha">
           <h2 style="font-size:16px">Parcelas do mês</h2>
           <div class="acoes-lote">
+            <button class="btn-sec oculto" id="btnImportar">📥 Importar lançamentos</button>
             <button class="btn-sec oculto" id="btnModeloEmail">⚙️ Modelo do e-mail</button>
             <button class="btn-sec" id="btnSolicitar">✉️ Pedir notas fiscais</button>
             <button class="btn-sec" id="btnLiberar">✓ Liberar selecionadas</button>
@@ -640,6 +641,33 @@
       <button type="submit" class="btn">Salvar modelo</button>
     </div>
   </form>
+</dialog>
+
+<!-- MODAL: IMPORTAR LANÇAMENTOS -->
+<dialog id="dlgImport" class="grande" style="width:min(1280px, calc(100vw - 32px))">
+  <div class="modal-cab"><h3>Importar lançamentos já pagos</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+  <div class="modal-corpo">
+    <div id="impPasso1">
+      <p class="dica">Cole o texto do bloco de notas e selecione os PDFs (nota + comprovante juntos). O sistema reconhece linhas no formato
+        <code>09/03 NF 34 - 10/03 2180,00 31001 Ana</code> (emissão · nº da NF · pagamento · valor · identificação do extrato · nome) e ignora os títulos.</p>
+      <div class="form-grade">
+        <div><label for="impProjeto">Projeto *</label><select id="impProjeto"></select></div>
+        <div><label for="impAno">Ano dos lançamentos</label><input id="impAno" inputmode="numeric"></div>
+        <div><label for="impStatus">Depois de importar, deixar como</label>
+          <select id="impStatus"><option value="Conferida">Conferida</option><option value="Lançada no SIT">Lançada no SIT</option><option value="Paga">Paga (conferir depois)</option></select></div>
+        <div class="largo"><label for="impTexto">Texto do bloco de notas</label><textarea id="impTexto" rows="10" style="font-family:ui-monospace,Consolas,monospace;font-size:13px"></textarea></div>
+        <div class="largo"><label for="impArquivos">PDFs (pode selecionar todos de uma vez)</label><input id="impArquivos" type="file" multiple accept=".pdf,image/*"></div>
+      </div>
+    </div>
+    <div id="impPasso2" class="oculto"></div>
+  </div>
+  <div class="modal-rodape">
+    <div class="msg" id="msgImport" role="alert"></div>
+    <button type="button" class="btn-sec oculto" id="btnImpVoltar">← Voltar</button>
+    <button type="button" class="btn-sec" data-fechar>Fechar</button>
+    <button type="button" class="btn" id="btnImpAnalisar">Analisar</button>
+    <button type="button" class="btn oculto" id="btnImpExecutar">Importar</button>
+  </div>
 </dialog>
 
 <!-- MODAL: INSTITUIÇÃO -->
@@ -1576,6 +1604,7 @@
     $('pagProjeto').innerHTML = '<option value="">Todos os projetos</option>' + pag.projetos.map(p =>
       `<option value="${esc(p.id_projeto)}" ${p.id_projeto === sel ? 'selected' : ''}>${esc(p.sigla || p.nome_projeto)}</option>`).join('');
     $('btnModeloEmail').classList.toggle('oculto', !pag.pode_editar_modelo);
+    $('btnImportar').classList.toggle('oculto', !pag.pode_lancar_direto);
 
     const etapas = [
       ['Pedir notas fiscais', r.solicitadas, 'prazo: ' + pag.prazo_nf],
@@ -1858,6 +1887,181 @@
       await atualizarParcAberta();
     } catch (err) { msg('msgSIT', err.message); btn.disabled = false; carregarPag().catch(() => {}); }
   }
+
+  // ---------- importador de lançamentos (meses já pagos)
+  // <parser>
+  const semAcento = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const palavras = t => semAcento(t).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(w => w && !/^\d+$/.test(w));
+
+  function lerLinhasLancamento(texto, ano) {
+    const re = /^\s*(\d{1,2})\/(\d{1,2})\s+NF\s*(\S+)\s*-\s*(\d{1,2})\/(\d{1,2})\s+(\d[\d.]*,\d{2}|\d+(?:\.\d{1,2})?)\s+(\S+)\s+(.+?)\s*$/i;
+    const ok = [], ignoradas = [];
+    String(texto).split(/\r?\n/).forEach((l, i) => {
+      if (!l.trim() || /^\s*lan[cç]amentos/i.test(l)) return;
+      const m = l.match(re);
+      if (!m) { ignoradas.push({ linha: i + 1, texto: l.trim() }); return; }
+      const [, de, me, nf, dp, mp, val, ident, nome] = m;
+      const anoPg = Number(ano), anoEm = Number(me) > Number(mp) ? anoPg - 1 : anoPg;
+      const iso = (a, mm, dd) => `${a}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+      ok.push({ linha: i + 1, data_emissao: iso(anoEm, me, de), numero: nf, data_pagamento: iso(anoPg, mp, dp),
+        valor: Number(val.includes(',') ? val.replace(/\./g, '').replace(',', '.') : val), ident, nome: nome.trim() });
+    });
+    return { ok, ignoradas };
+  }
+
+  function acharContratacao(nome, contratacoes) {
+    const alvo = palavras(nome)[0];
+    if (!alvo || alvo.length < 3) return [];
+    return contratacoes.filter(c => palavras(c.contratado + ' ' + (c.representante || '')).some(w => w.startsWith(alvo) || (alvo.length >= 5 && alvo.startsWith(w) && w.length >= 4)));
+  }
+
+  function competenciaAnterior(isoData) {
+    const [a, m] = isoData.split('-').map(Number);
+    const d = new Date(a, m - 2, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  function adivinharArquivo(l, nomes, usados) {
+    const mesPg = l.data_pagamento.slice(5, 7), alvo = palavras(l.nome)[0] || '';
+    let melhor = -1, nota = 0;
+    nomes.forEach((n, i) => {
+      if (usados.has(i)) return;
+      const t = semAcento(n), num = String(l.numero).replace(/\D/g, '');
+      let s = 0;
+      if (num && new RegExp('(^|\\D)0*' + num + '(\\D|$)').test(t)) s += 3;
+      if (alvo && t.includes(alvo.slice(0, 5))) s += 2;
+      if (new RegExp('(^|\\D)' + mesPg + '(\\D|$)').test(t) || t.includes(MESES_NOME[Number(mesPg) - 1].slice(0, 3))) s += 1;
+      if (s > nota) { nota = s; melhor = i; }
+    });
+    return nota >= 3 ? melhor : -1;
+  }
+  // </parser>
+
+  let imp = { parcelas: [], contratacoes: [], linhas: [], arquivos: [] };
+
+  $('btnImportar').addEventListener('click', () => {
+    $('impProjeto').innerHTML = pag.projetos.map(p => `<option value="${esc(p.id_projeto)}">${esc(p.sigla || p.nome_projeto)}</option>`).join('');
+    if ($('pagProjeto').value) $('impProjeto').value = $('pagProjeto').value;
+    $('impAno').value = $('impAno').value || new Date().getFullYear();
+    mostrarPassoImp(1); msg('msgImport', '');
+    $('dlgImport').showModal();
+  });
+
+  function mostrarPassoImp(n) {
+    $('impPasso1').classList.toggle('oculto', n !== 1); $('impPasso2').classList.toggle('oculto', n !== 2);
+    $('btnImpAnalisar').classList.toggle('oculto', n !== 1); $('btnImpVoltar').classList.toggle('oculto', n !== 2);
+    $('btnImpExecutar').classList.toggle('oculto', n !== 2); $('btnImpExecutar').disabled = false;
+  }
+  $('btnImpVoltar').addEventListener('click', () => { mostrarPassoImp(1); msg('msgImport', ''); });
+
+  $('btnImpAnalisar').addEventListener('click', async () => {
+    const lido = lerLinhasLancamento($('impTexto').value, $('impAno').value);
+    if (!lido.ok.length) return msg('msgImport', 'Nenhuma linha reconhecida. Confira o formato do texto.');
+    const btn = $('btnImpAnalisar'); btn.disabled = true; msg('msgImport', 'Buscando as parcelas do projeto…', 'ok');
+    try {
+      imp.parcelas = await api('listarParcelasProjeto', { id_projeto: $('impProjeto').value });
+      const porCtr = {};
+      imp.parcelas.forEach(p => { porCtr[p.id_contratacao] = porCtr[p.id_contratacao] || { id_contratacao: p.id_contratacao, contratado: p.contratado, representante: p.representante, rubrica: p.rubrica }; });
+      imp.contratacoes = Object.values(porCtr);
+      imp.arquivos = [...$('impArquivos').files];
+      const nomes = imp.arquivos.map(f => f.name), usadosArq = new Set(), usadasParc = new Set();
+      imp.linhas = lido.ok.map(l => {
+        const avisos = [];
+        const cands = acharContratacao(l.nome, imp.contratacoes);
+        const ctr = cands[0];
+        if (!ctr) avisos.push('contratado não encontrado');
+        else if (cands.length > 1) avisos.push('mais de um contratado parecido – confira');
+        let parc = null;
+        if (ctr) {
+          const lista = imp.parcelas.filter(p => p.id_contratacao === ctr.id_contratacao).sort((a, b) => a.num_parcela - b.num_parcela);
+          const comp = competenciaAnterior(l.data_pagamento);
+          parc = lista.find(p => p.competencia_mes === comp && !usadasParc.has(p.id_parcela));
+          if (!parc) {
+            parc = lista.find(p => !p.tem_pagamento && !usadasParc.has(p.id_parcela));
+            if (parc) avisos.push('competência ajustada para a próxima parcela em aberto');
+          }
+          if (!parc) avisos.push('nenhuma parcela livre nesta contratação');
+        }
+        if (parc) {
+          usadasParc.add(parc.id_parcela);
+          if (Math.abs(Number(parc.valor_previsto) - l.valor) > 0.009) avisos.push('valor diferente do previsto (' + brl(parc.valor_previsto) + ')');
+          if (parc.tem_pagamento) avisos.push('parcela já tinha lançamento – será substituído');
+        }
+        const ia = adivinharArquivo(l, nomes, usadosArq);
+        if (ia >= 0) usadosArq.add(ia); else avisos.push('arquivo não identificado – escolha na lista');
+        return Object.assign(l, { id_contratacao: ctr ? ctr.id_contratacao : '', id_parcela: parc ? parc.id_parcela : '', arquivo: ia, avisos, incluir: !!parc });
+      });
+      renderPrevImp(lido.ignoradas);
+      mostrarPassoImp(2); msg('msgImport', '');
+    } catch (err) { msg('msgImport', err.message); }
+    btn.disabled = false;
+  });
+
+  function renderPrevImp(ignoradas) {
+    const optCtr = sel => '<option value="">— escolha —</option>' + imp.contratacoes.map(c =>
+      `<option value="${esc(c.id_contratacao)}" ${c.id_contratacao === sel ? 'selected' : ''}>${esc(c.contratado)} · ${esc(c.rubrica)}</option>`).join('');
+    const optParc = (ctr, sel) => '<option value="">—</option>' + imp.parcelas.filter(p => p.id_contratacao === ctr).sort((a, b) => a.num_parcela - b.num_parcela).map(p =>
+      `<option value="${esc(p.id_parcela)}" ${p.id_parcela === sel ? 'selected' : ''}>${p.num_parcela}/${p.total_parcelas} · ${mesExt(p.competencia_mes)}${p.tem_pagamento ? ' (já lançada)' : ''}</option>`).join('');
+    const optArq = sel => '<option value="-1">— sem arquivo —</option>' + imp.arquivos.map((f, i) => `<option value="${i}" ${i === sel ? 'selected' : ''}>${esc(f.name)}</option>`).join('');
+    const total = imp.linhas.reduce((s, l) => s + l.valor, 0);
+    $('impPasso2').innerHTML = `
+      <p class="dica">${imp.linhas.length} lançamento(s) reconhecido(s), somando <b>${brl(total)}</b>, e ${imp.arquivos.length} arquivo(s). Confira contratado, parcela e arquivo de cada linha; o que estiver em amarelo merece atenção.</p>
+      ${ignoradas.length ? `<div class="aviso">Linhas não reconhecidas (serão ignoradas): ${ignoradas.map(x => `<br>• linha ${x.linha}: <code>${esc(x.texto)}</code>`).join('')}</div>` : ''}
+      <div class="tabela-wrap" style="margin-top:10px"><table>
+        <thead><tr><th></th><th>Linha</th><th>NF</th><th>Emissão</th><th>Pagamento</th><th class="num">Valor</th><th>Ident.</th><th>Contratado</th><th>Parcela</th><th>Arquivo</th><th>Situação</th></tr></thead>
+        <tbody>${imp.linhas.map((l, i) => `<tr id="impLinha${i}" style="${l.avisos.length ? 'background:#fffaf0' : ''}">
+          <td><input type="checkbox" data-imp-incluir="${i}" ${l.incluir ? 'checked' : ''}></td>
+          <td style="white-space:nowrap">${esc(l.nome)}</td>
+          <td>${esc(l.numero)}</td><td>${dataBr(l.data_emissao)}</td><td>${dataBr(l.data_pagamento)}</td>
+          <td class="num">${brl(l.valor)}</td><td>${esc(l.ident)}</td>
+          <td><select data-imp-ctr="${i}" style="min-width:190px">${optCtr(l.id_contratacao)}</select></td>
+          <td><select data-imp-parc="${i}" style="min-width:150px">${optParc(l.id_contratacao, l.id_parcela)}</select></td>
+          <td><select data-imp-arq="${i}" style="min-width:180px;max-width:240px">${optArq(l.arquivo)}</select></td>
+          <td id="impSit${i}" style="font-size:12px;color:var(--alerta)">${l.avisos.map(esc).join('<br>') || '<span style="color:var(--ok)">✓ ok</span>'}</td>
+        </tr>`).join('')}</tbody></table></div>`;
+    $('impPasso2').querySelectorAll('[data-imp-incluir]').forEach(cb => cb.addEventListener('change', () => { imp.linhas[cb.dataset.impIncluir].incluir = cb.checked; atualizarBotaoImp(); }));
+    $('impPasso2').querySelectorAll('[data-imp-ctr]').forEach(s => s.addEventListener('change', () => {
+      const l = imp.linhas[s.dataset.impCtr]; l.id_contratacao = s.value; l.id_parcela = '';
+      $('impPasso2').querySelector(`[data-imp-parc="${s.dataset.impCtr}"]`).innerHTML = optParc(s.value, '');
+    }));
+    $('impPasso2').querySelectorAll('[data-imp-parc]').forEach(s => s.addEventListener('change', () => {
+      const l = imp.linhas[s.dataset.impParc]; l.id_parcela = s.value; l.incluir = !!s.value;
+      $('impPasso2').querySelector(`[data-imp-incluir="${s.dataset.impParc}"]`).checked = l.incluir; atualizarBotaoImp();
+    }));
+    $('impPasso2').querySelectorAll('[data-imp-arq]').forEach(s => s.addEventListener('change', () => { imp.linhas[s.dataset.impArq].arquivo = Number(s.value); }));
+    atualizarBotaoImp();
+  }
+
+  function atualizarBotaoImp() {
+    const n = imp.linhas.filter(l => l.incluir && l.id_parcela).length;
+    $('btnImpExecutar').textContent = `Importar ${n} lançamento(s)`;
+    $('btnImpExecutar').disabled = !n;
+  }
+
+  $('btnImpExecutar').addEventListener('click', async () => {
+    const fila = imp.linhas.map((l, i) => ({ l, i })).filter(({ l }) => l.incluir && l.id_parcela);
+    const semArq = fila.filter(({ l }) => l.arquivo < 0).length;
+    if (semArq && !confirm(`${semArq} lançamento(s) estão sem arquivo. Eles só serão gravados se a parcela já tiver um documento. Continuar?`)) return;
+    const btn = $('btnImpExecutar'); btn.disabled = true; $('btnImpVoltar').disabled = true;
+    let ok = 0, erro = 0;
+    for (const [k, { l, i }] of fila.entries()) {
+      msg('msgImport', `Importando ${k + 1} de ${fila.length}… (não feche esta janela)`, 'ok');
+      const cel = $('impSit' + i);
+      try {
+        const arquivo = l.arquivo >= 0 ? await lerArquivo(imp.arquivos[l.arquivo]) : null;
+        const r = await api('importarLancamento', { id_parcela: l.id_parcela, arquivo, status_final: $('impStatus').value,
+          nf: { numero: l.numero, data_emissao: l.data_emissao, valor: l.valor },
+          pagamento: { data_pagamento: l.data_pagamento, valor: l.valor, num_identificacao_pix: l.ident, forma_pagamento: 'PIX' } });
+        cel.innerHTML = '<b style="color:var(--ok)">✓ importado</b>' + (r.divergencias.length ? '<br>' + r.divergencias.map(esc).join('<br>') : '');
+        $('impLinha' + i).style.background = 'var(--ok-fundo)'; l.incluir = false; ok++;
+      } catch (err) {
+        cel.innerHTML = '<b style="color:var(--erro)">✗ ' + esc(err.message) + '</b>'; erro++;
+      }
+    }
+    msg('msgImport', `Concluído: ${ok} importado(s)` + (erro ? `, ${erro} com erro (corrija e clique em Importar de novo)` : '') + '.', erro ? 'erro' : 'ok');
+    $('btnImpVoltar').disabled = false; atualizarBotaoImp();
+    carregarPag().catch(() => {});
+  });
 
   // ---------- instituições
   const SECOES_INST = [
