@@ -255,6 +255,7 @@
   .bim small { display: block; color: var(--suave); font-size: 12px; margin: 2px 0 8px; }
   .bim .valor { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
   .st.azul { background: var(--azul-fundo); color: var(--azul-escuro); }
+  input.calculado { background: var(--card-suave); color: var(--azul-escuro); font-weight: 700; cursor: default; }
   .cp-sit { cursor: copy; border-radius: 4px; padding: 1px 3px; margin: -1px -3px; }
   .cp-sit:hover { background: var(--azul-fundo); }
   .cp-sit.copiado { background: var(--ok-fundo); }
@@ -2742,13 +2743,14 @@
           ${enviado ? `<span class="st verde">✓ Enviado ao SIT em ${dataBr(b.enviado_cit_em)}</span>` : ''}</div>
         <div class="form-grade">
           <div><label for="bim_prazo">Prazo de envio</label><input id="bim_prazo" type="date" value="${esc(r.prazo_envio || '')}"></div>
-          <div><label for="bim_saldo_ini">Saldo inicial da conta (R$)</label><input id="bim_saldo_ini" inputmode="decimal" value="${esc(num2(r.saldo_inicial !== undefined && r.saldo_inicial !== '' ? r.saldo_inicial : (b.saldo_final_anterior ?? (b.recurso_neste_bimestre ? 0 : ''))))}">
-            ${(r.saldo_inicial === undefined || r.saldo_inicial === '') && b.saldo_final_anterior != null ? '<div class="dica" style="margin:4px 0 0">sugerido: saldo final do bimestre anterior</div>' : ''}</div>
+          <div><label for="bim_saldo_ini">Saldo inicial da conta (R$)</label>
+            <input id="bim_saldo_ini" inputmode="decimal" value="${esc(num2(b.primeiro_bimestre ? (r.saldo_inicial !== undefined && r.saldo_inicial !== '' ? r.saldo_inicial : 0) : b.saldo_inicial_calc))}" ${b.primeiro_bimestre ? '' : 'readonly tabindex="-1" class="calculado"'}>
+            <div class="dica" style="margin:4px 0 0">${b.primeiro_bimestre ? 'primeiro bimestre: informe o saldo antes do repasse (normalmente 0)' : 'automático: saldo final do bimestre anterior'}</div></div>
           <div><label for="bim_creditos">Repasse / créditos recebidos (R$)</label><input id="bim_creditos" inputmode="decimal" value="${esc(num2(r.creditos !== undefined && r.creditos !== '' ? r.creditos : (b.recurso_neste_bimestre ? b.valor_recurso : '')))}">
             ${(r.creditos === undefined || r.creditos === '') && b.recurso_neste_bimestre ? '<div class="dica" style="margin:4px 0 0">sugerido: valor do projeto (recurso caiu neste bimestre)</div>' : ''}</div>
           <div><label for="bim_rend">Rendimentos de aplicação (R$)</label><input id="bim_rend" inputmode="decimal" value="${esc(num2(r.rendimentos))}"></div>
-          <div><label for="bim_saldo_fim">Saldo final da conta (R$)</label><input id="bim_saldo_fim" inputmode="decimal" value="${esc(num2(r.saldo_final))}"></div>
-          <div><label for="bim_protocolo">Protocolo / nº no SIT</label><input id="bim_protocolo" value="${esc(r.protocolo_sit || '')}"></div>
+          <div><label for="bim_desp">Despesas do bimestre (R$)</label><input id="bim_desp" value="${esc(num2(b.valor))}" readonly tabindex="-1" class="calculado"></div>
+          <div><label for="bim_saldo_fim">Saldo final da conta (R$)</label><input id="bim_saldo_fim" readonly tabindex="-1" class="calculado"><div class="dica" style="margin:4px 0 0">automático</div></div>
           <div class="largo" style="grid-column:1/-1"><label for="bim_obs">Observações</label><textarea id="bim_obs" rows="2">${esc(r.observacoes || '')}</textarea></div>
         </div>
         <p class="dica" id="sitConta"></p>
@@ -2762,12 +2764,11 @@
   }
 
   function contaBim() {
-    const ini = lerNumero($('bim_saldo_ini').value), cred = lerNumero($('bim_creditos').value), rend = lerNumero($('bim_rend').value), fim = lerNumero($('bim_saldo_fim').value);
-    if (ini === '' || isNaN(ini)) { $('sitConta').textContent = ''; return; }
-    const esperado = ini + (Number(cred) || 0) + (Number(rend) || 0) - sitBim.valor;
-    let t = `Conta: saldo inicial ${brl(ini)}${cred ? ' + repasse ' + brl(cred) : ''} + rendimentos ${brl(rend || 0)} − despesas ${brl(sitBim.valor)} = ${brl(esperado)}`;
-    if (fim !== '' && !isNaN(fim)) t += Math.abs(fim - esperado) < 0.01 ? ' ✓ confere com o saldo final.' : ` ⚠️ diferença de ${brl(fim - esperado)} para o saldo final (créditos, tarifas ou devoluções?).`;
-    $('sitConta').textContent = t;
+    const n = v => { const x = lerNumero(v); return isNaN(x) || x === '' ? 0 : Number(x); };
+    const ini = n($('bim_saldo_ini').value), cred = n($('bim_creditos').value), rend = n($('bim_rend').value);
+    const fim = Math.round((ini + cred + rend - sitBim.valor) * 100) / 100;
+    $('bim_saldo_fim').value = num2(fim);
+    $('sitConta').textContent = `Saldo inicial ${brl(ini)}${cred ? ' + repasse ' + brl(cred) : ''} + rendimentos ${brl(rend)} − despesas ${brl(sitBim.valor)} = saldo final ${brl(fim)}`;
   }
 
   function ligarBimestre() {
@@ -2809,8 +2810,8 @@
     const btn = e.currentTarget; btn.disabled = true; msg('msgBim', 'Salvando…', 'ok');
     try {
       const dados = { id_projeto: sit.projeto.id_projeto, numero: sitBim.numero, prazo_envio: $('bim_prazo').value,
-        saldo_inicial: $('bim_saldo_ini').value, creditos: $('bim_creditos').value, rendimentos: $('bim_rend').value, saldo_final: $('bim_saldo_fim').value,
-        protocolo_sit: $('bim_protocolo').value, observacoes: $('bim_obs').value };
+        saldo_inicial: $('bim_saldo_ini').value, creditos: $('bim_creditos').value, rendimentos: $('bim_rend').value,
+        observacoes: $('bim_obs').value };
       if (enviar !== undefined) dados.enviar = enviar;
       await api('salvarBimestre', dados);
       toast(enviar === true ? 'Bimestre marcado como enviado ✓' : enviar === false ? 'Bimestre reaberto' : 'Dados do bimestre salvos ✓');
