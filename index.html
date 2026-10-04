@@ -44,6 +44,13 @@
   input:focus, select:focus, textarea:focus { outline: none; border-color: var(--azul-claro); box-shadow: 0 0 0 3px rgba(63,116,166,.15); }
   button:focus-visible, a:focus-visible, .projeto:focus-visible, tr.clicavel:focus-visible { outline: 2px solid var(--azul-claro); outline-offset: 2px; }
   input:disabled, select:disabled, textarea:disabled { background: var(--card-suave); color: var(--texto); }
+  .campo-data { position: relative; display: flex; align-items: stretch; }
+  .campo-data input[type="text"] { padding-right: 42px; }
+  .campo-data input.invalido { border-color: #b3261e; box-shadow: 0 0 0 3px rgba(179,38,30,.12); }
+  .campo-data .btn-cal { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 34px; height: 30px; display: grid; place-items: center; border: 0; background: transparent; color: var(--azul); border-radius: 6px; cursor: pointer; }
+  .campo-data .btn-cal:hover { background: rgba(63,116,166,.1); }
+  .campo-data .btn-cal:disabled { color: var(--suave); cursor: default; background: transparent; }
+  .campo-data input[type="date"] { position: absolute; right: 0; bottom: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
   label { display: block; font-size: 12px; font-weight: 600; color: var(--suave); margin-bottom: 6px; }
 
   /* Botões */
@@ -2201,6 +2208,99 @@
   $('btnInstituicoes').addEventListener('click', abrirInstituicoes);
   $('btnVoltarInst').addEventListener('click', mostrarLista);
   $('btnNovaInst').addEventListener('click', () => abrirFormInst(null));
+
+  // ---------- campos de data: digitar (dd/mm/aaaa) ou escolher no calendário
+  // O campo original (type=date) continua guardando o valor no formato do sistema (aaaa-mm-dd);
+  // ao lado dele aparece um campo de texto para digitar e um botão de calendário.
+  (() => {
+    const proto = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    const protoDis = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'disabled');
+    const paraBR = iso => /^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? iso.split('-').reverse().join('/') : '';
+    const paraISO = t => {
+      const m = String(t || '').trim().match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/);
+      if (!m) return null;
+      const d = +m[1], mes = +m[2], a = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+      const dt = new Date(a, mes - 1, d);
+      if (dt.getFullYear() !== a || dt.getMonth() !== mes - 1 || dt.getDate() !== d) return null;
+      return `${a}-${String(mes).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    };
+    // coloca as barras sozinho (05062026 → 05/06/2026) e também aceita 8/4/26 digitado com barras
+    const mascara = t => {
+      const seg = [''];
+      for (const ch of t) {
+        const i = seg.length - 1;
+        if (/\d/.test(ch)) {
+          if (i < 2 && seg[i].length === 2) { seg.push(ch); continue; }
+          if (i === 2 && seg[i].length === 4) continue;
+          seg[i] += ch;
+        } else if (/[\/.\-]/.test(ch) && i < 2 && seg[i]) seg.push('');
+      }
+      return seg.join('/');
+    };
+
+    function melhorar(dt) {
+      if (dt.dataset.digitavel) return;
+      dt.dataset.digitavel = '1';
+      const caixa = document.createElement('div'); caixa.className = 'campo-data';
+      const txt = document.createElement('input');
+      txt.type = 'text'; txt.inputMode = 'numeric'; txt.placeholder = 'dd/mm/aaaa'; txt.maxLength = 10; txt.autocomplete = 'off';
+      const bt = document.createElement('button');
+      bt.type = 'button'; bt.className = 'btn-cal'; bt.title = 'Abrir calendário'; bt.setAttribute('aria-label', 'Abrir calendário');
+      bt.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+      dt.parentNode.insertBefore(caixa, dt);
+      caixa.append(txt, bt, dt);
+      // o rótulo passa a apontar para o campo de digitar
+      if (dt.id) { document.querySelectorAll(`label[for="${dt.id}"]`).forEach(l => l.htmlFor = dt.id + '__txt'); txt.id = dt.id + '__txt'; }
+      if (dt.required) { dt.required = false; txt.required = true; }
+      dt.tabIndex = -1; dt.setAttribute('aria-hidden', 'true');
+
+      Object.defineProperty(dt, 'value', {
+        get() { return proto.get.call(this); },
+        set(v) { proto.set.call(this, v); txt.value = paraBR(proto.get.call(this)); txt.classList.remove('invalido'); txt.setCustomValidity(''); }
+      });
+      Object.defineProperty(dt, 'disabled', {
+        get() { return protoDis.get.call(this); },
+        set(v) { protoDis.set.call(this, v); txt.disabled = !!v; bt.disabled = !!v; }
+      });
+      txt.value = paraBR(proto.get.call(dt));
+      txt.disabled = bt.disabled = protoDis.get.call(dt);
+
+      let digitando = false;
+      const avisar = () => { dt.dispatchEvent(new Event('input', { bubbles: true })); dt.dispatchEvent(new Event('change', { bubbles: true })); };
+      txt.addEventListener('input', () => {
+        const pos = txt.selectionStart, antes = txt.value.length;
+        txt.value = mascara(txt.value);
+        try { txt.setSelectionRange(pos + txt.value.length - antes, pos + txt.value.length - antes); } catch (e) {}
+        // enquanto digita, só aceita o ano com 4 dígitos (o ano com 2 dígitos é completado ao sair do campo)
+        const iso = /\d{4}$/.test(txt.value) ? paraISO(txt.value) : null;
+        const novo = txt.value ? (iso || '') : '';
+        txt.classList.remove('invalido'); txt.setCustomValidity('');
+        if (novo !== proto.get.call(dt) && (iso || !txt.value)) { digitando = true; proto.set.call(dt, novo); avisar(); digitando = false; }
+      });
+      txt.addEventListener('blur', () => {
+        if (!txt.value) return;
+        const iso = paraISO(txt.value);
+        if (!iso) {
+          txt.classList.add('invalido'); txt.setCustomValidity('Data inválida. Use dd/mm/aaaa.');
+          if (proto.get.call(dt)) { proto.set.call(dt, ''); avisar(); }
+        } else {
+          txt.value = paraBR(iso);
+          if (iso !== proto.get.call(dt)) { proto.set.call(dt, iso); avisar(); }
+        }
+      });
+      dt.addEventListener('change', () => { if (digitando) return; txt.value = paraBR(proto.get.call(dt)); txt.classList.remove('invalido'); txt.setCustomValidity(''); });
+      bt.addEventListener('click', () => {
+        try { dt.showPicker(); } catch (e) { dt.focus(); dt.click(); }
+      });
+    }
+
+    const varrer = raiz => (raiz.querySelectorAll ? raiz.querySelectorAll('input[type="date"]:not([data-digitavel])') : []).forEach(melhorar);
+    varrer(document);
+    new MutationObserver(lista => lista.forEach(m => m.addedNodes.forEach(n => {
+      if (n.nodeType !== 1) return;
+      if (n.matches && n.matches('input[type="date"]')) melhorar(n); else varrer(n);
+    }))).observe(document.body, { childList: true, subtree: true });
+  })();
 
   // ---------- reabrir sessão ao recarregar
   (async () => {
