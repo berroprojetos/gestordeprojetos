@@ -2745,9 +2745,9 @@
           <div><label for="bim_prazo">Prazo de envio</label><input id="bim_prazo" type="date" value="${esc(r.prazo_envio || '')}"></div>
           <div><label for="bim_saldo_ini">Saldo inicial da conta (R$)</label>
             <input id="bim_saldo_ini" inputmode="decimal" value="${esc(num2(b.primeiro_bimestre ? (r.saldo_inicial !== undefined && r.saldo_inicial !== '' ? r.saldo_inicial : 0) : b.saldo_inicial_calc))}" ${b.primeiro_bimestre ? '' : 'readonly tabindex="-1" class="calculado"'}>
-            <div class="dica" style="margin:4px 0 0">${b.primeiro_bimestre ? 'primeiro bimestre: informe o saldo antes do repasse (normalmente 0)' : 'automático: saldo final do bimestre anterior'}</div></div>
-          <div><label for="bim_creditos">Repasse / créditos recebidos (R$)</label><input id="bim_creditos" inputmode="decimal" value="${esc(num2(r.creditos !== undefined && r.creditos !== '' ? r.creditos : (b.recurso_neste_bimestre ? b.valor_recurso : '')))}">
-            ${(r.creditos === undefined || r.creditos === '') && b.recurso_neste_bimestre ? '<div class="dica" style="margin:4px 0 0">sugerido: valor do projeto (recurso caiu neste bimestre)</div>' : ''}</div>
+            <div class="dica" style="margin:4px 0 0">${b.primeiro_bimestre ? 'primeiro bimestre: informe o saldo inicial (valor do recurso recebido)' : 'automático: saldo final do bimestre anterior'}</div></div>
+          <div><label for="bim_creditos">Outros créditos na conta (R$)</label><input id="bim_creditos" inputmode="decimal" placeholder="0,00" value="${esc(r.creditos ? num2(r.creditos) : '')}">
+            <div class="dica" style="margin:4px 0 0">só se cair novo depósito (instituição ou governo)</div></div>
           <div><label for="bim_rend">Rendimentos de aplicação (R$)</label><input id="bim_rend" inputmode="decimal" value="${esc(num2(r.rendimentos))}"></div>
           <div><label for="bim_desp">Despesas do bimestre (R$)</label><input id="bim_desp" value="${esc(num2(b.valor))}" readonly tabindex="-1" class="calculado"></div>
           <div><label for="bim_saldo_fim">Saldo final da conta (R$)</label><input id="bim_saldo_fim" readonly tabindex="-1" class="calculado"><div class="dica" style="margin:4px 0 0">automático</div></div>
@@ -2768,7 +2768,7 @@
     const ini = n($('bim_saldo_ini').value), cred = n($('bim_creditos').value), rend = n($('bim_rend').value);
     const fim = Math.round((ini + cred + rend - sitBim.valor) * 100) / 100;
     $('bim_saldo_fim').value = num2(fim);
-    $('sitConta').textContent = `Saldo inicial ${brl(ini)}${cred ? ' + repasse ' + brl(cred) : ''} + rendimentos ${brl(rend)} − despesas ${brl(sitBim.valor)} = saldo final ${brl(fim)}`;
+    $('sitConta').textContent = `Saldo inicial ${brl(ini)}${cred ? ' + outros créditos ' + brl(cred) : ''} + rendimentos ${brl(rend)} − despesas ${brl(sitBim.valor)} = saldo final ${brl(fim)}`;
   }
 
   function ligarBimestre() {
