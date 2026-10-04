@@ -499,7 +499,10 @@
       <section class="painel oculto" id="abaContratacoes" role="tabpanel">
         <div class="titulo-linha">
           <h2 style="font-size:16px">Contratações</h2>
-          <button class="btn" id="btnNovaCtr">+ Nova contratação</button>
+          <div class="acoes-lote">
+            <button class="btn-sec" id="btnNovaCompra">🛒 Nova compra</button>
+            <button class="btn" id="btnNovaCtr">+ Nova contratação</button>
+          </div>
         </div>
         <div class="tabela-wrap" id="tabelaCtr"></div>
       </section>
@@ -724,6 +727,59 @@
 </dialog>
 
 <!-- MODAL: DETALHE DA CONTRATAÇÃO -->
+<!-- MODAL: COMPRA DE BENS -->
+<dialog id="dlgCompra" class="grande">
+  <form id="formCompra">
+    <div class="modal-cab"><h3 id="tituloCompra">Nova compra</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+    <div class="modal-corpo">
+      <div class="form-grade">
+        <div class="largo"><label for="cp_rubrica">Rubrica *</label><select id="cp_rubrica" required></select>
+          <div class="dica" id="cp_saldo" style="margin:6px 0 0"></div></div>
+        <div><label for="cp_data">Data da compra *</label><input id="cp_data" type="date" required></div>
+        <div><label for="cp_parcelas">Pagamento</label><select id="cp_parcelas">
+          <option value="1">À vista (1 parcela)</option><option value="2">2 parcelas</option><option value="3">3 parcelas</option><option value="4">4 parcelas</option><option value="5">5 parcelas</option><option value="6">6 parcelas</option><option value="10">10 parcelas</option><option value="12">12 parcelas</option>
+        </select></div>
+      </div>
+
+      <fieldset><legend>Fornecedor</legend><div class="form-grade">
+        <div class="largo"><label for="cp_razao">Nome / razão social *</label><input id="cp_razao" list="cp_lista_forn" required autocomplete="off"></div>
+        <div><label for="cp_cnpj">CNPJ / CPF *</label><input id="cp_cnpj" required></div>
+        <div><label for="cp_email">E-mail</label><input id="cp_email" type="email"></div>
+        <div><label for="cp_tel">Telefone</label><input id="cp_tel"></div>
+      </div><datalist id="cp_lista_forn"></datalist></fieldset>
+
+      <fieldset><legend>Itens comprados</legend>
+        <div class="tabela-wrap"><table>
+          <thead><tr><th style="width:40%">Descrição</th><th>Unidade</th><th class="num">Qtd.</th><th class="num">Valor unit. (R$)</th><th class="num">Total</th><th></th></tr></thead>
+          <tbody id="cp_itens"></tbody>
+          <tfoot><tr><td colspan="4">Total da compra</td><td class="num" id="cp_total">R$ 0,00</td><td></td></tr></tfoot>
+        </table></div>
+        <button type="button" class="btn-link" id="cp_add" style="margin-top:8px">+ Adicionar item</button>
+        <div class="form-grade" style="margin-top:12px">
+          <div class="largo" style="grid-column:1/-1"><label for="cp_descnf">Descrição para a NF / SIT</label><input id="cp_descnf" placeholder="ex.: aquisição de 44 pacotes de papel sulfite A4"></div>
+          <div class="largo" style="grid-column:1/-1"><label for="cp_obs">Observações</label><textarea id="cp_obs" rows="2"></textarea></div>
+        </div>
+      </fieldset>
+
+      <fieldset id="cp_bloco_lanc"><legend>Já foi paga? Lance a NF e o pagamento</legend>
+        <p class="dica" style="margin-top:0">Preencha só se a compra já foi paga (ex.: meses anteriores). O arquivo pode ser o PDF único com a nota e o comprovante.</p>
+        <div class="form-grade">
+          <div><label for="cp_nf">Nº da NF</label><input id="cp_nf"></div>
+          <div><label for="cp_emissao">Data de emissão</label><input id="cp_emissao" type="date"></div>
+          <div><label for="cp_pagto">Data do pagamento / débito</label><input id="cp_pagto" type="date"></div>
+          <div><label for="cp_forma">Forma</label><select id="cp_forma"><option>PIX</option><option>Transferência</option></select></div>
+          <div><label for="cp_ident">Nº de identificação (extrato)</label><input id="cp_ident"></div>
+          <div><label for="cp_status">Depois de lançar, deixar como</label><select id="cp_status"><option>Conferida</option><option>Paga</option><option>Lançada no SIT</option></select></div>
+          <div class="largo" style="grid-column:1/-1"><label for="cp_arquivo">Arquivo (NF + comprovante)</label><input id="cp_arquivo" type="file"></div>
+        </div>
+      </fieldset>
+      <div class="form-acoes"><div class="msg" id="msgCompra"></div>
+        <button type="button" class="btn-sec" data-fechar>Cancelar</button>
+        <button type="submit" class="btn" id="btnSalvarCompra">Salvar compra</button></div>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="dlgCtr" class="grande">
   <div class="modal-cab"><h3 id="tituloCtr">Contratação</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
   <div class="modal-corpo" id="corpoCtr"></div>
@@ -1255,6 +1311,7 @@
   function renderContratacoes() {
     const cs = atual.contratacoes || [];
     $('btnNovaCtr').classList.toggle('oculto', !atual.podeContratar);
+    $('btnNovaCompra').classList.toggle('oculto', !atual.podeContratar);
     if (!cs.length) {
       $('tabelaCtr').innerHTML = `<div class="vazio">Nenhuma contratação cadastrada ainda.${atual.podeContratar ? '<br>Clique em “+ Nova contratação” para começar.' : ''}</div>`;
       return;
@@ -1265,13 +1322,13 @@
           <th class="num">Parcelas</th><th class="num">Total</th><th>Status</th><th>Contrato</th><th class="num">Docs</th></tr></thead>
         <tbody>${cs.map(c => `<tr class="clicavel" data-ctr="${esc(c.id_contratacao)}" tabindex="0">
           <td style="white-space:nowrap">${esc(c.id_contratacao)}</td>
-          <td><b>${esc(c.fornecedor_nome)}</b><br><span style="color:var(--suave)">${esc(c.objeto)}</span></td>
+          <td><b>${esc(c.fornecedor_nome)}</b>${c.tipo_despesa === 'Compra de bens' ? ' <span class="tag">🛒 compra</span>' : ''}<br><span style="color:var(--suave)">${esc(c.objeto)}</span></td>
           <td>${esc(c.rubrica_descricao)}</td>
           <td style="white-space:nowrap">${dataBr(c.inicio_execucao)}<br>${c.fim_execucao ? 'a ' + dataBr(c.fim_execucao) : ''}</td>
           <td class="num">${esc(c.num_parcelas)} × ${brl(c.valor_parcela)}</td>
           <td class="num"><b>${brl(c.valor_total_contratado)}</b></td>
           <td><span class="st ${stClasse(c.status)}">${esc(c.status)}</span></td>
-          <td>${c.tem_contrato ? '<span class="st verde">✓ anexado</span>' : '<span class="st amarelo">pendente</span>'}</td>
+          <td>${c.tipo_despesa === 'Compra de bens' ? '<span style="color:var(--suave)">—</span>' : c.tem_contrato ? '<span class="st verde">✓ anexado</span>' : '<span class="st amarelo">pendente</span>'}</td>
           <td class="num">${c.qtd_documentos}</td></tr>`).join('')}</tbody>
       </table>`;
     $('tabelaCtr').querySelectorAll('[data-ctr]').forEach(tr => {
@@ -1375,7 +1432,19 @@
     const modelos = (atual.modelos || []).filter(m => m.tipo_modelo !== 'Cotação');
     const gerado = ctrAtual.contrato_gerado;
 
-    $('tituloCtr').textContent = `${c.id_contratacao} · ${f ? f.razao_social : ''}`;
+    const ehCompra = c.tipo_despesa === 'Compra de bens';
+    const itens = ctrAtual.itens || [];
+    $('tituloCtr').textContent = `${c.id_contratacao} · ${f ? f.razao_social : ''}${ehCompra ? ' · compra' : ''}`;
+    const blocoItens = ehCompra ? `
+      <div class="secao">
+        <h4>Itens comprados</h4>
+        ${itens.length ? `<div class="tabela-wrap"><table>
+          <thead><tr><th>Descrição</th><th>Unidade</th><th class="num">Qtd.</th><th class="num">Valor unit.</th><th class="num">Total</th></tr></thead>
+          <tbody>${itens.map(i => `<tr><td>${esc(i.descricao)}</td><td>${esc(i.unidade)}</td><td class="num">${numBr(i.quantidade)}</td>
+            <td class="num">${brl(i.valor_unitario)}</td><td class="num">${brl(i.valor_total)}</td></tr>`).join('')}</tbody>
+          <tfoot><tr><td colspan="4">Total</td><td class="num">${brl(itens.reduce((s, i) => s + i.valor_total, 0))}</td></tr></tfoot>
+        </table></div>` : '<p class="dica">Sem itens detalhados. Use “Editar compra” para incluir.</p>'}
+      </div>` : '';
     $('corpoCtr').innerHTML = `
       <div class="info-grade">
         <div><span>Contratado</span><b>${esc(f && f.razao_social)}</b></div>
@@ -1390,11 +1459,12 @@
         <div><span>Assinatura do contrato</span>${dataBr(c.data_assinatura_contrato)}</div>
       </div>
       <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-        ${pode ? '<button class="btn-sec" id="btnEditarCtr">✏️ Editar dados</button>' : ''}
+        ${pode ? (ehCompra ? '<button class="btn-sec" id="btnEditarCompra">✏️ Editar compra</button>' : '<button class="btn-sec" id="btnEditarCtr">✏️ Editar dados</button>') : ''}
         ${ctrAtual.pasta_url ? `<a class="btn-sec" href="${esc(ctrAtual.pasta_url)}" target="_blank" rel="noopener" style="text-decoration:none">📁 Pasta no Drive</a>` : ''}
       </div>
 
-      <div class="secao">
+      ${blocoItens}
+      <div class="secao ${ehCompra ? 'oculto' : ''}">
         <h4>Contrato</h4>
         ${contratoOficial
           ? `<div class="sucesso">✓ Contrato assinado anexado: <a href="${esc(contratoOficial.url)}" target="_blank" rel="noopener">${esc(contratoOficial.nome_arquivo)}</a></div>`
@@ -1460,7 +1530,7 @@
       </div>
 
       <div class="secao">
-        <h4>Parcelas previstas</h4>
+        <h4>${ehCompra ? 'Pagamento' : 'Parcelas previstas'}</h4>
         <div class="tabela-wrap"><table>
           <thead><tr><th>Nº</th><th>Competência</th><th class="num">Valor</th><th>Status</th></tr></thead>
           <tbody>${parcelas.map(p => `<tr>
@@ -1472,6 +1542,7 @@
 
     const ligar = (id, fn) => { const el = $(id); if (el) el.addEventListener('click', fn); };
     ligar('btnEditarCtr', () => abrirFormCtr(ctrAtual));
+    ligar('btnEditarCompra', () => { $('dlgCtr').close(); abrirCompra(ctrAtual); });
     ligar('btnGerarContrato', gerarContrato);
     ligar('btnUpload', enviarDoc);
     ligar('btnAddCot', adicionarCotacao);
@@ -1677,6 +1748,127 @@
     atualizarSaldoCtr(); atualizarTotalCtr();
     msg('msgCtr', 'Dados trazidos da cotação vencedora. Confira, complete o que faltar (ex.: nacionalidade, início da execução) e salve.', 'ok');
   }
+
+
+  // ---------- compra de bens
+  let compraEditando = null;
+  function linhaItem(i = {}) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><input data-it="descricao" value="${esc(i.descricao || '')}" placeholder="ex.: papel sulfite A4"></td>
+      <td><input data-it="unidade" value="${esc(i.unidade || '')}" placeholder="pacote" style="min-width:80px"></td>
+      <td class="num"><input data-it="quantidade" inputmode="decimal" value="${esc(i.quantidade ? numBr(i.quantidade) : '')}" style="min-width:70px;text-align:right"></td>
+      <td class="num"><input data-it="valor_unitario" inputmode="decimal" value="${esc(i.valor_unitario ? num2(i.valor_unitario) : '')}" style="min-width:100px;text-align:right"></td>
+      <td class="num" data-it-total>—</td>
+      <td><button type="button" class="btn-link perigo" data-it-del title="Remover item">✕</button></td>`;
+    tr.querySelectorAll('input').forEach(el => el.addEventListener('input', totalCompra));
+    tr.querySelector('[data-it-del]').addEventListener('click', () => { tr.remove(); if (!$('cp_itens').children.length) $('cp_itens').appendChild(linhaItem()); totalCompra(); });
+    return tr;
+  }
+  function itensCompra() {
+    return [...$('cp_itens').querySelectorAll('tr')].map(tr => {
+      const v = k => tr.querySelector(`[data-it="${k}"]`).value;
+      return { descricao: v('descricao'), unidade: v('unidade'), quantidade: lerNumero(v('quantidade')), valor_unitario: lerNumero(v('valor_unitario')) };
+    }).filter(i => i.descricao || i.quantidade || i.valor_unitario);
+  }
+  function totalCompra() {
+    let total = 0;
+    $('cp_itens').querySelectorAll('tr').forEach(tr => {
+      const q = lerNumero(tr.querySelector('[data-it="quantidade"]').value), vu = lerNumero(tr.querySelector('[data-it="valor_unitario"]').value);
+      const t = (Number(q) || 0) * (Number(vu) || 0); total += Math.round(t * 100) / 100;
+      tr.querySelector('[data-it-total]').textContent = t ? brl(t) : '—';
+    });
+    const n = Number($('cp_parcelas').value) || 1;
+    $('cp_total').textContent = brl(total) + (n > 1 ? `  (${n} × ${brl(total / n)})` : '');
+    saldoCompra(total);
+    return total;
+  }
+  function saldoCompra(total) {
+    const r = atual.rubricas.find(x => x.id_rubrica === $('cp_rubrica').value);
+    if (!r) { $('cp_saldo').textContent = ''; return; }
+    const desta = compraEditando && compraEditando.id_rubrica === r.id_rubrica ? Number(compraEditando.valor_total_contratado || 0) : 0;
+    const disp = Number(r.valor_total_orcado || 0) - Number(r.valor_contratado || 0) + desta;
+    const passou = total > disp + 0.009;
+    $('cp_saldo').innerHTML = `Orçado: <b>${brl(r.valor_total_orcado)}</b>${r.quantidade ? ` (${numBr(r.quantidade)} ${esc(r.unidade || 'un.')} × ${brl(r.valor_unitario_max)})` : ''} · disponível: <b>${brl(disp)}</b>` +
+      (passou ? ` <span style="color:#b3261e;font-weight:700">· a compra passa do saldo da rubrica</span>` : '');
+  }
+
+  function abrirCompra(det) {
+    const c = det ? det.contratacao : {}, f = det && det.fornecedor ? det.fornecedor : {};
+    compraEditando = det ? c : null;
+    $('tituloCompra').textContent = det ? `Editar compra ${c.id_contratacao}` : 'Nova compra';
+    const rubs = atual.rubricas.slice().sort((a, b) => (b.tipo_despesa === 'Compra de bens') - (a.tipo_despesa === 'Compra de bens'));
+    $('cp_rubrica').innerHTML = '<option value="">Selecione…</option>' + rubs.map(r =>
+      `<option value="${esc(r.id_rubrica)}" ${r.id_rubrica === c.id_rubrica ? 'selected' : ''}>${esc(r.codigo ? r.codigo + ' – ' : '')}${esc(r.descricao)}${r.tipo_despesa && r.tipo_despesa !== 'Compra de bens' ? ' (' + esc(r.tipo_despesa) + ')' : ''}</option>`).join('');
+    $('cp_lista_forn').innerHTML = (atual.fornecedores || []).map(x => `<option value="${esc(x.razao_social)}">${esc(x.cnpj_cpf || '')}</option>`).join('');
+    $('cp_data').value = c.inicio_execucao || '';
+    $('cp_parcelas').value = String(c.num_parcelas || 1);
+    if (![...$('cp_parcelas').options].some(o => o.value === $('cp_parcelas').value)) $('cp_parcelas').add(new Option(c.num_parcelas + ' parcelas', c.num_parcelas, true, true));
+    $('cp_razao').value = f.razao_social || ''; $('cp_cnpj').value = f.cnpj_cpf || ''; $('cp_email').value = f.email || ''; $('cp_tel').value = f.telefone || '';
+    $('cp_descnf').value = c.descricao_nf || ''; $('cp_obs').value = c.observacoes || '';
+    $('cp_itens').innerHTML = '';
+    ((det && det.itens && det.itens.length) ? det.itens : [{}]).forEach(i => $('cp_itens').appendChild(linhaItem(i)));
+    // Parcelas que já têm pagamento não deixam mudar valor nem parcelamento
+    const pagas = det ? (det.parcelas || []).filter(p => p.status !== 'Prevista').length : 0;
+    $('cp_parcelas').disabled = pagas > 0;
+    ['cp_nf', 'cp_emissao', 'cp_pagto', 'cp_ident', 'cp_arquivo'].forEach(id => $(id).value = '');
+    const podeLancar = ['ADMIN', 'PRESTACAO_CONTAS'].includes(usuario.perfil);
+    $('cp_bloco_lanc').classList.toggle('oculto', !podeLancar || pagas > 0);
+    msg('msgCompra', pagas ? 'Esta compra já tem pagamento lançado: dá para corrigir fornecedor, itens e descrição, mas o total precisa continuar o mesmo.' : '', 'ok');
+    totalCompra();
+    $('btnSalvarCompra').disabled = false;
+    $('dlgCompra').showModal();
+  }
+
+  $('cp_rubrica').addEventListener('change', () => {
+    // Sugere o item a partir da rubrica (quantidade e valor unitário do orçamento)
+    const r = atual.rubricas.find(x => x.id_rubrica === $('cp_rubrica').value);
+    const vazio = itensCompra().length === 0;
+    if (r && vazio && !compraEditando) {
+      $('cp_itens').innerHTML = '';
+      $('cp_itens').appendChild(linhaItem({ descricao: r.descricao, unidade: r.unidade, quantidade: Number(r.quantidade) || '', valor_unitario: Number(r.valor_unitario_max) || '' }));
+    }
+    totalCompra();
+  });
+  $('cp_parcelas').addEventListener('change', totalCompra);
+  $('cp_add').addEventListener('click', () => { $('cp_itens').appendChild(linhaItem()); });
+  $('cp_razao').addEventListener('change', () => {
+    const x = (atual.fornecedores || []).find(f => f.razao_social === $('cp_razao').value);
+    if (x) { $('cp_cnpj').value = x.cnpj_cpf || ''; if (!$('cp_email').value) $('cp_email').value = x.email || ''; if (!$('cp_tel').value) $('cp_tel').value = x.telefone || ''; }
+  });
+  $('cp_data').addEventListener('change', () => { if (!$('cp_emissao').value) $('cp_emissao').value = $('cp_data').value; });
+  $('btnNovaCompra').addEventListener('click', () => abrirCompra(null));
+
+  $('formCompra').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = $('btnSalvarCompra'); btn.disabled = true; msg('msgCompra', 'Salvando…', 'ok');
+    try {
+      const itens = itensCompra();
+      if (!itens.length) throw new Error('Inclua pelo menos um item.');
+      const lanc = !$('cp_bloco_lanc').classList.contains('oculto') && ($('cp_nf').value || $('cp_arquivo').files[0]);
+      if (lanc) {
+        if (!$('cp_nf').value || !$('cp_emissao').value || !$('cp_pagto').value) throw new Error('Para lançar o pagamento, preencha nº da NF, emissão e data do pagamento.');
+        if (!$('cp_arquivo').files[0]) throw new Error('Selecione o arquivo da NF + comprovante.');
+      }
+      const dados = {
+        id_contratacao: compraEditando ? compraEditando.id_contratacao : '',
+        id_projeto: atual.projeto.id_projeto, id_rubrica: $('cp_rubrica').value,
+        data_compra: $('cp_data').value, data_cotacao: compraEditando ? compraEditando.data_cotacao : '',
+        num_parcelas: $('cp_parcelas').value,
+        fornecedor: { razao_social: $('cp_razao').value, cnpj_cpf: $('cp_cnpj').value, email: $('cp_email').value, telefone: $('cp_tel').value },
+        itens, descricao_nf: $('cp_descnf').value, observacoes: $('cp_obs').value,
+        status: compraEditando ? compraEditando.status : ''
+      };
+      if (lanc) dados.lancamento = { numero: $('cp_nf').value, data_emissao: $('cp_emissao').value, data_pagamento: $('cp_pagto').value,
+        forma_pagamento: $('cp_forma').value, num_identificacao_pix: $('cp_ident').value, status_final: $('cp_status').value,
+        arquivo: await lerArquivo($('cp_arquivo').files[0]) };
+      if (lanc) msg('msgCompra', 'Salvando e enviando o arquivo para o Drive…', 'ok');
+      const r = await api('salvarCompra', dados);
+      $('dlgCompra').close();
+      toast(compraEditando ? 'Compra atualizada ✓' : (lanc ? 'Compra lançada com NF e pagamento ✓' : 'Compra cadastrada ✓'));
+      if (r.lancamento && r.lancamento.divergencias && r.lancamento.divergencias.length) alert('Atenção: ' + r.lancamento.divergencias.join('; '));
+      await recarregarProjeto();
+    } catch (err) { msg('msgCompra', err.message); btn.disabled = false; }
+  });
 
   // ---------- pagamentos (ciclo mensal)
   const ORDEM_ST = ['Prevista', 'NF solicitada', 'NF recebida', 'NF conferida', 'Liberada para pagamento', 'Paga', 'Conciliada', 'Conferida', 'Lançada no SIT'];
@@ -2108,11 +2300,12 @@
         let parc = null;
         if (ctr) {
           const lista = imp.parcelas.filter(p => p.id_contratacao === ctr.id_contratacao).sort((a, b) => a.num_parcela - b.num_parcela);
-          const comp = competenciaAnterior(l.data_pagamento);
+          // compra: a parcela é do próprio mês do pagamento; serviço: do mês anterior
+          const comp = ctr.tipo_despesa === 'Compra de bens' ? l.data_pagamento.slice(0, 7) : competenciaAnterior(l.data_pagamento);
           parc = lista.find(p => p.competencia_mes === comp && !usadasParc.has(p.id_parcela));
           if (!parc) {
             parc = lista.find(p => !p.tem_pagamento && !usadasParc.has(p.id_parcela));
-            if (parc) avisos.push('competência ajustada para a próxima parcela em aberto');
+            if (parc && ctr.tipo_despesa !== 'Compra de bens') avisos.push('competência ajustada para a próxima parcela em aberto');
           }
           if (!parc) avisos.push('nenhuma parcela livre nesta contratação');
         }
