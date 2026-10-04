@@ -1973,10 +1973,10 @@
     if (!lido.ok.length) return msg('msgImport', 'Nenhuma linha reconhecida. Confira o formato do texto.');
     const btn = $('btnImpAnalisar'); btn.disabled = true; msg('msgImport', 'Buscando as parcelas do projeto…', 'ok');
     try {
-      imp.parcelas = await api('listarParcelasProjeto', { id_projeto: $('impProjeto').value });
-      const porCtr = {};
-      imp.parcelas.forEach(p => { porCtr[p.id_contratacao] = porCtr[p.id_contratacao] || { id_contratacao: p.id_contratacao, contratado: p.contratado, representante: p.representante, rubrica: p.rubrica }; });
-      imp.contratacoes = Object.values(porCtr);
+      const dadosProj = await api('listarParcelasProjeto', { id_projeto: $('impProjeto').value });
+      imp.parcelas = dadosProj.parcelas;
+      imp.contratacoes = dadosProj.contratacoes;
+      if (dadosProj.recriadas) toast(`${dadosProj.recriadas} parcela(s) que faltavam foram recriadas`);
       imp.arquivos = [...$('impArquivos').files];
       const nomes = imp.arquivos.map(f => f.name), usadosArq = new Set(), usadasParc = new Set();
       imp.linhas = lido.ok.map(l => {
