@@ -376,6 +376,8 @@
           <div><label for="f_representante_nome">Representante (se empresa)</label><input id="f_representante_nome"></div>
           <div><label for="f_representante_cpf">CPF do representante</label><input id="f_representante_cpf"></div>
           <div><label for="f_representante_cargo">Cargo do representante</label><input id="f_representante_cargo"></div>
+          <div><label for="f_representante_genero">Gênero do representante / da pessoa</label>
+            <select id="f_representante_genero"><option value="">—</option><option>Feminino</option><option>Masculino</option></select></div>
           <div><label for="f_chave_pix">Chave PIX</label><input id="f_chave_pix"></div>
           <div><label for="f_banco">Banco</label><input id="f_banco"></div>
           <div><label for="f_agencia">Agência</label><input id="f_agencia"></div>
@@ -815,7 +817,7 @@
   const TIPOS_UPLOAD = ['Contrato', 'Cotação', 'Nota fiscal', 'Comprovante de pagamento', 'Outro'];
   const CAMPOS_FORN = ['cnpj_cpf', 'razao_social', 'nome_fantasia', 'rg', 'nacionalidade', 'estado_civil', 'profissao',
     'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep', 'email', 'telefone',
-    'representante_nome', 'representante_cpf', 'representante_cargo', 'chave_pix', 'banco', 'agencia', 'conta'];
+    'representante_nome', 'representante_cpf', 'representante_cargo', 'representante_genero', 'chave_pix', 'banco', 'agencia', 'conta'];
   const LIMITE_MB = 20;
   let ctrAtual = null, ctrEditando = null, ctrMudou = false, procParaContratar = '';
 
@@ -992,7 +994,9 @@
           <div class="sucesso">Minuta gerada e salva na pasta da contratação:
             <a href="${esc(gerado.pdf_url)}" target="_blank" rel="noopener">abrir PDF</a> ·
             <a href="${esc(gerado.doc_url)}" target="_blank" rel="noopener">abrir versão editável (Google Docs)</a></div>
-          ${gerado.pendentes.length ? `<div class="aviso">⚠️ Campos que ficaram sem preencher no modelo: ${gerado.pendentes.map(esc).join(', ')}. Confira se o nome está igual à lista de campos.</div>` : ''}` : ''}</div>
+          ${gerado.pendentes.length ? `<div class="aviso">⚠️ Campos que ficaram sem preencher no modelo: ${gerado.pendentes.map(esc).join(', ')}. Confira se o nome está igual à lista de campos.</div>` : ''}
+          ${(gerado.vazios || []).length ? `<div class="aviso">⚠️ Estes dados estão em branco no cadastro e saíram vazios no contrato: <b>${gerado.vazios.map(esc).join(', ')}</b>. Complete o cadastro (instituição, contratado ou contratação) e gere de novo.</div>` : ''}
+          ${(gerado.genero_estimado || []).length ? `<div class="aviso">ℹ️ Gênero estimado pelo primeiro nome para: ${gerado.genero_estimado.map(esc).join(', ')}. Confira a concordância ou informe o gênero no cadastro.</div>` : ''}` : ''}</div>
         <div class="msg" id="msgContrato"></div>
         <details><summary>Ver os campos que podem ser usados no modelo</summary>
           <div class="lista-campos">${(atual.campos_contrato || []).map(([k, d]) => `<div><code>{{${esc(k)}}}</code> ${esc(d)}</div>`).join('')}</div>
@@ -1267,7 +1271,8 @@
       ['endereco', 'Endereço (rua)', 'largo'], ['numero', 'Número'], ['complemento', 'Complemento'], ['bairro', 'Bairro'],
       ['cidade', 'Cidade'], ['uf', 'UF'], ['cep', 'CEP'], ['foro_cidade_uf', 'Foro dos contratos (Cidade/UF)']]],
     ['Representante legal (dirigente)', [
-      ['representante_nome', 'Nome', 'largo'], ['representante_cargo', 'Cargo (ex.: Presidente)'], ['representante_cpf', 'CPF'],
+      ['representante_nome', 'Nome', 'largo'], ['representante_genero', 'Gênero (para a concordância no contrato)', '', 'genero'],
+      ['representante_cargo', 'Cargo (ex.: Presidente)'], ['representante_cpf', 'CPF'],
       ['representante_rg', 'RG'], ['representante_profissao', 'Profissão'], ['representante_nacionalidade', 'Nacionalidade'],
       ['representante_estado_civil', 'Estado civil'], ['representante_email', 'E-mail'], ['representante_telefone', 'Telefone'],
       ['representante_endereco', 'Endereço completo', 'largo']]],
@@ -1315,7 +1320,7 @@
         ['Dados da instituição', [['Nome', i.razao_social], ['Sigla', i.sigla], ['CNPJ', i.cnpj], ['E-mail', i.email_contato],
           ['Telefone', i.telefone], ['Endereço', endInst(i)], ['Data de inscrição', i.data_inscricao ? dataBr(i.data_inscricao) : ''],
           ['Foro', i.foro_cidade_uf]]],
-        ['Representante legal', [['Nome', i.representante_nome], ['Cargo', i.representante_cargo], ['CPF', i.representante_cpf],
+        ['Representante legal', [['Nome', i.representante_nome], ['Gênero', i.representante_genero], ['Cargo', i.representante_cargo], ['CPF', i.representante_cpf],
           ['RG', i.representante_rg], ['Profissão', i.representante_profissao], ['Nacionalidade', i.representante_nacionalidade],
           ['Estado civil', i.representante_estado_civil], ['Endereço', i.representante_endereco],
           ['E-mail', i.representante_email], ['Telefone', i.representante_telefone]]],
@@ -1357,7 +1362,9 @@
     $('tituloInst').textContent = i ? `Editar ${i.sigla || i.id_instituicao}` : 'Nova instituição';
     $('camposInst').innerHTML = SECOES_INST.map(([tit, campos]) => `<fieldset><legend>${tit}</legend><div class="form-grade">${
       campos.map(([k, rot, larg, tipo]) => `<div class="${larg || ''}"><label for="i_${k}">${rot}</label>
-        <input id="i_${k}" type="${tipo || 'text'}" value="${esc(i ? i[k] ?? '' : '')}"${k === 'uf' ? ' maxlength="2"' : ''}></div>`).join('')
+        ${tipo === 'genero'
+          ? `<select id="i_${k}"><option value="">—</option>${['Feminino', 'Masculino'].map(g => `<option ${i && i[k] === g ? 'selected' : ''}>${g}</option>`).join('')}</select>`
+          : `<input id="i_${k}" type="${tipo || 'text'}" value="${esc(i ? i[k] ?? '' : '')}"${k === 'uf' ? ' maxlength="2"' : ''}>`}</div>`).join('')
     }</div></fieldset>`).join('');
     msg('msgInst', ''); $('dlgInst').showModal();
   }
