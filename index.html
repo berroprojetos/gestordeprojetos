@@ -239,6 +239,7 @@
       <div class="abas" role="tablist">
         <button class="aba" role="tab" data-aba="dados" aria-selected="true">Dados gerais</button>
         <button class="aba" role="tab" data-aba="orcamento" aria-selected="false">Orçamento (rubricas)</button>
+        <button class="aba" role="tab" data-aba="cotacoes" aria-selected="false">Cotações</button>
         <button class="aba" role="tab" data-aba="contratacoes" aria-selected="false">Contratações</button>
       </div>
 
@@ -263,6 +264,17 @@
           </div>
         </div>
         <div class="tabela-wrap" id="tabelaRubricas"></div>
+      </section>
+
+      <!-- Aba: cotações -->
+      <section class="painel oculto" id="abaCotacoes" role="tabpanel">
+        <div class="titulo-linha">
+          <h2 style="font-size:16px">Processos de cotação</h2>
+          <button class="btn" id="btnNovoProc">+ Novo processo de cotação</button>
+        </div>
+        <p class="dica">Cada processo reúne as 3 cotações de uma função. Gere as cotações pelo modelo (para o prestador só assinar) ou anexe as que já estão prontas. Depois, marque a vencedora e crie a contratação com um clique.</p>
+        <div id="listaProc"></div>
+        <input type="file" id="upAssinada" class="oculto">
       </section>
 
       <!-- Aba: contratações -->
@@ -375,6 +387,31 @@
       <div class="msg" id="msgCtr" role="alert"></div>
       <button type="button" class="btn-sec" data-fechar>Cancelar</button>
       <button type="submit" class="btn">Salvar contratação</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- MODAL: PROCESSO DE COTAÇÃO -->
+<dialog id="dlgProc" class="grande">
+  <form id="formProc">
+    <div class="modal-cab"><h3>Novo processo de cotação</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+    <div class="modal-corpo">
+      <div class="form-grade">
+        <div class="largo"><label for="pc_id_rubrica">Rubrica *</label><select id="pc_id_rubrica" required></select></div>
+        <div class="largo"><label for="pc_funcao">Função (título da cotação) *</label><input id="pc_funcao" required placeholder="Ex.: Coordenador Pedagógico"></div>
+        <div><label for="pc_horas_mensais">Horas mensais</label><input id="pc_horas_mensais" inputmode="decimal" placeholder="ex.: 50"></div>
+        <div><label for="pc_dias_mes">Dias trabalhados no mês</label><input id="pc_dias_mes" inputmode="numeric" placeholder="ex.: 7"></div>
+        <div><label for="pc_meses">Meses *</label><input id="pc_meses" inputmode="numeric" required></div>
+        <div><label for="pc_data_cotacao">Data da cotação</label><input id="pc_data_cotacao" type="date"></div>
+        <div class="largo"><label for="pc_descricao_atividades">Descrição das atividades</label><textarea id="pc_descricao_atividades" rows="3"></textarea></div>
+        <div class="largo"><label for="pc_id_modelo">Modelo de cotação (para gerar)</label><select id="pc_id_modelo"></select></div>
+      </div>
+      <div id="blocosCot"></div>
+    </div>
+    <div class="modal-rodape">
+      <div class="msg" id="msgProc" role="alert"></div>
+      <button type="button" class="btn-sec" data-fechar>Cancelar</button>
+      <button type="submit" class="btn">Salvar e gerar cotações</button>
     </div>
   </form>
 </dialog>
@@ -565,7 +602,8 @@
 
     document.querySelector('[data-aba="orcamento"]').classList.toggle('oculto', novo);
     document.querySelector('[data-aba="contratacoes"]').classList.toggle('oculto', novo);
-    renderResumo(); renderFormProjeto(); renderRubricas(); renderContratacoes();
+    document.querySelector('[data-aba="cotacoes"]').classList.toggle('oculto', novo);
+    renderResumo(); renderFormProjeto(); renderRubricas(); renderContratacoes(); renderCotacoes();
   }
 
   function renderResumo() {
@@ -628,6 +666,7 @@
     $('abaDados').classList.toggle('oculto', nome !== 'dados');
     $('abaOrcamento').classList.toggle('oculto', nome !== 'orcamento');
     $('abaContratacoes').classList.toggle('oculto', nome !== 'contratacoes');
+    $('abaCotacoes').classList.toggle('oculto', nome !== 'cotacoes');
   }
   document.querySelectorAll('.aba').forEach(a => a.addEventListener('click', () => trocarAba(a.dataset.aba)));
 
@@ -778,7 +817,7 @@
     'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep', 'email', 'telefone',
     'representante_nome', 'representante_cpf', 'representante_cargo', 'chave_pix', 'banco', 'agencia', 'conta'];
   const LIMITE_MB = 20;
-  let ctrAtual = null, ctrEditando = null, ctrMudou = false;
+  let ctrAtual = null, ctrEditando = null, ctrMudou = false, procParaContratar = '';
 
   const digitos = v => String(v || '').replace(/\D/g, '');
   const mesAno = s => s ? `${String(s).slice(5, 7)}/${String(s).slice(0, 4)}` : '—';
@@ -832,6 +871,7 @@
   // --- formulário (nova / editar)
   function abrirFormCtr(det) {
     ctrEditando = det ? det.contratacao : null;
+    procParaContratar = '';
     const c = det ? det.contratacao : {}, f = det && det.fornecedor ? det.fornecedor : {};
     $('tituloFormCtr').textContent = det ? `Editar ${c.id_contratacao}` : 'Nova contratação';
     $('c_id_rubrica').innerHTML = '<option value="">Selecione…</option>' + atual.rubricas.map(r =>
@@ -884,7 +924,8 @@
   $('formCtr').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = e.submitter; btn.disabled = true; msg('msgCtr', 'Salvando… (na primeira vez o sistema cria as parcelas e a pasta no Drive)', 'ok');
-    const dados = { id_projeto: atual.projeto.id_projeto, id_contratacao: ctrEditando ? ctrEditando.id_contratacao : '', fornecedor: {} };
+    const dados = { id_projeto: atual.projeto.id_projeto, id_contratacao: ctrEditando ? ctrEditando.id_contratacao : '',
+                    id_processo_cotacao: ctrEditando ? '' : procParaContratar, fornecedor: {} };
     ['id_rubrica', 'objeto', 'inicio_execucao', 'fim_execucao', 'num_parcelas', 'valor_parcela', 'data_cotacao',
      'data_assinatura_contrato', 'status', 'observacoes', 'carga_horaria_mensal'].forEach(k => dados[k] = $('c_' + k).value);
     CAMPOS_FORN.forEach(k => dados.fornecedor[k] = $('f_' + k).value);
@@ -914,7 +955,7 @@
     const pode = ctrAtual.podeContratar;
     const docDe = id => documentos.find(d => d.id_documento === id);
     const contratoOficial = c.id_doc_contrato ? docDe(c.id_doc_contrato) : null;
-    const modelos = atual.modelos || [];
+    const modelos = (atual.modelos || []).filter(m => m.tipo_modelo !== 'Cotação');
     const gerado = ctrAtual.contrato_gerado;
 
     $('tituloCtr').textContent = `${c.id_contratacao} · ${f ? f.razao_social : ''}`;
@@ -1061,6 +1102,161 @@
     if (!confirm('Excluir esta cotação?')) return;
     try { ctrAtual = await api('excluirCotacao', { id_cotacao: id }); ctrMudou = true; renderCtr(); }
     catch (err) { alert(err.message); }
+  }
+
+  // ---------- processos de cotação
+  const CAMPOS_BLOCO = [['resp_nome', 'Nome completo do responsável', 'largo'], ['resp_cpf', 'CPF'],
+    ['razao_social', 'Razão social', 'largo'], ['cnpj', 'CNPJ'], ['resp_endereco', 'Endereço completo', 'largo'],
+    ['resp_telefone', 'Telefone'], ['resp_email', 'E-mail'], ['valor_hora', 'Valor da hora (R$)'],
+    ['valor_unitario_mensal', 'ou valor mensal (R$)']];
+  let procAssinada = null;
+
+  const stCot = s => s === 'Assinada' || s === 'Recebida' ? 'verde' : 'amarelo';
+
+  function renderCotacoes() {
+    const ps = atual.processos_cotacao || [];
+    $('btnNovoProc').classList.toggle('oculto', !atual.podeContratar);
+    if (!ps.length) { $('listaProc').innerHTML = '<div class="vazio">Nenhum processo de cotação ainda.</div>'; return; }
+    const pode = atual.podeContratar;
+    $('listaProc').innerHTML = ps.map(p => {
+      const venc = p.cotacoes.find(c => c.vencedora === true);
+      return `<article class="inst-card">
+        <div class="inst-cab">
+          <h3>${esc(p.funcao)} <small>${esc(p.id_processo)} · ${esc(p.rubrica_descricao)} · ${esc(p.meses)} meses · ${dataBr(p.data_cotacao)}</small></h3>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span class="st ${p.status === 'Contratado' || p.status === 'Concluído' ? 'verde' : 'amarelo'}">${esc(p.status)}</span>
+            ${p.pasta_url ? `<a class="btn-sec" style="text-decoration:none" href="${esc(p.pasta_url)}" target="_blank" rel="noopener">📁 Pasta</a>` : ''}
+            ${pode && !p.id_contratacao ? `<button class="btn-link perigo" data-exproc="${esc(p.id_processo)}">Excluir</button>` : ''}
+          </div>
+        </div>
+        <div class="tabela-wrap" style="padding:6px 12px 0"><table>
+          <thead><tr><th>Responsável / empresa</th><th>CNPJ</th><th class="num">Valor mensal</th><th class="num">Total</th><th>Situação</th><th>Documentos</th>${pode ? '<th></th>' : ''}</tr></thead>
+          <tbody>${p.cotacoes.map(c => `<tr>
+            <td><b>${esc(c.razao_social)}</b>${c.resp_nome && c.resp_nome !== c.razao_social ? '<br><span style="color:var(--suave)">' + esc(c.resp_nome) + '</span>' : ''}
+              ${c.vencedora === true ? ' <span class="st verde">🏆 vencedora</span>' : ''}</td>
+            <td>${esc(c.cnpj)}</td>
+            <td class="num">${brl(c.valor_unitario_mensal)}</td>
+            <td class="num"><b>${brl(c.valor)}</b></td>
+            <td><span class="st ${stCot(c.status)}">${esc(c.status)}</span></td>
+            <td>${c.doc_url ? `<a href="${esc(c.doc_url)}" target="_blank" rel="noopener">${c.status === 'Recebida' ? 'cotação' : 'para assinar'}</a>` : ''}
+              ${c.doc_assinado_url ? ` · <a href="${esc(c.doc_assinado_url)}" target="_blank" rel="noopener">assinada</a>` : ''}</td>
+            ${pode ? `<td style="white-space:nowrap">
+              ${c.status !== 'Assinada' && c.status !== 'Recebida' ? `<button class="btn-link" data-assinada="${esc(c.id_cotacao)}">⬆️ Anexar assinada</button>` : ''}
+              ${!p.id_contratacao && c.vencedora !== true ? `<button class="btn-link" data-vencedora="${esc(c.id_cotacao)}">Marcar vencedora</button>` : ''}</td>` : ''}
+          </tr>`).join('')}</tbody>
+        </table></div>
+        <div class="inst-rodape">
+          ${p.id_contratacao
+            ? `<span class="st verde">✓ Contratado</span> <button class="btn-link" data-abrirctr="${esc(p.id_contratacao)}">abrir ${esc(p.id_contratacao)}</button>`
+            : (pode && venc ? `<button class="btn" data-contratar="${esc(p.id_processo)}">➜ Criar contratação com a vencedora (${esc(venc.razao_social)})</button>`
+                            : '<span class="dica" style="margin:0">Marque a cotação vencedora para criar a contratação.</span>')}
+        </div>
+      </article>`;
+    }).join('');
+
+    const L = $('listaProc');
+    L.querySelectorAll('[data-assinada]').forEach(b => b.addEventListener('click', () => { procAssinada = b.dataset.assinada; $('upAssinada').value = ''; $('upAssinada').click(); }));
+    L.querySelectorAll('[data-vencedora]').forEach(b => b.addEventListener('click', () => acaoCot('marcarCotacaoVencedora', { id_cotacao: b.dataset.vencedora }, b)));
+    L.querySelectorAll('[data-exproc]').forEach(b => b.addEventListener('click', () => {
+      if (confirm('Excluir este processo de cotação? Os documentos gerados vão para a lixeira do Drive.'))
+        acaoCot('excluirProcessoCotacao', { id_processo: b.dataset.exproc }, b);
+    }));
+    L.querySelectorAll('[data-contratar]').forEach(b => b.addEventListener('click', () => contratarDaCotacao(ps.find(p => p.id_processo === b.dataset.contratar))));
+    L.querySelectorAll('[data-abrirctr]').forEach(b => b.addEventListener('click', () => { trocarAba('contratacoes'); abrirCtr(b.dataset.abrirctr); }));
+  }
+
+  async function acaoCot(acao, dados, btn) {
+    if (btn) btn.disabled = true;
+    try { atual.processos_cotacao = await api(acao, dados); renderCotacoes(); }
+    catch (err) { alert(err.message); if (btn) btn.disabled = false; }
+  }
+
+  $('upAssinada').addEventListener('change', async () => {
+    const file = $('upAssinada').files[0];
+    if (!file || !procAssinada) return;
+    toast('Enviando…');
+    try { await acaoCot('anexarCotacaoAssinada', { id_cotacao: procAssinada, arquivo: await lerArquivo(file) }); toast('Cotação assinada anexada ✓'); }
+    catch (err) { alert(err.message); }
+  });
+
+  function abrirFormProc() {
+    $('pc_id_rubrica').innerHTML = '<option value="">Selecione…</option>' + atual.rubricas.map(r =>
+      `<option value="${esc(r.id_rubrica)}">${esc(r.codigo ? r.codigo + ' – ' : '')}${esc(r.descricao)}</option>`).join('');
+    ['funcao', 'horas_mensais', 'dias_mes', 'meses', 'descricao_atividades'].forEach(k => $('pc_' + k).value = '');
+    $('pc_data_cotacao').value = new Date().toLocaleDateString('sv-SE');
+    const modelos = (atual.modelos || []).filter(m => m.tipo_modelo === 'Cotação');
+    $('pc_id_modelo').innerHTML = modelos.length
+      ? modelos.map(m => `<option value="${esc(m.id_modelo)}">${esc(m.nome)}</option>`).join('')
+      : '<option value="">Nenhum modelo cadastrado – anexe as cotações prontas</option>';
+    $('blocosCot').innerHTML = [1, 2, 3].map(n => `<fieldset data-bloco="${n}"><legend>Cotação ${n}</legend>
+      <div class="form-grade">${CAMPOS_BLOCO.map(([k, rot, larg]) =>
+        `<div class="${larg || ''}"><label for="b${n}_${k}">${rot}</label><input id="b${n}_${k}"${k.startsWith('valor') ? ' inputmode="decimal"' : ''}></div>`).join('')}
+        <div class="largo"><label for="b${n}_arquivo">Já tenho esta cotação pronta (anexar em vez de gerar)</label><input id="b${n}_arquivo" type="file"></div>
+      </div>
+      <div class="total-preview" id="b${n}_prev">Preencha o valor da hora ou o valor mensal</div></fieldset>`).join('');
+    [1, 2, 3].forEach(n => ['valor_hora', 'valor_unitario_mensal'].forEach(k => $(`b${n}_${k}`).addEventListener('input', atualizarPrevCot)));
+    ['pc_horas_mensais', 'pc_meses'].forEach(id => $(id).oninput = atualizarPrevCot);
+    msg('msgProc', ''); $('dlgProc').showModal();
+  }
+
+  function atualizarPrevCot() {
+    const h = lerNumero($('pc_horas_mensais').value) || 0, m = parseInt($('pc_meses').value, 10) || 0;
+    [1, 2, 3].forEach(n => {
+      const vh = lerNumero($(`b${n}_valor_hora`).value) || 0, vm = lerNumero($(`b${n}_valor_unitario_mensal`).value) || 0;
+      const unit = vm || vh * h;
+      $(`b${n}_prev`).textContent = unit ? `Mensal: ${brl(unit)}  ·  Total para ${m || '?'} meses: ${brl(unit * m)}` : 'Preencha o valor da hora ou o valor mensal';
+    });
+  }
+
+  $('pc_id_rubrica').addEventListener('change', () => {
+    const r = atual.rubricas.find(x => x.id_rubrica === $('pc_id_rubrica').value);
+    if (!r) return;
+    if (!$('pc_funcao').value) $('pc_funcao').value = r.descricao;
+    if (!$('pc_meses').value && Number(r.meses) > 0) $('pc_meses').value = r.meses;
+    atualizarPrevCot();
+  });
+
+  $('btnNovoProc').addEventListener('click', abrirFormProc);
+
+  $('formProc').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.submitter; btn.disabled = true;
+    msg('msgProc', 'Gerando as cotações… isso pode levar até 1 minuto.', 'ok');
+    try {
+      const cotacoes = [];
+      for (const n of [1, 2, 3]) {
+        const c = {};
+        CAMPOS_BLOCO.forEach(([k]) => c[k] = $(`b${n}_${k}`).value);
+        const f = $(`b${n}_arquivo`).files[0];
+        c.arquivo = f ? await lerArquivo(f) : null;
+        cotacoes.push(c);
+      }
+      const dados = { id_projeto: atual.projeto.id_projeto, id_modelo: $('pc_id_modelo').value, cotacoes };
+      ['id_rubrica', 'funcao', 'horas_mensais', 'dias_mes', 'meses', 'data_cotacao', 'descricao_atividades'].forEach(k => dados[k] = $('pc_' + k).value);
+      atual.processos_cotacao = await api('salvarProcessoCotacao', dados);
+      $('dlgProc').close(); renderCotacoes(); toast('Cotações geradas ✓');
+    } catch (err) { msg('msgProc', err.message); }
+    btn.disabled = false;
+  });
+
+  function contratarDaCotacao(p) {
+    const v = p.cotacoes.find(c => c.vencedora === true);
+    if (!v) return;
+    trocarAba('contratacoes');
+    abrirFormCtr(null);
+    procParaContratar = p.id_processo;
+    $('tituloFormCtr').textContent = `Nova contratação – a partir de ${p.id_processo}`;
+    $('c_id_rubrica').value = p.id_rubrica;
+    $('c_objeto').value = 'prestação de serviços de ' + String(p.funcao || '').toLowerCase();
+    $('c_num_parcelas').value = p.meses;
+    $('c_valor_parcela').value = num2(v.valor_unitario_mensal);
+    $('c_carga_horaria_mensal').value = p.horas_mensais || '';
+    $('c_data_cotacao').value = p.data_cotacao || '';
+    const f = { cnpj_cpf: v.cnpj || v.resp_cpf, razao_social: v.razao_social, representante_nome: v.resp_nome,
+                representante_cpf: v.resp_cpf, endereco: v.resp_endereco, telefone: v.resp_telefone, email: v.resp_email };
+    Object.keys(f).forEach(k => { if (f[k]) $('f_' + k).value = f[k]; });
+    atualizarSaldoCtr(); atualizarTotalCtr();
+    msg('msgCtr', 'Dados trazidos da cotação vencedora. Confira, complete o que faltar (ex.: nacionalidade, início da execução) e salve.', 'ok');
   }
 
   // ---------- instituições
