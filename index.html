@@ -244,6 +244,23 @@
   .barra i { display: block; height: 100%; background: var(--azul-claro); border-radius: 6px; }
   .etapa.feita .barra i { background: var(--ok); }
   .acoes-lote { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* Prestação SIT */
+  .bim-trilho { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 12px; margin-bottom: 14px; }
+  .bim { flex: 0 0 168px; text-align: left; background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); padding: 12px 14px; box-shadow: var(--sombra); cursor: pointer; font: inherit; color: inherit; transition: border-color .15s; }
+  .bim:hover { border-color: var(--borda-forte); }
+  .bim.sel { border-color: var(--azul-claro); box-shadow: 0 0 0 3px rgba(63,116,166,.15), var(--sombra); }
+  .bim.futuro { opacity: .55; }
+  .bim b { display: block; font-size: 14px; }
+  .bim small { display: block; color: var(--suave); font-size: 12px; margin: 2px 0 8px; }
+  .bim .valor { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+  .st.azul { background: var(--azul-fundo); color: var(--azul-escuro); }
+  .copiar { cursor: copy; border-radius: 4px; padding: 1px 3px; margin: -1px -3px; }
+  .copiar:hover { background: var(--azul-fundo); }
+  .copiar.copiado { background: var(--ok-fundo); }
+  .tab-sit td { vertical-align: top; font-size: 13px; }
+  .tab-sit small { color: var(--suave); font-size: 11.5px; }
+  .sit-acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .trilha { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0 4px; }
   .trilha span { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: #eeeae4; color: var(--suave-2); }
   .trilha span.feito { background: var(--ok-fundo); color: var(--ok); }
@@ -320,7 +337,7 @@
       <button class="nav-item ativo" id="navProjetos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Projetos</button>
       <button class="nav-item" id="btnInstituicoes"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6M9 11h.01M15 11h.01"/></svg>Instituições</button>
       <button class="nav-item" id="navPagamentos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>Pagamentos</button>
-      <button class="nav-item desativado" type="button" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Prestação SIT<span class="em-breve">em breve</span></button>
+      <button class="nav-item" id="navSit"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Prestação SIT</button>
     </nav>
     <div class="lateral-rodape">
       <div class="lema"><div class="ponto">Gestor de Projetos</div>Do edital à prestação de contas, tudo num lugar só.</div>
@@ -404,6 +421,22 @@
         <div id="pagTabela"></div>
         <div id="pagAtrasadas"></div>
       </section>
+    </div>
+
+    <!-- Prestação SIT bimestral -->
+    <div id="viewSit" class="oculto">
+      <div class="pagina-cab">
+        <div>
+          <p class="sobretitulo">A cada dois meses</p>
+          <h1>Prestação SIT</h1>
+          <p class="subtitulo" id="sitSub">Escolha o projeto para ver os bimestres.</p>
+        </div>
+        <div class="pag-filtros">
+          <div><label for="sitProjeto">Projeto</label><select id="sitProjeto"></select></div>
+        </div>
+      </div>
+      <div class="bim-trilho" id="sitBimestres"></div>
+      <div id="sitCorpo"></div>
     </div>
 
     <!-- Detalhe -->
@@ -719,6 +752,7 @@
     ['inicio_vigencia', 'Início da vigência', 'date'],
     ['fim_vigencia', 'Fim da vigência', 'date'],
     ['data_recebimento_recurso', 'Recebimento do recurso', 'date'],
+    ['inicio_bimestres', 'Início do 1º bimestre do SIT', 'date'],
     ['valor_total', 'Valor total do projeto (R$)', 'money'],
     ['status', 'Status', 'status'],
     ['banco', 'Banco', 'text'],
@@ -847,6 +881,8 @@
       abrirInstituicoes();
     } else if (rota.tipo === 'pagamentos') {
       abrirPagamentos(rota.id);
+    } else if (rota.tipo === 'sit') {
+      abrirSit(rota.id, rota.aba);
     } else {
       mostrarLista();
     }
@@ -864,7 +900,7 @@
   async function mostrarLista() {
     navAtivo('navProjetos', 'Projetos');
     gravarRota('projetos');
-    $('viewDetalhe').classList.add('oculto'); $('viewInst').classList.add('oculto'); $('viewPag').classList.add('oculto'); $('viewLista').classList.remove('oculto');
+    $('viewDetalhe').classList.add('oculto'); $('viewInst').classList.add('oculto'); $('viewPag').classList.add('oculto'); $('viewSit').classList.add('oculto'); $('viewLista').classList.remove('oculto');
     $('listaProjetos').innerHTML = '<div class="vazio">Carregando…</div>';
     try {
       const projetos = await api('listarProjetos');
@@ -897,7 +933,7 @@
   // ---------- detalhe do projeto
   async function abrirProjeto(id) {
     navAtivo('navProjetos', 'Projetos  /  Detalhe do projeto');
-    $('viewLista').classList.add('oculto'); $('viewInst').classList.add('oculto'); $('viewPag').classList.add('oculto'); $('viewDetalhe').classList.remove('oculto');
+    $('viewLista').classList.add('oculto'); $('viewInst').classList.add('oculto'); $('viewPag').classList.add('oculto'); $('viewSit').classList.add('oculto'); $('viewDetalhe').classList.remove('oculto');
     $('detNome').textContent = 'Carregando…'; $('detSigla').textContent = ''; $('detInst').textContent = '';
     $('detResumo').innerHTML = ''; $('camposProjeto').innerHTML = ''; $('tabelaRubricas').innerHTML = '';
     try {
@@ -1581,7 +1617,7 @@
 
   // ---------- pagamentos (ciclo mensal)
   const ORDEM_ST = ['Prevista', 'NF solicitada', 'NF recebida', 'NF conferida', 'Liberada para pagamento', 'Paga', 'Conciliada', 'Conferida', 'Lançada no SIT'];
-  const TRILHA = ['Prevista', 'NF solicitada', 'NF recebida', 'Liberada para pagamento', 'Paga', 'Conferida'];
+  const TRILHA = ['Prevista', 'NF solicitada', 'NF recebida', 'Liberada para pagamento', 'Paga', 'Conferida', 'Lançada no SIT'];
   const MESES_NOME = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   const idxSt = st => Math.max(0, ORDEM_ST.indexOf(st));
   const mesExt = ym => { const [a, m] = String(ym).split('-'); return `${MESES_NOME[Number(m) - 1]}/${a}`; };
@@ -1590,7 +1626,7 @@
 
   async function abrirPagamentos(mes) {
     navAtivo('navPagamentos', 'Pagamentos');
-    ['viewLista', 'viewDetalhe', 'viewInst'].forEach(v => $(v).classList.add('oculto'));
+    ['viewLista', 'viewDetalhe', 'viewInst', 'viewSit'].forEach(v => $(v).classList.add('oculto'));
     $('viewPag').classList.remove('oculto');
     $('pagMes').value = /^\d{4}-\d{2}$/.test(mes || '') ? mes : ($('pagMes').value || hojeYM());
     await carregarPag();
@@ -1752,8 +1788,17 @@
     return x.descricao_nf_ctr || ('prestação de serviço de ' + String(x.rubrica || '').toLowerCase());
   }
 
-  function abrirParcela(id) {
-    parcAtual = todasParcelas().find(x => x.id_parcela === id);
+  // A janela da parcela é usada tanto na tela de Pagamentos quanto na de Prestação SIT
+  const ctxPag = {
+    lista: () => todasParcelas(),
+    recarregar: () => carregarPag(),
+    get pode_conferir() { return pag && ctxParc.pode_conferir; },
+    get pode_lancar_direto() { return pag && ctxParc.pode_lancar_direto; }
+  };
+  let ctxParc = ctxPag;
+  function abrirParcela(id, ctx) {
+    ctxParc = ctx || ctxPag;
+    parcAtual = ctxParc.lista().find(x => x.id_parcela === id);
     if (!parcAtual) return;
     renderParcela();
     $('dlgParc').showModal();
@@ -1778,7 +1823,7 @@
 
     let corpoPg;
     if (!temNF) corpoPg = '<div class="aviso">Disponível depois que a nota fiscal for anexada.</div>';
-    else if (!liberada && !pag.pode_lancar_direto) corpoPg = '<div class="aviso">Aguardando a liberação do lote para pagamento.</div>';
+    else if (!liberada && !ctxParc.pode_lancar_direto) corpoPg = '<div class="aviso">Aguardando a liberação do lote para pagamento.</div>';
     else corpoPg = `
       ${temComp ? `<div class="sucesso">Comprovante anexado · <a href="${esc(pg.url)}" target="_blank" rel="noopener">abrir arquivo</a></div>` : ''}
       ${!liberada ? '<div class="aviso">Parcela ainda não liberada. Como prestação de contas, você pode anexar mesmo assim (ex.: meses que já foram pagos).</div>' : ''}
@@ -1790,7 +1835,7 @@
     const blocoPg = passo('②', 'Pagamento', temComp, corpoPg);
 
     let blocoSit = '';
-    if (pag.pode_conferir) {
+    if (ctxParc.pode_conferir) {
       const corpoSit = !(temNF && temComp)
         ? '<div class="aviso">A conferência fica disponível depois que a nota e o comprovante forem anexados.</div>'
         : `${nf.divergencias ? `<div class="aviso">⚠️ ${esc(nf.divergencias)}</div>` : ''}
@@ -1830,27 +1875,27 @@
         <div><span>CPF/CNPJ do contratado</span>${esc(x.contratado_cnpj)}</div>
         <div><span>E-mail</span>${esc(x.contratado_email || '—')}</div>
       </div>
-      <div class="trilha">${TRILHA.map(t => `<span class="${idxSt(t) < i || (t === x.status && t === 'Conferida') ? 'feito' : t === x.status ? 'agora' : ''}">${t}</span>`).join('')}</div>
+      <div class="trilha">${TRILHA.map(t => `<span class="${idxSt(t) < i || (t === x.status && t === 'Lançada no SIT') ? 'feito' : t === x.status ? 'agora' : ''}">${t}</span>`).join('')}</div>
       ${blocoNF}${blocoPg}${blocoSit}`;
 
     const b = [];
     if (i < idxSt('NF recebida') && x.contratado_email) b.push('<button class="btn-sec" id="pAcPedir">✉️ Pedir NF por e-mail</button>');
     if (temNF && i < idxSt('Liberada para pagamento')) b.push('<button class="btn-sec" id="pAcLiberar">✓ Liberar para pagamento</button>');
-    if (pag.pode_conferir && ['Conferida', 'Liberada para pagamento', 'NF solicitada'].includes(x.status)) b.push('<button class="btn-link" id="pAcVoltar">↩ Voltar uma etapa</button>');
+    if (ctxParc.pode_conferir && ['Lançada no SIT', 'Conferida', 'Liberada para pagamento', 'NF solicitada'].includes(x.status)) b.push('<button class="btn-link" id="pAcVoltar">↩ Voltar uma etapa</button>');
     $('rodapeParc').innerHTML = `<div class="msg" id="msgParc"></div>${b.join('')}<button class="btn-sec" data-fechar-parc>Fechar</button>`;
 
     const on = (id, fn) => { const el = $(id); if (el) el.addEventListener('click', fn); };
     on('btnAnexarNF', anexarNFParc); on('btnAnexarComp', anexarCompParc);
     on('btnSalvarSIT', e => salvarSIT(e, false)); on('btnConferirSIT', e => salvarSIT(e, true));
-    on('pAcPedir', () => acaoParc('solicitarNFs', { ids: [x.id_parcela], mes: $('pagMes').value, id_projeto: $('pagProjeto').value || '' }, 'Pedido de NF enviado ✓'));
+    on('pAcPedir', () => acaoParc('solicitarNFs', { ids: [x.id_parcela], mes: $('pagMes').value || hojeYM(), id_projeto: x.id_projeto }, 'Pedido de NF enviado ✓'));
     on('pAcLiberar', () => acaoParc('liberarParcelas', { ids: [x.id_parcela] }, 'Liberada para pagamento ✓'));
     on('pAcVoltar', () => acaoParc('voltarEtapaParcela', { id_parcela: x.id_parcela }, 'Etapa desfeita'));
     document.querySelector('[data-fechar-parc]').addEventListener('click', () => $('dlgParc').close());
   }
 
   async function atualizarParcAberta() {
-    await carregarPag();
-    const nova = todasParcelas().find(p => p.id_parcela === parcAtual.id_parcela);
+    await ctxParc.recarregar();
+    const nova = ctxParc.lista().find(p => p.id_parcela === parcAtual.id_parcela);
     if (nova) { parcAtual = nova; renderParcela(); } else $('dlgParc').close();
   }
 
@@ -1892,7 +1937,7 @@
                      data_debito_conta: $('pg_debito').value, valor: $('pg_valor').value } });
       toast((marcar ? 'Conferida ✓' : 'Dados salvos ✓') + (r.divergencias.length ? ' (com avisos)' : ''));
       await atualizarParcAberta();
-    } catch (err) { msg('msgSIT', err.message); btn.disabled = false; carregarPag().catch(() => {}); }
+    } catch (err) { msg('msgSIT', err.message); btn.disabled = false; ctxParc.recarregar().catch(() => {}); }
   }
 
   // ---------- importador de lançamentos (meses já pagos)
@@ -2126,7 +2171,7 @@
   async function abrirInstituicoes() {
     navAtivo('btnInstituicoes', 'Instituições');
     gravarRota('instituicoes');
-    $('viewLista').classList.add('oculto'); $('viewDetalhe').classList.add('oculto'); $('viewPag').classList.add('oculto'); $('viewInst').classList.remove('oculto');
+    $('viewLista').classList.add('oculto'); $('viewDetalhe').classList.add('oculto'); $('viewPag').classList.add('oculto'); $('viewSit').classList.add('oculto'); $('viewInst').classList.remove('oculto');
     $('btnNovaInst').classList.toggle('oculto', !podeCadInst());
     $('listaInst').innerHTML = '<div class="vazio">Carregando…</div>';
     try { listaInst = await api('listarInstituicoesCompleto'); renderInstituicoes(); }
@@ -2208,6 +2253,257 @@
   $('btnInstituicoes').addEventListener('click', abrirInstituicoes);
   $('btnVoltarInst').addEventListener('click', mostrarLista);
   $('btnNovaInst').addEventListener('click', () => abrirFormInst(null));
+
+
+  // ---------- Prestação SIT bimestral
+  let sit = null, sitBim = null;
+  const ctxSit = {
+    lista: () => sitBim ? sitBim.lancamentos.concat(sitBim.sem_pagamento) : [],
+    recarregar: () => carregarBimestre(true),
+    get pode_conferir() { return sit && sit.pode_conferir; },
+    get pode_lancar_direto() { return sit && sit.pode_lancar_direto; }
+  };
+  const STATUS_BIM = { 'Aberto': 'azul', 'Em conferência': 'amarelo', 'Pronto para envio': 'verde', 'Enviado ao SIT': 'verde', 'Futuro': '', 'Sem movimento': '' };
+  const periodoBim = b => `${mesExt(b.meses[0])} a ${mesExt(b.meses[1])}`;
+
+  async function abrirSit(idProjeto, numero) {
+    navAtivo('navSit', 'Prestação SIT');
+    ['viewLista', 'viewDetalhe', 'viewInst', 'viewPag'].forEach(v => $(v).classList.add('oculto'));
+    $('viewSit').classList.remove('oculto');
+    $('sitBimestres').innerHTML = ''; $('sitCorpo').innerHTML = '<div class="vazio">Carregando…</div>';
+    try {
+      if (!idProjeto) {
+        const projetos = await api('listarProjetos');
+        if (!projetos.length) { $('sitCorpo').innerHTML = '<div class="vazio">Nenhum projeto disponível.</div>'; return; }
+        idProjeto = (projetos.find(p => p.id_projeto === $('sitProjeto').value) || projetos[0]).id_projeto;
+      }
+      await carregarBimestres(idProjeto, numero);
+    } catch (err) { $('sitCorpo').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
+  }
+
+  async function carregarBimestres(idProjeto, numero) {
+    sit = await api('listarBimestres', { id_projeto: idProjeto });
+    $('sitProjeto').innerHTML = sit.projetos.map(p =>
+      `<option value="${esc(p.id_projeto)}" ${p.id_projeto === idProjeto ? 'selected' : ''}>${esc(p.sigla || p.nome_projeto)}</option>`).join('');
+    const pr = sit.projeto;
+    $('sitSub').innerHTML = `${esc(pr.nome_projeto)}${pr.termo ? ' · Termo ' + esc(pr.termo) : ''} · bimestres a partir de <b>${mesExt(pr.inicio_bimestres)}</b>` +
+      (pr.base_definida ? '' : ' <span class="tag" title="Defina o campo “Início do 1º bimestre do SIT” nos dados gerais do projeto, se for diferente">pela vigência</span>');
+    // bimestre inicial: o pedido, senão o mais antigo ainda não enviado que já tenha movimento, senão o atual
+    let n = Number(numero);
+    if (!sit.bimestres.some(b => b.numero === n)) {
+      const pend = sit.bimestres.find(b => b.status !== 'Enviado ao SIT' && b.status !== 'Futuro' && (b.qtd || b.sem_pagamento));
+      const atual = sit.bimestres.find(b => b.status === 'Aberto');
+      n = (pend || atual || sit.bimestres[0]).numero;
+    }
+    sitBim = { numero: n };
+    renderTrilhoSit();
+    await carregarBimestre();
+  }
+
+  function renderTrilhoSit() {
+    $('sitBimestres').innerHTML = sit.bimestres.map(b => `
+      <button class="bim ${b.numero === sitBim.numero ? 'sel' : ''} ${b.status === 'Futuro' ? 'futuro' : ''}" data-bim="${b.numero}">
+        <b>${b.numero}º bimestre</b><small>${periodoBim(b)}</small>
+        <div class="valor">${b.qtd ? brl(b.valor) + ' · ' + b.qtd + ' lanç.' : '—'}</div>
+        <span class="st ${STATUS_BIM[b.status] || ''}">${b.status === 'Enviado ao SIT' ? '✓ ' : ''}${esc(b.status)}</span>
+      </button>`).join('');
+    $('sitBimestres').querySelectorAll('[data-bim]').forEach(el => el.addEventListener('click', () => {
+      sitBim = { numero: Number(el.dataset.bim) }; renderTrilhoSit(); carregarBimestre();
+    }));
+    const sel = $('sitBimestres').querySelector('.bim.sel');
+    if (sel) sel.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }
+
+  async function carregarBimestre(manterTela) {
+    const idProjeto = sit.projeto.id_projeto, n = sitBim.numero;
+    gravarRota(`sit/${idProjeto}/${n}`);
+    if (!manterTela) $('sitCorpo').innerHTML = '<div class="vazio">Carregando…</div>';
+    try {
+      sitBim = await api('obterBimestre', { id_projeto: idProjeto, numero: n });
+      const i = sit.bimestres.findIndex(b => b.numero === n);
+      if (i > -1) { Object.assign(sit.bimestres[i], { qtd: sitBim.qtd, valor: sitBim.valor, status: sitBim.status }); renderTrilhoSit(); }
+      renderBimestre();
+    } catch (err) { $('sitCorpo').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
+  }
+
+  const cp = (v, mostrar) => (v === '' || v == null) ? '<span style="color:var(--suave)">—</span>'
+    : `<span class="copiar" data-copiar="${esc(v)}" title="Clique para copiar">${esc(mostrar ?? v)}</span>`;
+
+  function renderBimestre() {
+    const b = sitBim, r = b.registro || {}, ed = sit.pode_editar, enviado = b.status === 'Enviado ao SIT';
+    const lanc = b.lancamentos;
+    const faltaConf = lanc.filter(x => idxSt(x.status) < idxSt('Conferida'));
+    const divergentes = lanc.filter(x => x.nf && x.nf.divergencias);
+    const kpi = (rot, val, sub, cls = '') => `<div class="kpi ${cls}"><span>${rot}</span><strong>${val}</strong>${sub ? `<small>${sub}</small>` : ''}</div>`;
+
+    const pend = [];
+    faltaConf.forEach(x => pend.push(`<b>${esc(x.contratado)}</b> (${mesExt(x.competencia_mes)}): ${x.dados_sit_ok ? 'dados completos, falta marcar como conferida' : 'falta conferir e preencher os dados do SIT'}`));
+    b.sem_pagamento.forEach(x => pend.push(`<b>${esc(x.contratado)}</b>: serviço de ${mesExt(x.competencia_mes)} sem comprovante de pagamento (${esc(x.status)})`));
+    divergentes.forEach(x => pend.push(`<b>${esc(x.contratado)}</b>: ⚠️ ${esc(x.nf.divergencias)}`));
+    lanc.filter(x => x.primeiro_pagamento === true).forEach(x => pend.push(`<b>${esc(x.contratado)}</b>: 1º pagamento — no SIT vai junto com as cotações, a NF e o comprovante`));
+
+    const linhas = lanc.map(x => {
+      const nf = x.nf || {}, pg = x.pagamento || {};
+      const conf = idxSt(x.status) >= idxSt('Conferida'), lancada = x.status === 'Lançada no SIT';
+      return `<tr>
+        <td>${ed && conf ? `<input type="checkbox" data-sitsel value="${esc(x.id_parcela)}" aria-label="Selecionar">` : ''}</td>
+        <td><b>${cp(nf.razao_social_emitente || x.contratado)}</b><br><small>${cp(nf.cnpj_emitente || x.contratado_cnpj)}</small><br><small>${esc(x.rubrica)}</small>
+          ${x.primeiro_pagamento === true ? '<br><span class="tag">1º pagamento</span>' : ''}</td>
+        <td>${esc(nf.tipo_documento || 'Nota fiscal')} nº ${cp(nf.numero)}<br><small>emissão</small> ${cp(dataBr(nf.data_emissao))}</td>
+        <td style="max-width:240px">${cp(nf.descricao)}</td>
+        <td class="num">${cp(num2(nf.valor), brl(nf.valor))}</td>
+        <td>${esc(pg.forma_pagamento || '')} ${cp(pg.num_identificacao_pix)}<br><small>pagto</small> ${cp(dataBr(pg.data_pagamento))}<br><small>débito</small> ${cp(dataBr(pg.data_debito_conta))}</td>
+        <td class="num">${cp(num2(pg.valor), brl(pg.valor))}</td>
+        <td><span class="st ${lancada ? 'verde' : conf ? 'azul' : 'amarelo'}">${lancada ? '✓ Lançada' : conf ? 'Conferida' : esc(x.status)}</span></td>
+        <td style="white-space:nowrap">${nf.url ? `<a href="${esc(nf.url)}" target="_blank" rel="noopener" title="Nota fiscal">📄</a>` : ''}
+          ${pg.url ? `<a href="${esc(pg.url)}" target="_blank" rel="noopener" title="Comprovante">🧾</a>` : ''}
+          <button class="btn-sec" style="padding:5px 10px;margin-left:4px" data-sitparc="${esc(x.id_parcela)}">Abrir</button></td>
+      </tr>`;
+    }).join('');
+
+    $('sitCorpo').innerHTML = `
+      <div class="resumo">
+        ${kpi('Despesas no bimestre', brl(b.valor), `${b.qtd} lançamento(s) · ${periodoBim(b)}`)}
+        ${kpi('Conferidas', `${b.conferidas} de ${b.qtd}`, 'dados do SIT revisados', b.qtd && b.conferidas === b.qtd ? 'ok' : '')}
+        ${kpi('Lançadas no SIT', `${b.lancadas} de ${b.qtd}`, 'digitadas no sistema do TCE', b.qtd && b.lancadas === b.qtd ? 'ok' : '')}
+        ${kpi('Pendências', pend.filter(t => !t.includes('1º pagamento')).length, enviado ? 'enviado em ' + dataBr(b.enviado_cit_em) : (b.prazo_envio ? 'prazo de envio: ' + dataBr(b.prazo_envio) : 'defina o prazo abaixo'),
+          pend.some(t => !t.includes('1º pagamento')) ? 'alerta' : '')}
+      </div>
+
+      ${pend.length ? `<section class="painel" style="margin-bottom:20px"><h2 style="font-size:16px;margin:0 0 10px">Antes de enviar</h2>
+        <ul style="margin:0;padding-left:20px;line-height:1.7;font-size:13.5px">${pend.map(t => `<li>${t}</li>`).join('')}</ul></section>` : ''}
+
+      <section class="painel" style="margin-bottom:20px">
+        <div class="titulo-linha">
+          <h2 style="font-size:16px">Lançamentos do bimestre</h2>
+          <div class="sit-acoes">
+            ${lanc.length ? '<button class="btn-sec" id="btnSitCsv">⬇️ Baixar planilha</button>' : ''}
+            ${ed && lanc.length ? '<button class="btn-sec" id="btnSitDesfazer">↩ Desmarcar lançadas</button><button class="btn" id="btnSitLancar">✓ Marcar como lançadas no SIT</button>' : ''}
+          </div>
+        </div>
+        <p class="dica" style="margin-top:-6px">Entram aqui os pagamentos com <b>débito na conta</b> entre ${dataBr(b.inicio)} e ${dataBr(b.fim)}. Clique em qualquer dado para copiar e colar no SIT.</p>
+        ${lanc.length ? `<div class="tabela-wrap"><table class="tab-sit">
+          <thead><tr><th>${ed ? '<input type="checkbox" id="sitTodos" aria-label="Selecionar todas">' : ''}</th><th>Favorecido</th><th>Documento</th><th>Descrição</th><th class="num">Valor NF</th><th>Pagamento</th><th class="num">Valor pago</th><th>Situação</th><th></th></tr></thead>
+          <tbody>${linhas}</tbody>
+          <tfoot><tr><td></td><td colspan="3">Total do bimestre</td><td class="num">${brl(lanc.reduce((s, x) => s + Number((x.nf || {}).valor || 0), 0))}</td><td></td><td class="num">${brl(b.valor)}</td><td colspan="2"></td></tr></tfoot>
+        </table></div><div class="msg" id="msgSitLanc"></div>` : '<div class="vazio">Nenhum pagamento com débito neste bimestre.</div>'}
+      </section>
+
+      <section class="painel" style="margin-bottom:20px">
+        <div class="titulo-linha"><h2 style="font-size:16px">Execução por rubrica</h2></div>
+        <div class="tabela-wrap"><table>
+          <thead><tr><th>Item</th><th>Rubrica</th><th class="num">Lanç.</th><th class="num">Neste bimestre</th><th class="num">Acumulado</th><th class="num">Orçado</th><th class="num">Saldo</th><th class="num">% executado</th></tr></thead>
+          <tbody>${b.rubricas.map(x => `<tr>
+            <td>${esc(x.codigo)}</td><td>${esc(x.rubrica)}</td><td class="num">${x.qtd || '—'}</td>
+            <td class="num">${x.no_bimestre ? cp(num2(x.no_bimestre), brl(x.no_bimestre)) : '—'}</td>
+            <td class="num">${brl(x.acumulado)}</td><td class="num">${brl(x.orcado)}</td>
+            <td class="num" style="${x.saldo < -0.009 ? 'color:#b3261e;font-weight:700' : ''}">${brl(x.saldo)}</td>
+            <td class="num">${x.orcado ? Math.round(x.acumulado / x.orcado * 1000) / 10 + '%' : '—'}</td></tr>`).join('')}</tbody>
+          <tfoot><tr><td></td><td>Total</td><td class="num">${b.qtd}</td><td class="num">${brl(b.valor)}</td>
+            <td class="num">${brl(b.rubricas.reduce((s, x) => s + x.acumulado, 0))}</td>
+            <td class="num">${brl(b.rubricas.reduce((s, x) => s + x.orcado, 0))}</td>
+            <td class="num">${brl(b.rubricas.reduce((s, x) => s + x.saldo, 0))}</td><td></td></tr></tfoot>
+        </table></div>
+      </section>
+
+      <section class="painel">
+        <div class="titulo-linha"><h2 style="font-size:16px">Dados do bimestre</h2>
+          ${enviado ? `<span class="st verde">✓ Enviado ao SIT em ${dataBr(b.enviado_cit_em)}</span>` : ''}</div>
+        <div class="form-grade">
+          <div><label for="bim_prazo">Prazo de envio</label><input id="bim_prazo" type="date" value="${esc(r.prazo_envio || '')}"></div>
+          <div><label for="bim_saldo_ini">Saldo inicial da conta (R$)</label><input id="bim_saldo_ini" inputmode="decimal" value="${esc(num2(r.saldo_inicial))}"></div>
+          <div><label for="bim_rend">Rendimentos de aplicação (R$)</label><input id="bim_rend" inputmode="decimal" value="${esc(num2(r.rendimentos))}"></div>
+          <div><label for="bim_saldo_fim">Saldo final da conta (R$)</label><input id="bim_saldo_fim" inputmode="decimal" value="${esc(num2(r.saldo_final))}"></div>
+          <div><label for="bim_protocolo">Protocolo / nº no SIT</label><input id="bim_protocolo" value="${esc(r.protocolo_sit || '')}"></div>
+          <div class="largo" style="grid-column:1/-1"><label for="bim_obs">Observações</label><textarea id="bim_obs" rows="2">${esc(r.observacoes || '')}</textarea></div>
+        </div>
+        <p class="dica" id="sitConta"></p>
+        ${ed ? `<div class="form-acoes"><div class="msg" id="msgBim"></div>
+          <button class="btn-sec" id="btnBimSalvar">Salvar dados</button>
+          ${enviado ? '<button class="btn-link" id="btnBimReabrir">↩ Reabrir bimestre</button>' : '<button class="btn" id="btnBimEnviar">📤 Marcar bimestre como enviado</button>'}</div>` : ''}
+      </section>`;
+
+    if (!ed) $('sitCorpo').querySelectorAll('.painel:last-child input, .painel:last-child textarea').forEach(el => el.disabled = true);
+    ligarBimestre();
+  }
+
+  function contaBim() {
+    const ini = lerNumero($('bim_saldo_ini').value), rend = lerNumero($('bim_rend').value), fim = lerNumero($('bim_saldo_fim').value);
+    if (ini === '' || isNaN(ini)) { $('sitConta').textContent = ''; return; }
+    const esperado = ini + (Number(rend) || 0) - sitBim.valor;
+    let t = `Conta: saldo inicial ${brl(ini)} + rendimentos ${brl(rend || 0)} − despesas ${brl(sitBim.valor)} = ${brl(esperado)}`;
+    if (fim !== '' && !isNaN(fim)) t += Math.abs(fim - esperado) < 0.01 ? ' ✓ confere com o saldo final.' : ` ⚠️ diferença de ${brl(fim - esperado)} para o saldo final (créditos, tarifas ou devoluções?).`;
+    $('sitConta').textContent = t;
+  }
+
+  function ligarBimestre() {
+    const on = (id, ev, fn) => { const el = $(id); if (el) el.addEventListener(ev, fn); };
+    $('sitCorpo').querySelectorAll('[data-copiar]').forEach(el => el.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(el.dataset.copiar); } catch {
+        const t = document.createElement('textarea'); t.value = el.dataset.copiar; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+      el.classList.add('copiado'); setTimeout(() => el.classList.remove('copiado'), 900);
+      toast('Copiado: ' + el.dataset.copiar);
+    }));
+    $('sitCorpo').querySelectorAll('[data-sitparc]').forEach(b => b.addEventListener('click', () => abrirParcela(b.dataset.sitparc, ctxSit)));
+    on('sitTodos', 'change', e => $('sitCorpo').querySelectorAll('[data-sitsel]').forEach(x => x.checked = e.target.checked));
+    on('btnSitLancar', 'click', () => marcarSit(false));
+    on('btnSitDesfazer', 'click', () => marcarSit(true));
+    on('btnSitCsv', 'click', baixarCsvSit);
+    ['bim_saldo_ini', 'bim_rend', 'bim_saldo_fim'].forEach(id => on(id, 'input', contaBim));
+    on('btnBimSalvar', 'click', e => salvarBim(e));
+    on('btnBimEnviar', 'click', e => {
+      const pend = sitBim.qtd - sitBim.lancadas;
+      if (pend && !confirm(`${pend} lançamento(s) ainda não foram marcados como lançados no SIT. Marcar o bimestre como enviado mesmo assim?`)) return;
+      salvarBim(e, true);
+    });
+    on('btnBimReabrir', 'click', e => { if (confirm('Reabrir este bimestre?')) salvarBim(e, false); });
+    contaBim();
+  }
+
+  async function marcarSit(desfazer) {
+    const ids = [...$('sitCorpo').querySelectorAll('[data-sitsel]:checked')].map(x => x.value);
+    if (!ids.length) return msg('msgSitLanc', 'Selecione os lançamentos na tabela (só aparecem para seleção os que já foram conferidos).');
+    msg('msgSitLanc', 'Salvando…', 'ok');
+    try {
+      const r = await api('marcarLancadasSIT', { id_projeto: sit.projeto.id_projeto, numero: sitBim.numero, ids, desfazer });
+      toast(`${r.alteradas.length} lançamento(s) ${desfazer ? 'desmarcado(s)' : 'marcado(s) como lançado(s) no SIT'}` + (r.ignoradas.length ? ` · ${r.ignoradas.length} ignorado(s)` : ''));
+      await carregarBimestre(true);
+    } catch (err) { msg('msgSitLanc', err.message); }
+  }
+
+  async function salvarBim(e, enviar) {
+    const btn = e.currentTarget; btn.disabled = true; msg('msgBim', 'Salvando…', 'ok');
+    try {
+      const dados = { id_projeto: sit.projeto.id_projeto, numero: sitBim.numero, prazo_envio: $('bim_prazo').value,
+        saldo_inicial: $('bim_saldo_ini').value, rendimentos: $('bim_rend').value, saldo_final: $('bim_saldo_fim').value,
+        protocolo_sit: $('bim_protocolo').value, observacoes: $('bim_obs').value };
+      if (enviar !== undefined) dados.enviar = enviar;
+      await api('salvarBimestre', dados);
+      toast(enviar === true ? 'Bimestre marcado como enviado ✓' : enviar === false ? 'Bimestre reaberto' : 'Dados do bimestre salvos ✓');
+      await carregarBimestre(true);
+    } catch (err) { msg('msgBim', err.message); btn.disabled = false; }
+  }
+
+  function baixarCsvSit() {
+    const b = sitBim, c = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const cab = ['Bimestre', 'Favorecido', 'CPF/CNPJ', 'Rubrica', 'Tipo documento', 'Nº documento', 'Data emissão', 'Descrição', 'Valor NF',
+                 'Forma pagamento', 'Nº identificação', 'Data pagamento', 'Data débito', 'Valor pago', 'Situação', 'Serviço de'];
+    const linhas = b.lancamentos.map(x => {
+      const nf = x.nf || {}, pg = x.pagamento || {};
+      return [b.numero + 'º', nf.razao_social_emitente || x.contratado, nf.cnpj_emitente || x.contratado_cnpj, x.rubrica,
+        nf.tipo_documento || 'Nota fiscal', nf.numero, dataBr(nf.data_emissao), nf.descricao, num2(nf.valor),
+        pg.forma_pagamento, pg.num_identificacao_pix, dataBr(pg.data_pagamento), dataBr(pg.data_debito_conta), num2(pg.valor),
+        x.status, mesExt(x.competencia_mes)];
+    });
+    const csv = '﻿' + [cab].concat(linhas).map(l => l.map(c).join(';')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `SIT_${sit.projeto.sigla || sit.projeto.id_projeto}_${b.numero}o_bimestre.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  $('navSit').addEventListener('click', () => abrirSit($('sitProjeto').value || ''));
+  $('sitProjeto').addEventListener('change', () => abrirSit($('sitProjeto').value));
 
   // ---------- campos de data: digitar (dd/mm/aaaa) ou escolher no calendário
   // O campo original (type=date) continua guardando o valor no formato do sistema (aaaa-mm-dd);
