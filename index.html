@@ -109,7 +109,7 @@
   .status-sinc { display: flex; align-items: center; gap: 6px; font-size: 12px; }
   .status-sinc::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
   .status-sinc.carregando::before { background: #e08a2c; }
-  main { width: 100%; max-width: 1240px; padding: 34px 44px 56px; }
+  main { width: 100%; max-width: none; padding: 34px 44px 56px; }
   .rodape { margin-top: auto; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 18px 44px; font-size: 11px; color: var(--suave-2); letter-spacing: .04em; }
   .rodape b { letter-spacing: .14em; font-weight: 700; }
 
@@ -240,6 +240,14 @@
 </style>
 </head>
 <body>
+
+<!-- CARREGANDO (restaurando sessão) -->
+<section id="telaCarregando" class="tela-centro oculto">
+  <div style="text-align:center;color:var(--suave)">
+    <div class="marca" style="justify-content:center;margin-bottom:18px"><div class="marca-icone">g</div><div style="text-align:left"><div class="marca-nome">gestor</div><div class="marca-sub">PRESTAÇÃO DE CONTAS</div></div></div>
+    Abrindo sua sessão…
+  </div>
+</section>
 
 <!-- LOGIN -->
 <section id="telaLogin" class="tela-centro">
@@ -590,6 +598,19 @@
   ];
 
   // ---------- utilitários
+  const sessao = {
+    get() { try { return localStorage.getItem('token') || sessionStorage.getItem('token'); } catch { try { return sessionStorage.getItem('token'); } catch { return null; } } },
+    set(t) { try { localStorage.setItem('token', t); } catch { try { sessionStorage.setItem('token', t); } catch {} } },
+    del() { try { localStorage.removeItem('token'); } catch {} try { sessionStorage.removeItem('token'); } catch {} }
+  };
+
+  // Rota atual na URL (#projeto/PRJ-0001/contratacoes), para o F5 voltar ao mesmo lugar
+  function gravarRota(r) { try { history.replaceState(null, '', r ? '#' + r : location.pathname + location.search); } catch {} }
+  function lerRota() {
+    const partes = decodeURIComponent(location.hash.replace(/^#/, '')).split('/').filter(Boolean);
+    return { tipo: partes[0] || '', id: partes[1] || '', aba: partes[2] || '' };
+  }
+
   let pendentes = 0;
   function sinc(delta) {
     pendentes = Math.max(0, pendentes + delta);
@@ -600,7 +621,7 @@
   }
 
   async function api(acao, dados = {}) {
-    const token = sessionStorage.getItem('token');
+    const token = sessao.get();
     sinc(1);
     let json;
     try {
@@ -626,7 +647,7 @@
     const n = Number(s); return isNaN(n) ? NaN : n;
   }
   function msg(el, texto, tipo = 'erro') { $(el).textContent = texto; $(el).className = 'msg ' + tipo; }
-  function mostrar(tela) { ['telaLogin', 'telaSenha', 'telaApp'].forEach(t => $(t).classList.toggle('oculto', t !== tela)); }
+  function mostrar(tela) { ['telaCarregando', 'telaLogin', 'telaSenha', 'telaApp'].forEach(t => $(t).classList.toggle('oculto', t !== tela)); }
   const podeEditar = () => usuario && PERFIS_EDICAO.includes(usuario.perfil);
   const ehGlobal = () => usuario && !usuario.id_instituicao;
 
@@ -638,7 +659,7 @@
     const btn = e.submitter; btn.disabled = true; msg('msgLogin', '');
     try {
       const r = await api('login', { email: $('email').value, senha: $('senha').value });
-      sessionStorage.setItem('token', r.token);
+      sessao.set(r.token);
       usuario = r.usuario; $('senha').value = '';
       usuario.deve_trocar_senha ? abrirTrocaSenha(true) : abrirApp();
     } catch (err) { msg('msgLogin', err.message); }
@@ -670,7 +691,7 @@
 
   function sair(silencioso) {
     if (!silencioso) api('logout').catch(() => {});
-    sessionStorage.removeItem('token'); usuario = null; mostrar('telaLogin');
+    sessao.del(); usuario = null; gravarRota(''); mostrar('telaLogin');
   }
   $('btnSair').addEventListener('click', () => sair(false));
   $('btnTrocarSenha').addEventListener('click', () => abrirTrocaSenha(false));
@@ -688,7 +709,15 @@
     $('dataHoje').textContent = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
     $('btnNovoProjeto').classList.toggle('oculto', !(podeEditar() && ehGlobal()));
     try { instituicoes = await api('listarInstituicoes'); } catch {}
-    mostrarLista();
+    const rota = lerRota();
+    if (rota.tipo === 'projeto' && rota.id) {
+      await abrirProjeto(rota.id);
+      if (rota.aba && document.querySelector(`[data-aba="${rota.aba}"]`)) trocarAba(rota.aba);
+    } else if (rota.tipo === 'instituicoes') {
+      abrirInstituicoes();
+    } else {
+      mostrarLista();
+    }
   }
 
   function navAtivo(id, migalha) {
@@ -702,6 +731,7 @@
 
   async function mostrarLista() {
     navAtivo('navProjetos', 'Projetos');
+    gravarRota('projetos');
     $('viewDetalhe').classList.add('oculto'); $('viewInst').classList.add('oculto'); $('viewLista').classList.remove('oculto');
     $('listaProjetos').innerHTML = '<div class="vazio">Carregando…</div>';
     try {
@@ -822,6 +852,7 @@
     $('abaOrcamento').classList.toggle('oculto', nome !== 'orcamento');
     $('abaContratacoes').classList.toggle('oculto', nome !== 'contratacoes');
     $('abaCotacoes').classList.toggle('oculto', nome !== 'cotacoes');
+    if (atual && atual.projeto && atual.projeto.id_projeto) gravarRota('projeto/' + atual.projeto.id_projeto + '/' + nome);
   }
   document.querySelectorAll('.aba').forEach(a => a.addEventListener('click', () => trocarAba(a.dataset.aba)));
 
@@ -1457,6 +1488,7 @@
 
   async function abrirInstituicoes() {
     navAtivo('btnInstituicoes', 'Instituições');
+    gravarRota('instituicoes');
     $('viewLista').classList.add('oculto'); $('viewDetalhe').classList.add('oculto'); $('viewInst').classList.remove('oculto');
     $('btnNovaInst').classList.toggle('oculto', !podeCadInst());
     $('listaInst').innerHTML = '<div class="vazio">Carregando…</div>';
@@ -1542,11 +1574,15 @@
 
   // ---------- reabrir sessão ao recarregar
   (async () => {
-    if (!sessionStorage.getItem('token')) return;
+    if (!sessao.get()) return;              // sem sessão: fica no login
+    mostrar('telaCarregando');
     try {
       usuario = await api('me');
-      usuario.deve_trocar_senha ? abrirTrocaSenha(true) : abrirApp();
-    } catch { sair(true); }
+      usuario.deve_trocar_senha ? abrirTrocaSenha(true) : await abrirApp();
+    } catch (err) {
+      // Sessão expirada já leva ao login; outros erros (internet, servidor) não apagam a sessão
+      if (sessao.get()) { mostrar('telaLogin'); msg('msgLogin', 'Não consegui conectar agora. Confira a internet e recarregue a página.'); }
+    }
   })();
 </script>
 </body>
