@@ -261,6 +261,8 @@
   .bim small { display: block; color: var(--suave); font-size: 12px; margin: 2px 0 8px; }
   .bim .valor { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
   .st.azul { background: var(--azul-fundo); color: var(--azul-escuro); }
+  .tab-meses input { max-width: 150px; text-align: right; padding: 7px 10px; }
+  .tab-meses td { vertical-align: middle; }
   input.calculado { background: var(--card-suave); color: var(--azul-escuro); font-weight: 700; cursor: default; }
   .cp-sit { cursor: copy; border-radius: 4px; padding: 1px 3px; margin: -1px -3px; }
   .cp-sit:hover { background: var(--azul-fundo); }
@@ -577,7 +579,8 @@
         <div><label for="c_valor_parcela">Valor da parcela (R$) *</label><input id="c_valor_parcela" inputmode="decimal" required></div>
         <div><label for="c_carga_horaria_mensal">Carga horária mensal (h)</label><input id="c_carga_horaria_mensal" inputmode="numeric" placeholder="ex.: 60"></div>
         <div><label for="c_data_cotacao">Data da cotação</label><input id="c_data_cotacao" type="date"></div>
-        <div><label for="c_data_assinatura_contrato">Assinatura do contrato</label><input id="c_data_assinatura_contrato" type="date"></div>
+        <div><label for="c_data_assinatura_contrato">Assinatura do contrato</label><input id="c_data_assinatura_contrato" type="date">
+          <div class="dica oculto" id="c_assin_dica" style="margin:4px 0 0">compra: igual à data da cotação</div></div>
         <div><label for="c_status">Status</label><select id="c_status"></select></div>
         <div class="largo"><label for="c_descricao_nf">Descrição que deve constar na nota fiscal (opcional)</label>
           <input id="c_descricao_nf" placeholder="ex.: prestação de serviço de assistente administrativo e financeiro — se vazio, usa a rubrica"></div>
@@ -743,6 +746,8 @@
         <div class="largo"><label for="cp_rubrica">Rubrica *</label><select id="cp_rubrica" required></select>
           <div class="dica" id="cp_saldo" style="margin:6px 0 0"></div></div>
         <div><label for="cp_data">Data da compra *</label><input id="cp_data" type="date" required></div>
+        <div><label for="cp_cotacao">Data da cotação</label><input id="cp_cotacao" type="date">
+          <div class="dica" style="margin:4px 0 0">a data do contrato será a mesma</div></div>
         <div><label for="cp_parcelas">Pagamento</label><select id="cp_parcelas">
           <option value="1">À vista (1 parcela)</option><option value="2">2 parcelas</option><option value="3">3 parcelas</option><option value="4">4 parcelas</option><option value="5">5 parcelas</option><option value="6">6 parcelas</option><option value="10">10 parcelas</option><option value="12">12 parcelas</option>
         </select></div>
@@ -1489,11 +1494,20 @@
       .forEach(k => $('c_' + k).value = c[k] ?? '');
     $('c_valor_parcela').value = num2(c.valor_parcela ?? '');
     CAMPOS_FORN.forEach(k => $('f_' + k).value = f[k] ?? '');
-    msg('msgCtr', ''); atualizarSaldoCtr(); atualizarTotalCtr();
+    msg('msgCtr', ''); atualizarSaldoCtr(); atualizarTotalCtr(); regraDataContrato();
     $('dlgFormCtr').showModal();
   }
 
   function rubricaSel() { return atual.rubricas.find(r => r.id_rubrica === $('c_id_rubrica').value); }
+  // Compra de bens/materiais: data do contrato = data da cotação (preenchida e travada)
+  function regraDataContrato() {
+    const r = rubricaSel(), compra = !!(r && r.tipo_despesa && r.tipo_despesa !== 'Prestação de serviço');
+    $('c_assin_dica').classList.toggle('oculto', !compra);
+    if (compra) $('c_data_assinatura_contrato').value = $('c_data_cotacao').value;
+    $('c_data_assinatura_contrato').disabled = compra;
+  }
+  $('c_data_cotacao').addEventListener('change', regraDataContrato);
+  $('c_id_rubrica').addEventListener('change', regraDataContrato);
 
   function atualizarSaldoCtr() {
     const r = rubricaSel();
@@ -1948,6 +1962,7 @@
       `<option value="${esc(r.id_rubrica)}" ${r.id_rubrica === c.id_rubrica ? 'selected' : ''}>${esc(r.codigo ? r.codigo + ' – ' : '')}${esc(r.descricao)}${r.tipo_despesa && r.tipo_despesa !== 'Compra de bens' ? ' (' + esc(r.tipo_despesa) + ')' : ''}</option>`).join('');
     $('cp_lista_forn').innerHTML = (atual.fornecedores || []).map(x => `<option value="${esc(x.razao_social)}">${esc(x.cnpj_cpf || '')}</option>`).join('');
     $('cp_data').value = c.inicio_execucao || '';
+    $('cp_cotacao').value = c.data_cotacao || '';
     $('cp_parcelas').value = String(c.num_parcelas || 1);
     if (![...$('cp_parcelas').options].some(o => o.value === $('cp_parcelas').value)) $('cp_parcelas').add(new Option(c.num_parcelas + ' parcelas', c.num_parcelas, true, true));
     $('cp_razao').value = f.razao_social || ''; $('cp_cnpj').value = f.cnpj_cpf || ''; $('cp_email').value = f.email || ''; $('cp_tel').value = f.telefone || '';
@@ -1999,7 +2014,7 @@
       const dados = {
         id_contratacao: compraEditando ? compraEditando.id_contratacao : '',
         id_projeto: atual.projeto.id_projeto, id_rubrica: $('cp_rubrica').value,
-        data_compra: $('cp_data').value, data_cotacao: compraEditando ? compraEditando.data_cotacao : '',
+        data_compra: $('cp_data').value, data_cotacao: $('cp_cotacao').value,
         num_parcelas: $('cp_parcelas').value,
         fornecedor: { razao_social: $('cp_razao').value, cnpj_cpf: $('cp_cnpj').value, email: $('cp_email').value, telefone: $('cp_tel').value },
         itens, descricao_nf: $('cp_descnf').value, observacoes: $('cp_obs').value,
@@ -2823,6 +2838,9 @@
     faltaConf.forEach(x => pend.push(`<b>${esc(x.contratado)}</b> (${mesExt(x.competencia_mes)}): ${x.dados_sit_ok ? 'dados completos, falta marcar como conferida' : 'falta conferir e preencher os dados do SIT'}`));
     b.sem_pagamento.forEach(x => pend.push(`<b>${esc(x.contratado)}</b>: serviço de ${mesExt(x.competencia_mes)} sem comprovante de pagamento (${esc(x.status)})`));
     divergentes.forEach(x => pend.push(`<b>${esc(x.contratado)}</b>: ⚠️ ${esc(x.nf.divergencias)}`));
+    const semClass = lanc.filter(x => !x.classificacao_contabil), semDatas = lanc.filter(x => !x.data_cotacao || !x.data_contrato);
+    if (semClass.length) pend.push(`<b>Classificação contábil</b> não preenchida na rubrica de: ${[...new Set(semClass.map(x => esc(x.rubrica)))].join(', ')} (preencha no Orçamento do projeto)`);
+    if (semDatas.length) pend.push(`<b>Data da cotação/contrato</b> faltando em: ${[...new Set(semDatas.map(x => esc(x.contratado)))].join(', ')} (preencha na contratação)`);
     lanc.filter(x => x.primeiro_pagamento === true).forEach(x => pend.push(`<b>${esc(x.contratado)}</b>: 1º pagamento — no SIT vai junto com as cotações, a NF e o comprovante`));
 
     const linhas = lanc.map(x => {
@@ -2835,6 +2853,9 @@
           ${x.primeiro_pagamento === true ? '<br><span class="tag">1º pagamento</span>' : ''}</td>
         <td>${esc(nf.tipo_documento || 'Nota fiscal')} nº ${cp(nf.numero)}<br><small>emissão</small> ${cp(dataBr(nf.data_emissao))}</td>
         <td style="max-width:240px">${cp(nf.descricao)}</td>
+        <td>${x.classificacao_contabil ? cp(x.classificacao_contabil) : '<span style="color:var(--alerta)">⚠️ falta</span>'}</td>
+        <td style="white-space:nowrap"><small>cotação</small> ${x.data_cotacao ? cp(dataBr(x.data_cotacao)) : '<span style="color:var(--alerta)">⚠️</span>'}
+          <br><small>contrato</small> ${x.data_contrato ? cp(dataBr(x.data_contrato)) : '<span style="color:var(--alerta)">⚠️</span>'}</td>
         <td class="num">${cp(num2(nf.valor), brl(nf.valor))}</td>
         <td>${esc(pg.forma_pagamento || '')} ${cp(pg.num_identificacao_pix)}<br><small>pagto</small> ${cp(dataBr(pg.data_pagamento))}<br><small>débito</small> ${cp(dataBr(pg.data_debito_conta))}</td>
         <td class="num">${cp(num2(pg.valor), brl(pg.valor))}</td>
@@ -2850,7 +2871,7 @@
         ${kpi('Despesas no bimestre', brl(b.valor), `${b.qtd} lançamento(s) · ${periodoBim(b)}`)}
         ${kpi('Conferidas', `${b.conferidas} de ${b.qtd}`, 'dados do SIT revisados', b.qtd && b.conferidas === b.qtd ? 'ok' : '')}
         ${kpi('Lançadas no SIT', `${b.lancadas} de ${b.qtd}`, 'digitadas no sistema do TCE', b.qtd && b.lancadas === b.qtd ? 'ok' : '')}
-        ${kpi('Pendências', pend.filter(t => !t.includes('1º pagamento')).length, enviado ? 'enviado em ' + dataBr(b.enviado_cit_em) : (b.prazo_envio ? 'prazo de envio: ' + dataBr(b.prazo_envio) : 'defina o prazo abaixo'),
+        ${kpi('Pendências', pend.filter(t => !t.includes('1º pagamento')).length, enviado ? 'enviado em ' + dataBr(b.enviado_cit_em) : 'itens a resolver antes do envio',
           pend.some(t => !t.includes('1º pagamento')) ? 'alerta' : '')}
       </div>
 
@@ -2867,9 +2888,9 @@
         </div>
         <p class="dica" style="margin-top:-6px">Entram aqui os pagamentos com <b>débito na conta</b> entre ${dataBr(b.inicio)} e ${dataBr(b.fim)}. Clique em qualquer dado para copiar e colar no SIT.</p>
         ${lanc.length ? `<div class="tabela-wrap"><table class="tab-sit">
-          <thead><tr><th>${ed ? '<input type="checkbox" id="sitTodos" aria-label="Selecionar todas">' : ''}</th><th>Favorecido</th><th>Documento</th><th>Descrição</th><th class="num">Valor NF</th><th>Pagamento</th><th class="num">Valor pago</th><th>Situação</th><th></th></tr></thead>
+          <thead><tr><th>${ed ? '<input type="checkbox" id="sitTodos" aria-label="Selecionar todas">' : ''}</th><th>Favorecido</th><th>Documento</th><th>Descrição</th><th>Classificação contábil</th><th>Cotação / Contrato</th><th class="num">Valor NF</th><th>Pagamento</th><th class="num">Valor pago</th><th>Situação</th><th></th></tr></thead>
           <tbody>${linhas}</tbody>
-          <tfoot><tr><td></td><td colspan="3">Total do bimestre</td><td class="num">${brl(lanc.reduce((s, x) => s + Number((x.nf || {}).valor || 0), 0))}</td><td></td><td class="num">${brl(b.valor)}</td><td colspan="2"></td></tr></tfoot>
+          <tfoot><tr><td></td><td colspan="5">Total do bimestre</td><td class="num">${brl(lanc.reduce((s, x) => s + Number((x.nf || {}).valor || 0), 0))}</td><td></td><td class="num">${brl(b.valor)}</td><td colspan="2"></td></tr></tfoot>
         </table></div><div class="msg" id="msgSitLanc"></div>` : '<div class="vazio">Nenhum pagamento com débito neste bimestre.<br>Mesmo sem despesas, preencha abaixo o saldo, o repasse e os rendimentos para prestar contas do bimestre.</div>'}
       </section>
 
@@ -2893,16 +2914,23 @@
       <section class="painel">
         <div class="titulo-linha"><h2 style="font-size:16px">Dados do bimestre</h2>
           ${enviado ? `<span class="st verde">✓ Enviado ao SIT em ${dataBr(b.enviado_cit_em)}</span>` : ''}</div>
-        <div class="form-grade">
-          <div><label for="bim_prazo">Prazo de envio</label><input id="bim_prazo" type="date" value="${esc(r.prazo_envio || '')}"></div>
-          <div><label for="bim_saldo_ini">Saldo inicial da conta (R$)</label>
-            <input id="bim_saldo_ini" inputmode="decimal" value="${esc(num2(b.primeiro_bimestre ? (r.saldo_inicial !== undefined && r.saldo_inicial !== '' ? r.saldo_inicial : 0) : b.saldo_inicial_calc))}" ${b.primeiro_bimestre ? '' : 'readonly tabindex="-1" class="calculado"'}>
-            <div class="dica" style="margin:4px 0 0">${b.primeiro_bimestre ? 'primeiro bimestre: informe o saldo inicial (valor do recurso recebido)' : 'automático: saldo final do bimestre anterior'}</div></div>
-          <div><label for="bim_creditos">Outros créditos na conta (R$)</label><input id="bim_creditos" inputmode="decimal" placeholder="0,00" value="${esc(r.creditos ? num2(r.creditos) : '')}">
-            <div class="dica" style="margin:4px 0 0">só se cair novo depósito (instituição ou governo)</div></div>
-          <div><label for="bim_rend">Rendimentos de aplicação (R$)</label><input id="bim_rend" inputmode="decimal" value="${esc(num2(r.rendimentos))}"></div>
-          <div><label for="bim_desp">Despesas do bimestre (R$)</label><input id="bim_desp" value="${esc(num2(b.valor))}" readonly tabindex="-1" class="calculado"></div>
-          <div><label for="bim_saldo_fim">Saldo final da conta (R$)</label><input id="bim_saldo_fim" readonly tabindex="-1" class="calculado"><div class="dica" style="margin:4px 0 0">automático</div></div>
+        <p class="dica" style="margin-top:-6px">Um mês por linha. Saldo inicial, despesas e saldo final são calculados; informe os rendimentos e, se houver, outros créditos.</p>
+        ${(b.meses_mov || []).some(m => m.legado) ? '<div class="aviso" style="margin-bottom:12px">Este bimestre foi preenchido antes com os valores do bimestre inteiro (eles aparecem no 2º mês). Separe os rendimentos de cada mês e salve.</div>' : ''}
+        <div class="tabela-wrap"><table class="tab-meses">
+          <thead><tr><th>Mês</th><th class="num">Saldo inicial</th><th class="num">Outros créditos</th><th class="num">Rendimentos</th><th class="num">Despesas do mês</th><th class="num">Saldo final</th></tr></thead>
+          <tbody>${(b.meses_mov || []).map((m, i) => `<tr data-mes="${esc(m.mes)}">
+            <td><b>${mesExt(m.mes)}</b></td>
+            <td class="num">${m.primeiro_mes
+              ? `<input data-m="saldo_inicial" inputmode="decimal" value="${esc(num2(m.saldo_inicial))}" title="Primeiro mês do projeto: informe o saldo inicial">`
+              : `<input data-m="saldo_inicial" class="calculado" readonly tabindex="-1" value="${esc(num2(m.saldo_inicial))}">`}</td>
+            <td class="num"><input data-m="outros_creditos" inputmode="decimal" placeholder="0,00" value="${esc(m.outros_creditos ? num2(m.outros_creditos) : '')}"></td>
+            <td class="num"><input data-m="rendimentos" inputmode="decimal" placeholder="0,00" value="${esc(m.rendimentos ? num2(m.rendimentos) : '')}"></td>
+            <td class="num"><input data-m="despesas" class="calculado" readonly tabindex="-1" value="${esc(num2(m.despesas))}"></td>
+            <td class="num"><input data-m="saldo_final" class="calculado" readonly tabindex="-1" value="${esc(num2(m.saldo_final))}"></td>
+          </tr>`).join('')}</tbody>
+          <tfoot><tr><td>Bimestre</td><td class="num" id="bimTotIni"></td><td class="num" id="bimTotCred"></td><td class="num" id="bimTotRend"></td><td class="num" id="bimTotDesp"></td><td class="num" id="bimTotFim"></td></tr></tfoot>
+        </table></div>
+        <div class="form-grade" style="margin-top:14px">
           <div class="largo" style="grid-column:1/-1"><label for="bim_obs">Observações</label><textarea id="bim_obs" rows="2">${esc(r.observacoes || '')}</textarea></div>
         </div>
         <p class="dica" id="sitConta"></p>
@@ -2912,15 +2940,40 @@
       </section>`;
 
     if (!ed) $('sitCorpo').querySelectorAll('.painel:last-child input, .painel:last-child textarea').forEach(el => el.disabled = true);
+    if (b.primeiro_bimestre && (b.meses_mov || [])[0] && b.meses_mov[0].primeiro_mes) {
+      const d = document.createElement('div'); d.className = 'dica';
+      d.textContent = 'Primeiro mês do projeto: o saldo inicial é digitado (valor recebido). Nos demais meses ele vem do saldo final anterior.';
+      $('sitConta').before(d);
+    }
     ligarBimestre();
   }
 
+  // Recalcula na hora: saldo final do mês = inicial + outros créditos + rendimentos − despesas;
+  // o saldo final do 1º mês vira o saldo inicial do 2º.
   function contaBim() {
     const n = v => { const x = lerNumero(v); return isNaN(x) || x === '' ? 0 : Number(x); };
-    const ini = n($('bim_saldo_ini').value), cred = n($('bim_creditos').value), rend = n($('bim_rend').value);
-    const fim = Math.round((ini + cred + rend - sitBim.valor) * 100) / 100;
-    $('bim_saldo_fim').value = num2(fim);
-    $('sitConta').textContent = `Saldo inicial ${brl(ini)}${cred ? ' + outros créditos ' + brl(cred) : ''} + rendimentos ${brl(rend)} − despesas ${brl(sitBim.valor)} = saldo final ${brl(fim)}`;
+    const r2 = v => Math.round(v * 100) / 100;
+    const linhas = [...$('sitCorpo').querySelectorAll('tr[data-mes]')];
+    if (!linhas.length) return;
+    let anterior = null, tot = { cred: 0, rend: 0, desp: 0 }, ini0 = 0, fimUlt = 0;
+    linhas.forEach((tr, i) => {
+      const campo = k => tr.querySelector(`[data-m="${k}"]`);
+      if (i > 0) campo('saldo_inicial').value = num2(anterior);
+      const ini = n(campo('saldo_inicial').value), cred = n(campo('outros_creditos').value), rend = n(campo('rendimentos').value), desp = n(campo('despesas').value);
+      const fim = r2(ini + cred + rend - desp);
+      campo('saldo_final').value = num2(fim);
+      if (i === 0) ini0 = ini;
+      tot.cred += cred; tot.rend += rend; tot.desp += desp; anterior = fim; fimUlt = fim;
+    });
+    $('bimTotIni').textContent = brl(ini0); $('bimTotCred').textContent = brl(tot.cred); $('bimTotRend').textContent = brl(tot.rend);
+    $('bimTotDesp').textContent = brl(tot.desp); $('bimTotFim').textContent = brl(fimUlt);
+    $('sitConta').textContent = `Bimestre: saldo inicial ${brl(ini0)}${tot.cred ? ' + outros créditos ' + brl(tot.cred) : ''} + rendimentos ${brl(tot.rend)} − despesas ${brl(tot.desp)} = saldo final ${brl(fimUlt)}`;
+  }
+  function mesesDigitados() {
+    return [...$('sitCorpo').querySelectorAll('tr[data-mes]')].map(tr => {
+      const v = k => { const el = tr.querySelector(`[data-m="${k}"]`); return el ? el.value : ''; };
+      return { mes: tr.dataset.mes, saldo_inicial: v('saldo_inicial'), outros_creditos: v('outros_creditos'), rendimentos: v('rendimentos') };
+    });
   }
 
   function ligarBimestre() {
@@ -2936,7 +2989,7 @@
     on('btnSitLancar', 'click', () => marcarSit(false));
     on('btnSitDesfazer', 'click', () => marcarSit(true));
     on('btnSitCsv', 'click', baixarCsvSit);
-    ['bim_saldo_ini', 'bim_creditos', 'bim_rend', 'bim_saldo_fim'].forEach(id => on(id, 'input', contaBim));
+    $('sitCorpo').querySelectorAll('tr[data-mes] input').forEach(el => el.addEventListener('input', contaBim));
     on('btnBimSalvar', 'click', e => salvarBim(e));
     on('btnBimEnviar', 'click', e => {
       const pend = sitBim.qtd - sitBim.lancadas;
@@ -2978,9 +3031,7 @@
   async function salvarBim(e, enviar) {
     const btn = e.currentTarget;
     const idp = sit.projeto.id_projeto, n = sitBim.numero;
-    const dados = { id_projeto: idp, numero: n, prazo_envio: $('bim_prazo').value,
-      saldo_inicial: $('bim_saldo_ini').value, creditos: $('bim_creditos').value, rendimentos: $('bim_rend').value,
-      observacoes: $('bim_obs').value };
+    const dados = { id_projeto: idp, numero: n, meses: mesesDigitados(), observacoes: $('bim_obs').value };
     const leit = ['obterBimestre', { id_projeto: idp, numero: n }], lista = ['listarBimestres', { id_projeto: idp }];
     const naTela = () => !$('viewSit').classList.contains('oculto') && sit && sit.projeto.id_projeto === idp && sitBim && sitBim.numero === n;
     if (enviar === undefined) {
@@ -3010,11 +3061,12 @@
 
   function baixarCsvSit() {
     const b = sitBim, c = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const cab = ['Bimestre', 'Favorecido', 'CPF/CNPJ', 'Rubrica', 'Tipo documento', 'Nº documento', 'Data emissão', 'Descrição', 'Valor NF',
+    const cab = ['Bimestre', 'Favorecido', 'CPF/CNPJ', 'Rubrica', 'Classificação contábil', 'Data cotação', 'Data contrato', 'Tipo documento', 'Nº documento', 'Data emissão', 'Descrição', 'Valor NF',
                  'Forma pagamento', 'Nº identificação', 'Data pagamento', 'Data débito', 'Valor pago', 'Situação', 'Serviço de'];
     const linhas = b.lancamentos.map(x => {
       const nf = x.nf || {}, pg = x.pagamento || {};
       return [b.rotulo, nf.razao_social_emitente || x.contratado, nf.cnpj_emitente || x.contratado_cnpj, x.rubrica,
+        x.classificacao_contabil, dataBr(x.data_cotacao), dataBr(x.data_contrato),
         nf.tipo_documento || 'Nota fiscal', nf.numero, dataBr(nf.data_emissao), nf.descricao, num2(nf.valor),
         pg.forma_pagamento, pg.num_identificacao_pix, dataBr(pg.data_pagamento), dataBr(pg.data_debito_conta), num2(pg.valor),
         x.status, mesExt(x.competencia_mes)];
