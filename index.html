@@ -476,6 +476,7 @@
           <div class="form-grade" id="camposProjeto"></div>
           <div class="form-acoes" id="acoesProjeto">
             <div class="msg" id="msgProjeto" role="alert"></div>
+            <button class="btn-sec" type="button" id="btnColarSit">📋 Colar dados do SIT</button>
             <button class="btn" type="submit">Salvar dados do projeto</button>
           </div>
         </form>
@@ -486,7 +487,7 @@
         <div class="titulo-linha">
           <h2 style="font-size:16px">Rubricas do projeto</h2>
           <div id="acoesRubricas" style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn-sec" id="btnColar">📋 Colar da planilha</button>
+            <button class="btn-sec" id="btnColar">📋 Importar da planilha</button>
             <button class="btn" id="btnNovaRubrica">+ Nova rubrica</button>
           </div>
         </div>
@@ -509,6 +510,9 @@
         <div class="titulo-linha">
           <h2 style="font-size:16px">Contratações</h2>
           <div class="acoes-lote">
+            <button class="btn-sec" id="btnImpCtr">📥 Importar planilha de contratados</button>
+            <button class="btn-sec" id="btnImpDocs">📂 Importar documentos</button>
+            <button class="btn-sec" id="btnImpPagProj">💳 Importar pagamentos</button>
             <button class="btn-sec" id="btnNovaCompra">🛒 Nova compra</button>
             <button class="btn" id="btnNovaCtr">+ Nova contratação</button>
           </div>
@@ -548,19 +552,52 @@
   </form>
 </dialog>
 
-<!-- MODAL: COLAR DA PLANILHA -->
-<dialog id="dlgColar">
-  <div class="modal-cab"><h3>Colar rubricas da planilha</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+<!-- MODAL: IMPORTAR TABELA (orçamento / contratados) com escolha de colunas -->
+<dialog id="dlgMapa" class="grande">
+  <div class="modal-cab"><h3 id="mapaTitulo">Importar</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
   <div class="modal-corpo">
-    <p class="dica">Na sua planilha, organize as colunas nesta ordem, selecione as linhas (sem o cabeçalho), copie com <b>Ctrl+C</b> e cole abaixo com <b>Ctrl+V</b>:<br>
-      <b>Descrição · Quantidade · Valor unitário</b> · Tipo de despesa (opcional) · Nº de meses (opcional)</p>
-    <textarea id="txtColar" rows="7" placeholder="Jogos educativos	15	191,90&#10;Papel sulfite	44	27,90"></textarea>
-    <div id="previaColar" style="margin-top:14px"></div>
+    <p class="dica" id="mapaDica"></p>
+    <textarea id="mapaTexto" rows="6" placeholder="Cole aqui (Ctrl+V) as linhas copiadas da planilha, INCLUINDO a linha de títulos"></textarea>
+    <div id="mapaColunas" style="margin-top:14px"></div>
+    <div id="mapaPrevia" style="margin-top:14px"></div>
   </div>
   <div class="modal-rodape">
-    <div class="msg" id="msgColar" role="alert"></div>
-    <button type="button" class="btn-sec" data-fechar>Cancelar</button>
-    <button type="button" class="btn" id="btnImportar" disabled>Importar</button>
+    <div class="msg" id="msgMapa" role="alert"></div>
+    <button type="button" class="btn-sec" data-fechar>Fechar</button>
+    <button type="button" class="btn" id="btnMapaImportar" disabled>Importar</button>
+  </div>
+</dialog>
+
+<!-- MODAL: COLAR DADOS DO SIT -->
+<dialog id="dlgSitTexto" class="grande">
+  <div class="modal-cab"><h3>Colar dados do projeto (tela principal do SIT)</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+  <div class="modal-corpo">
+    <p class="dica">No SIT, selecione o quadro com os dados do projeto, copie (Ctrl+C) e cole abaixo. O sistema reconhece os campos e preenche o formulário — você confere antes de salvar.</p>
+    <textarea id="sitTexto" rows="8"></textarea>
+    <div id="sitTextoPrevia" style="margin-top:14px"></div>
+  </div>
+  <div class="modal-rodape">
+    <div class="msg" id="msgSitTexto"></div>
+    <button type="button" class="btn-sec" data-fechar>Fechar</button>
+    <button type="button" class="btn" id="btnSitTextoAplicar" disabled>Preencher o formulário</button>
+  </div>
+</dialog>
+
+<!-- MODAL: IMPORTAR DOCUMENTOS DO COMPUTADOR -->
+<dialog id="dlgDocs" class="grande">
+  <div class="modal-cab"><h3>Importar documentos do computador</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+  <div class="modal-corpo">
+    <p class="dica">Escolha a <b>pasta</b> do projeto (com subpastas por contratado, por exemplo) ou vários arquivos. O sistema identifica <b>de quem</b> é cada documento pelo nome da pasta/arquivo e <b>o tipo</b> (cotação, contrato…). Confira antes de enviar. Notas fiscais e comprovantes de pagamento entram melhor pelo <b>Importar pagamentos</b>, que liga cada um à parcela certa.</p>
+    <div class="linha-form">
+      <div><label for="docsPasta">Pasta inteira</label><input id="docsPasta" type="file" webkitdirectory multiple></div>
+      <div><label for="docsArquivos">Ou arquivos soltos</label><input id="docsArquivos" type="file" multiple></div>
+    </div>
+    <div id="docsPrevia" style="margin-top:14px"></div>
+  </div>
+  <div class="modal-rodape">
+    <div class="msg" id="msgDocs"></div>
+    <button type="button" class="btn-sec" data-fechar>Fechar</button>
+    <button type="button" class="btn" id="btnDocsEnviar" disabled>Enviar</button>
   </div>
 </dialog>
 
@@ -1369,57 +1406,6 @@
     catch (err) { alert(err.message); }
   }
 
-  // ---------- colar da planilha
-  $('btnColar').addEventListener('click', () => {
-    $('txtColar').value = ''; $('previaColar').innerHTML = ''; linhasColar = [];
-    $('btnImportar').disabled = true; $('btnImportar').textContent = 'Importar'; msg('msgColar', '');
-    $('dlgColar').showModal();
-  });
-
-  $('txtColar').addEventListener('input', () => {
-    const linhas = $('txtColar').value.split(/\r?\n/).filter(l => l.trim());
-    let erros = 0;
-    linhasColar = linhas.map(l => {
-      const c = l.split('\t').map(x => x.trim());
-      const r = { descricao: c[0] || '', quantidade: lerNumero(c[1]), valor_unitario_max: lerNumero(c[2]),
-                  tipo_despesa: TIPOS.find(t => t.toLowerCase() === (c[3] || '').toLowerCase()) || '',
-                  meses: c[4] ? lerNumero(c[4]) : '' };
-      r.erro = !r.descricao ? 'sem descrição' : !(r.quantidade > 0) ? 'quantidade inválida'
-             : !(r.valor_unitario_max > 0) ? 'valor inválido' : '';
-      if (r.erro) erros++;
-      r.total = (r.quantidade || 0) * (r.valor_unitario_max || 0) * (r.meses > 0 ? r.meses : 1);
-      return r;
-    });
-    if (!linhasColar.length) { $('previaColar').innerHTML = ''; $('btnImportar').disabled = true; return; }
-    const total = linhasColar.reduce((s, r) => s + (r.erro ? 0 : r.total), 0);
-    $('previaColar').innerHTML = `
-      <div class="tabela-wrap"><table>
-        <thead><tr><th>Descrição</th><th class="num">Qtd</th><th class="num">Valor unit.</th><th>Tipo</th><th class="num">Meses</th><th class="num">Total</th></tr></thead>
-        <tbody>${linhasColar.map(r => `<tr class="${r.erro ? 'linha-erro' : ''}">
-          <td>${esc(r.descricao)}${r.erro ? ` <b style="color:var(--erro)">(${r.erro})</b>` : ''}</td>
-          <td class="num">${isNaN(r.quantidade) ? '?' : numBr(r.quantidade)}</td>
-          <td class="num">${isNaN(r.valor_unitario_max) ? '?' : brl(r.valor_unitario_max)}</td>
-          <td>${esc(r.tipo_despesa || '—')}</td><td class="num">${r.meses || '—'}</td>
-          <td class="num">${r.erro ? '—' : brl(r.total)}</td></tr>`).join('')}</tbody>
-        <tfoot><tr><td colspan="5">Total a importar</td><td class="num">${brl(total)}</td></tr></tfoot>
-      </table></div>`;
-    $('btnImportar').disabled = erros > 0;
-    $('btnImportar').textContent = `Importar ${linhasColar.length} rubrica(s)`;
-    msg('msgColar', erros ? `Corrija ${erros} linha(s) em vermelho antes de importar.` : '');
-  });
-
-  $('btnImportar').addEventListener('click', async () => {
-    const btn = $('btnImportar'); btn.disabled = true; msg('msgColar', 'Importando…', 'ok');
-    try {
-      atual = await api('importarRubricas', {
-        id_projeto: atual.projeto.id_projeto,
-        linhas: linhasColar.map(({ descricao, quantidade, valor_unitario_max, tipo_despesa, meses }) =>
-          ({ descricao, quantidade, valor_unitario_max, tipo_despesa, meses }))
-      });
-      $('dlgColar').close(); guardarProjeto(); renderDetalhe(); trocarAba('orcamento');
-    } catch (err) { msg('msgColar', err.message); btn.disabled = false; }
-  });
-
   // ---------- contratações
   const STATUS_CTR = ['Em cotação', 'Contrato em elaboração', 'Contrato assinado', 'Em execução', 'Encerrada', 'Cancelada'];
   const TIPOS_UPLOAD = ['Contrato', 'Cotação', 'Nota fiscal', 'Comprovante de pagamento', 'Outro'];
@@ -1449,6 +1435,8 @@
     const cs = atual.contratacoes || [];
     $('btnNovaCtr').classList.toggle('oculto', !atual.podeContratar);
     $('btnNovaCompra').classList.toggle('oculto', !atual.podeContratar);
+    ['btnImpCtr', 'btnImpDocs'].forEach(id => $(id).classList.toggle('oculto', !atual.podeContratar));
+    $('btnImpPagProj').classList.toggle('oculto', !['ADMIN', 'PRESTACAO_CONTAS'].includes(usuario.perfil));
     if (!cs.length) {
       $('tabelaCtr').innerHTML = `<div class="vazio">Nenhuma contratação cadastrada ainda.${atual.podeContratar ? '<br>Clique em “+ Nova contratação” para começar.' : ''}</div>`;
       return;
@@ -2478,13 +2466,14 @@
 
   let imp = { parcelas: [], contratacoes: [], linhas: [], arquivos: [] };
 
-  $('btnImportar').addEventListener('click', () => {
-    $('impProjeto').innerHTML = pag.projetos.map(p => `<option value="${esc(p.id_projeto)}">${esc(p.sigla || p.nome_projeto)}</option>`).join('');
-    if ($('pagProjeto').value) $('impProjeto').value = $('pagProjeto').value;
+  $('btnImportar').addEventListener('click', () => abrirImportadorPagamentos(pag.projetos, $('pagProjeto').value));
+  function abrirImportadorPagamentos(projetos, idProjeto) {
+    $('impProjeto').innerHTML = projetos.map(p => `<option value="${esc(p.id_projeto)}">${esc(p.sigla || p.nome_projeto)}</option>`).join('');
+    if (idProjeto) $('impProjeto').value = idProjeto;
     $('impAno').value = $('impAno').value || new Date().getFullYear();
     mostrarPassoImp(1); msg('msgImport', '');
     $('dlgImport').showModal();
-  });
+  }
 
   function mostrarPassoImp(n) {
     $('impPasso1').classList.toggle('oculto', n !== 1); $('impPasso2').classList.toggle('oculto', n !== 2);
@@ -3080,6 +3069,389 @@
 
   $('navSit').addEventListener('click', () => abrirSit($('sitProjeto').value || ''));
   $('sitProjeto').addEventListener('change', () => abrirSit($('sitProjeto').value));
+
+
+  // =====================================================================
+  // IMPORTAÇÃO EM MASSA (implantação de projetos que já estão rodando)
+  // =====================================================================
+  const normTxt = t => semAcento(t).replace(/[^a-z0-9]+/g, ' ').trim();
+  function lerData(v) {
+    const t = String(v || '').trim();
+    let m = t.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/);
+    if (m) { const a = m[3].length === 2 ? 2000 + +m[3] : +m[3]; return `${a}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`; }
+    m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[1]}-${m[2]}-${m[3]}` : '';
+  }
+  const mesesEntre = (ini, fim) => { if (!ini || !fim) return 0; const [a1, m1] = ini.split('-').map(Number), [a2, m2] = fim.split('-').map(Number); return (a2 - a1) * 12 + (m2 - m1) + 1; };
+  function lerTabela(texto) {
+    const linhas = String(texto || '').split(/\r?\n/).filter(l => l.trim()).map(l => l.split('\t').map(c => c.trim()));
+    if (!linhas.length) return { cab: [], dados: [] };
+    const largura = Math.max(...linhas.map(l => l.length));
+    linhas.forEach(l => { while (l.length < largura) l.push(''); });
+    return { cab: linhas[0], dados: linhas.slice(1) };
+  }
+
+  /**
+   * Janela genérica: cola a tabela (com títulos), escolhe qual coluna é cada campo
+   * (o sistema sugere pelos títulos e lembra a escolha), mostra a prévia e importa.
+   */
+  let mapa = null;
+  function abrirMapa(cfg) {
+    mapa = { cfg, tabela: { cab: [], dados: [] }, escolha: {}, linhas: [] };
+    $('mapaTitulo').textContent = cfg.titulo;
+    $('mapaDica').innerHTML = cfg.dica;
+    $('mapaTexto').value = ''; $('mapaColunas').innerHTML = ''; $('mapaPrevia').innerHTML = '';
+    $('btnMapaImportar').disabled = true; $('btnMapaImportar').textContent = 'Importar'; msg('msgMapa', '');
+    $('dlgMapa').showModal();
+  }
+  $('mapaTexto').addEventListener('input', () => {
+    mapa.tabela = lerTabela($('mapaTexto').value);
+    const cab = mapa.tabela.cab.map(normTxt);
+    let salvo = {};
+    try { salvo = JSON.parse(localStorage.getItem('mapa_' + mapa.cfg.id) || '{}'); } catch {}
+    mapa.escolha = {};
+    mapa.cfg.campos.forEach(c => {
+      // 1º: a escolha feita antes para a mesma coluna; 2º: sinônimos no título
+      const lembrado = salvo[c.k] ? cab.indexOf(normTxt(salvo[c.k])) : -1;
+      const porNome = cab.findIndex(h => h && c.sin.some(s => new RegExp('(^| )' + s + '( |$)').test(h)));
+      mapa.escolha[c.k] = lembrado > -1 ? lembrado : porNome;
+    });
+    desenharColunas(); prepararMapa();
+  });
+  function desenharColunas() {
+    const cab = mapa.tabela.cab;
+    if (!cab.length) { $('mapaColunas').innerHTML = ''; return; }
+    $('mapaColunas').innerHTML = `<h4 style="margin:0 0 8px;font-size:13px;color:var(--azul)">QUAL COLUNA É CADA INFORMAÇÃO?</h4>
+      <div class="form-grade">${mapa.cfg.campos.map(c => `<div><label for="mp_${c.k}">${esc(c.rotulo)}${c.obrig ? ' *' : ''}</label>
+        <select id="mp_${c.k}" data-mapa="${c.k}"><option value="-1">— não tem —</option>${cab.map((h, i) =>
+          `<option value="${i}" ${mapa.escolha[c.k] === i ? 'selected' : ''}>${esc(h || 'coluna ' + (i + 1))}</option>`).join('')}</select></div>`).join('')}</div>`;
+    $('mapaColunas').querySelectorAll('[data-mapa]').forEach(sel => sel.addEventListener('change', () => {
+      mapa.escolha[sel.dataset.mapa] = Number(sel.value);
+      const lembrar = {};
+      Object.keys(mapa.escolha).forEach(k => { if (mapa.escolha[k] > -1) lembrar[k] = mapa.tabela.cab[mapa.escolha[k]]; });
+      try { localStorage.setItem('mapa_' + mapa.cfg.id, JSON.stringify(lembrar)); } catch {}
+      prepararMapa();
+    }));
+  }
+  function prepararMapa() {
+    const val = (linha, k) => mapa.escolha[k] > -1 ? (linha[mapa.escolha[k]] || '').trim() : '';
+    mapa.linhas = mapa.tabela.dados.map((l, i) => {
+      const bruto = {}; mapa.cfg.campos.forEach(c => { bruto[c.k] = val(l, c.k); });
+      const r = mapa.cfg.preparar(bruto, i);
+      r._i = i;
+      return r;
+    }).filter(r => !r.vazia);
+    desenharPreviaMapa();
+  }
+  function desenharPreviaMapa() {
+    const ok = mapa.linhas.filter(r => !r.erros.length);
+    if (!mapa.linhas.length) { $('mapaPrevia').innerHTML = ''; $('btnMapaImportar').disabled = true; return; }
+    $('mapaPrevia').innerHTML = `<div class="tabela-wrap"><table>
+      <thead><tr><th></th>${mapa.cfg.colunas.map(c => `<th class="${c.num ? 'num' : ''}">${c.t}</th>`).join('')}<th>Situação</th></tr></thead>
+      <tbody>${mapa.linhas.map((r, idx) => `<tr class="${r.erros.length ? 'linha-erro' : ''}">
+        <td>${idx + 1}</td>${mapa.cfg.colunas.map(c => `<td class="${c.num ? 'num' : ''}">${c.v(r, idx)}</td>`).join('')}
+        <td data-sit="${idx}">${r.erros.length ? `<span style="color:var(--erro);font-weight:700">✗ ${esc(r.erros.join('; '))}</span>`
+          : r.avisos.length ? `<span style="color:var(--alerta)">⚠️ ${esc(r.avisos.join('; '))}</span>` : '<span class="st verde">ok</span>'}</td></tr>`).join('')}</tbody>
+      ${mapa.cfg.rodape ? `<tfoot><tr><td></td>${mapa.cfg.rodape(ok)}<td></td></tr></tfoot>` : ''}
+    </table></div>`;
+    if (mapa.cfg.ligar) mapa.cfg.ligar();
+    $('btnMapaImportar').disabled = !ok.length;
+    $('btnMapaImportar').textContent = `Importar ${ok.length} linha(s)`;
+    msg('msgMapa', mapa.linhas.length > ok.length ? `${mapa.linhas.length - ok.length} linha(s) com erro ficarão de fora (corrija na planilha ou nas colunas acima).` : '', 'ok');
+  }
+  $('btnMapaImportar').addEventListener('click', async () => {
+    const btn = $('btnMapaImportar'); btn.disabled = true;
+    try { await mapa.cfg.importar(mapa.linhas.filter(r => !r.erros.length)); }
+    catch (err) { msg('msgMapa', err.message); btn.disabled = false; }
+  });
+
+  // ---------- orçamento (rubricas)
+  $('btnColar').addEventListener('click', () => abrirMapa({
+    id: 'rubricas', titulo: 'Importar orçamento da planilha',
+    dica: 'Na planilha do orçamento, selecione a tabela <b>com a linha de títulos</b>, copie (Ctrl+C) e cole abaixo. Depois confira qual coluna é cada informação.',
+    campos: [
+      { k: 'codigo', rotulo: 'Item / código', sin: ['item', 'codigo', 'cod', 'n', 'no', 'numero'] },
+      { k: 'descricao', rotulo: 'Descrição', obrig: true, sin: ['descricao', 'rubrica', 'especificacao', 'despesa', 'discriminacao'] },
+      { k: 'classificacao_contabil', rotulo: 'Classificação contábil', sin: ['classificacao', 'natureza', 'elemento', 'classificacao contabil'] },
+      { k: 'tipo_despesa', rotulo: 'Tipo de despesa', sin: ['tipo', 'categoria'] },
+      { k: 'unidade', rotulo: 'Unidade', sin: ['unidade', 'und', 'un'] },
+      { k: 'quantidade', rotulo: 'Quantidade', sin: ['quantidade', 'qtd', 'qtde', 'quant'] },
+      { k: 'meses', rotulo: 'Nº de meses', sin: ['meses', 'mes', 'periodo', 'duracao'] },
+      { k: 'valor_unitario_max', rotulo: 'Valor unitário', sin: ['valor unitario', 'unitario', 'vlr unit', 'valor unit', 'preco unitario'] },
+      { k: 'valor_total', rotulo: 'Valor total', sin: ['valor total', 'total', 'vlr total'] }
+    ],
+    preparar: b => {
+      if (!b.descricao && !b.valor_total && !b.valor_unitario_max) return { vazia: true };
+      const tipo = TIPOS.find(t => normTxt(t) === normTxt(b.tipo_despesa)) || (normTxt(b.tipo_despesa).includes('servic') ? 'Prestação de serviço' : /bem|material|compra|aquisic/.test(normTxt(b.tipo_despesa)) ? 'Compra de bens' : /ativo|imobiliz|equipament|permanente/.test(normTxt(b.tipo_despesa)) ? 'Ativo imobilizado' : '');
+      let qtd = lerNumero(b.quantidade), vu = lerNumero(b.valor_unitario_max), meses = b.meses ? lerNumero(b.meses) : '', tot = lerNumero(b.valor_total);
+      const avisos = [], erros = [];
+      if (!(vu > 0) && tot > 0) { vu = tot / ((qtd > 0 ? qtd : 1) * (meses > 0 ? meses : 1)); if (!(qtd > 0)) qtd = 1; avisos.push('valor unitário calculado pelo total'); }
+      if (!(qtd > 0)) { qtd = 1; avisos.push('quantidade 1'); }
+      if (/total/.test(normTxt(b.descricao))) return { vazia: true };   // linha de total da planilha
+      if (!b.descricao) erros.push('sem descrição');
+      if (!(vu > 0)) erros.push('sem valor');
+      const total = qtd * vu * (meses > 0 ? meses : 1);
+      if (tot > 0 && Math.abs(total - tot) > 0.05) avisos.push('total da planilha ' + brl(tot) + ' ≠ qtd × valor');
+      return { dados: { codigo: b.codigo, descricao: b.descricao, classificacao_contabil: b.classificacao_contabil, tipo_despesa: tipo,
+        unidade: b.unidade, quantidade: qtd, valor_unitario_max: Math.round(vu * 100) / 100, meses }, total, erros, avisos };
+    },
+    colunas: [
+      { t: 'Item', v: r => esc(r.dados.codigo) }, { t: 'Descrição', v: r => esc(r.dados.descricao) },
+      { t: 'Classificação', v: r => esc(r.dados.classificacao_contabil || '—') }, { t: 'Tipo', v: r => esc(r.dados.tipo_despesa || '—') },
+      { t: 'Qtd', num: 1, v: r => numBr(r.dados.quantidade) }, { t: 'Meses', num: 1, v: r => r.dados.meses || '—' },
+      { t: 'Valor unit.', num: 1, v: r => brl(r.dados.valor_unitario_max) }, { t: 'Total', num: 1, v: r => brl(r.total) }],
+    rodape: ok => `<td colspan="7">Total a importar</td><td class="num">${brl(ok.reduce((s, r) => s + r.total, 0))}</td>`,
+    importar: async linhas => {
+      msg('msgMapa', 'Importando…', 'ok');
+      atual = await api('importarRubricas', { id_projeto: atual.projeto.id_projeto, linhas: linhas.map(r => r.dados) });
+      $('dlgMapa').close(); guardarProjeto(); renderDetalhe(); trocarAba('orcamento');
+      toast(`${linhas.length} rubrica(s) importada(s) ✓`);
+    }
+  }));
+
+  // ---------- contratados (planilha dos prestadores)
+  function acharRubrica(texto) {
+    const t = normTxt(texto); if (!t) return null;
+    const rs = atual.rubricas;
+    return rs.find(r => normTxt(r.codigo) === t) || rs.find(r => normTxt(r.descricao) === t)
+      || rs.find(r => normTxt(r.descricao).includes(t) || t.includes(normTxt(r.descricao)))
+      || rs.find(r => palavras(r.descricao).some(w => w.length > 4 && palavras(texto).some(x => parecido(w, x))));
+  }
+  $('btnImpCtr').addEventListener('click', () => abrirMapa({
+    id: 'contratados', titulo: 'Importar contratações da planilha de prestadores',
+    dica: 'Cole a planilha dos prestadores <b>com a linha de títulos</b> (só as linhas deste projeto). Cada linha vira um contratado + contratação com as parcelas mensais. Linhas que já existem no sistema são ignoradas, então pode importar de novo sem duplicar.',
+    campos: [
+      { k: 'razao_social', rotulo: 'Nome / razão social', obrig: true, sin: ['nome', 'razao social', 'prestador', 'contratado', 'empresa', 'fornecedor'] },
+      { k: 'cnpj_cpf', rotulo: 'CPF / CNPJ', obrig: true, sin: ['cnpj', 'cpf', 'cpf cnpj', 'cnpj cpf', 'documento'] },
+      { k: 'rubrica', rotulo: 'Rubrica / item do orçamento', obrig: true, sin: ['rubrica', 'item', 'funcao', 'cargo', 'servico'] },
+      { k: 'objeto', rotulo: 'Objeto / função', sin: ['objeto', 'funcao', 'cargo', 'atividade'] },
+      { k: 'valor_parcela', rotulo: 'Valor mensal', obrig: true, sin: ['valor mensal', 'mensal', 'valor parcela', 'parcela', 'valor', 'remuneracao', 'salario'] },
+      { k: 'num_parcelas', rotulo: 'Nº de parcelas/meses', sin: ['parcelas', 'meses', 'n parcelas', 'qtd parcelas', 'duracao'] },
+      { k: 'inicio_execucao', rotulo: 'Início', obrig: true, sin: ['inicio', 'data inicio', 'inicio execucao', 'inicio contrato', 'admissao'] },
+      { k: 'fim_execucao', rotulo: 'Fim', sin: ['fim', 'termino', 'data fim', 'fim contrato', 'final'] },
+      { k: 'data_cotacao', rotulo: 'Data da cotação', sin: ['cotacao', 'data cotacao', 'data da cotacao'] },
+      { k: 'data_assinatura_contrato', rotulo: 'Data do contrato', sin: ['contrato', 'assinatura', 'data contrato', 'data do contrato', 'data assinatura'] },
+      { k: 'carga_horaria_mensal', rotulo: 'Carga horária mensal', sin: ['carga horaria', 'horas', 'ch'] },
+      { k: 'email', rotulo: 'E-mail', sin: ['email', 'e mail'] },
+      { k: 'telefone', rotulo: 'Telefone', sin: ['telefone', 'celular', 'fone', 'whatsapp'] },
+      { k: 'endereco', rotulo: 'Endereço', sin: ['endereco', 'rua', 'logradouro'] },
+      { k: 'cidade', rotulo: 'Cidade', sin: ['cidade', 'municipio'] },
+      { k: 'uf', rotulo: 'UF', sin: ['uf', 'estado'] },
+      { k: 'cep', rotulo: 'CEP', sin: ['cep'] },
+      { k: 'representante_nome', rotulo: 'Representante legal', sin: ['representante', 'responsavel', 'socio'] },
+      { k: 'representante_cpf', rotulo: 'CPF do representante', sin: ['cpf representante', 'cpf do representante', 'cpf responsavel'] },
+      { k: 'chave_pix', rotulo: 'Chave PIX', sin: ['pix', 'chave pix'] },
+      { k: 'banco', rotulo: 'Banco', sin: ['banco'] },
+      { k: 'agencia', rotulo: 'Agência', sin: ['agencia'] },
+      { k: 'conta', rotulo: 'Conta', sin: ['conta', 'conta corrente'] }
+    ],
+    preparar: b => {
+      if (!b.razao_social && !b.cnpj_cpf) return { vazia: true };
+      const erros = [], avisos = [];
+      const rub = acharRubrica(b.rubrica) || acharRubrica(b.objeto);
+      const ini = lerData(b.inicio_execucao), fim = lerData(b.fim_execucao);
+      let n = parseInt(String(b.num_parcelas).replace(/\D/g, ''), 10);
+      if (!(n > 0) && ini && fim) { n = mesesEntre(ini, fim); avisos.push(n + ' parcelas pelo período'); }
+      if (!(n > 0) && rub && rub.tipo_despesa && rub.tipo_despesa !== 'Prestação de serviço') { n = 1; avisos.push('compra: 1 parcela'); }
+      const v = lerNumero(b.valor_parcela), doc = String(b.cnpj_cpf).replace(/\D/g, '');
+      if (!b.razao_social) erros.push('sem nome');
+      if (!(doc.length === 11 || doc.length === 14)) erros.push('CPF/CNPJ inválido');
+      if (!rub) erros.push('rubrica não encontrada');
+      if (!(v > 0)) erros.push('valor mensal inválido');
+      if (!ini) erros.push('data de início inválida');
+      if (!(n > 0)) erros.push('informe nº de parcelas ou data de fim');
+      const compra = rub && rub.tipo_despesa && rub.tipo_despesa !== 'Prestação de serviço';
+      const cot = lerData(b.data_cotacao), contr = compra ? (cot || lerData(b.data_assinatura_contrato)) : lerData(b.data_assinatura_contrato);
+      if (!cot) avisos.push('sem data da cotação'); if (!contr) avisos.push('sem data do contrato');
+      const f = {}; ['razao_social', 'cnpj_cpf', 'email', 'telefone', 'endereco', 'cidade', 'uf', 'cep', 'representante_nome', 'representante_cpf', 'chave_pix', 'banco', 'agencia', 'conta']
+        .forEach(k => { if (b[k]) f[k] = b[k]; });
+      return { rub, erros, avisos, dados: {
+        id_rubrica: rub ? rub.id_rubrica : '', fornecedor: f,
+        objeto: b.objeto || (rub ? 'prestação de serviço de ' + rub.descricao.toLowerCase() : ''),
+        valor_parcela: v, num_parcelas: n, inicio_execucao: ini, fim_execucao: fim,
+        data_cotacao: cot, data_assinatura_contrato: contr, carga_horaria_mensal: b.carga_horaria_mensal, status: 'Em execução' } };
+    },
+    colunas: [
+      { t: 'Contratado', v: r => `<b>${esc(r.dados.fornecedor.razao_social || '')}</b><br><small>${esc(r.dados.fornecedor.cnpj_cpf || '')}</small>` },
+      { t: 'Rubrica', v: (r, i) => `<select data-rubimp="${i}" style="min-width:180px"><option value="">— escolha —</option>${atual.rubricas.map(x =>
+          `<option value="${esc(x.id_rubrica)}" ${r.rub && r.rub.id_rubrica === x.id_rubrica ? 'selected' : ''}>${esc((x.codigo ? x.codigo + ' – ' : '') + x.descricao)}</option>`).join('')}</select>` },
+      { t: 'Mensal', num: 1, v: r => r.dados.valor_parcela > 0 ? brl(r.dados.valor_parcela) : '?' },
+      { t: 'Parcelas', num: 1, v: r => r.dados.num_parcelas || '?' },
+      { t: 'Início', v: r => dataBr(r.dados.inicio_execucao) },
+      { t: 'Cotação / contrato', v: r => `${dataBr(r.dados.data_cotacao)}<br>${dataBr(r.dados.data_assinatura_contrato)}` }],
+    ligar: () => $('mapaPrevia').querySelectorAll('[data-rubimp]').forEach(sel => sel.addEventListener('change', () => {
+      const r = mapa.linhas[Number(sel.dataset.rubimp)], rub = atual.rubricas.find(x => x.id_rubrica === sel.value);
+      r.rub = rub; r.dados.id_rubrica = rub ? rub.id_rubrica : '';
+      r.erros = r.erros.filter(e => e !== 'rubrica não encontrada'); if (!rub) r.erros.push('rubrica não encontrada');
+      desenharPreviaMapa();
+    })),
+    importar: async linhas => {
+      // em blocos de 5, para mostrar o andamento e não estourar o tempo do servidor
+      let feitas = 0, novas = 0, ja = 0, falhas = 0;
+      for (let i = 0; i < linhas.length; i += 5) {
+        const bloco = linhas.slice(i, i + 5);
+        msg('msgMapa', `Importando ${Math.min(i + 5, linhas.length)} de ${linhas.length}… (cria as parcelas e as pastas no Drive)`, 'ok');
+        const res = await api('importarContratacoes', { id_projeto: atual.projeto.id_projeto,
+          linhas: bloco.map(r => Object.assign({ _linha: r._i }, r.dados)) });
+        res.forEach(x => {
+          const idx = mapa.linhas.findIndex(r => r._i === x.linha), cel = $('mapaPrevia').querySelector(`[data-sit="${idx}"]`);
+          if (x.ok && x.ja_existia) { ja++; if (cel) cel.innerHTML = '<span class="st">já existia</span>'; }
+          else if (x.ok) { novas++; if (cel) cel.innerHTML = '<span class="st verde">✓ importada</span>'; }
+          else { falhas++; if (cel) cel.innerHTML = `<span style="color:var(--erro);font-weight:700">✗ ${esc(x.erro)}</span>`; }
+        });
+        feitas += bloco.length;
+      }
+      msg('msgMapa', `Concluído: ${novas} nova(s), ${ja} já existia(m)${falhas ? `, ${falhas} com erro (veja a coluna Situação)` : ''}.`, falhas ? 'erro' : 'ok');
+      $('btnMapaImportar').disabled = true;
+      recarregarProjeto().catch(() => {});
+    }
+  }));
+
+  // ---------- dados do projeto colados do SIT
+  const CAMPOS_SIT = [
+    ['nome_projeto', ['nome do projeto', 'titulo do projeto', 'projeto', 'objeto']],
+    ['num_edital', ['edital', 'chamamento publico', 'chamamento']],
+    ['num_proposta', ['proposta', 'n da proposta', 'numero da proposta']],
+    ['termo_fomento_cit', ['termo de fomento', 'n do termo', 'numero do termo', 'termo', 'instrumento', 'convenio']],
+    ['data_celebracao', ['data de celebracao', 'celebracao', 'data da assinatura', 'assinatura']],
+    ['inicio_vigencia', ['inicio da vigencia', 'inicio vigencia', 'data inicial', 'inicio']],
+    ['fim_vigencia', ['fim da vigencia', 'termino da vigencia', 'fim vigencia', 'data final', 'termino']],
+    ['valor_total', ['valor total', 'valor do repasse', 'valor repassado', 'valor concedido', 'valor global', 'valor']],
+    ['banco', ['banco']], ['agencia', ['agencia']], ['conta_corrente', ['conta corrente', 'conta']]
+  ];
+  let sitLido = {};
+  function lerTextoSit(texto) {
+    const linhas = String(texto).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const achado = {};
+    // pares "rótulo: valor", "rótulo<TAB>valor" ou rótulo numa linha e valor na seguinte
+    const pares = [];
+    linhas.forEach((l, i) => {
+      const partes = l.split(/\t+|:\s+|\s{2,}/).map(x => x.trim()).filter(Boolean);
+      for (let k = 0; k + 1 < partes.length; k += 2) pares.push([partes[k], partes[k + 1]]);
+      if (partes.length === 1 && linhas[i + 1]) pares.push([partes[0].replace(/:$/, ''), linhas[i + 1]]);
+    });
+    CAMPOS_SIT.forEach(([campo, sins]) => {
+      for (const s of sins) {
+        const p = pares.find(([r]) => normTxt(r) === s || normTxt(r).startsWith(s));
+        if (p && p[1]) { achado[campo] = p[1]; break; }
+      }
+    });
+    // "Vigência: 06/01/2026 a 06/01/2028"
+    const vig = pares.find(([r]) => normTxt(r).startsWith('vigencia'));
+    if (vig) { const d = vig[1].match(/(\d{1,2}\/\d{1,2}\/\d{2,4}).*?(\d{1,2}\/\d{1,2}\/\d{2,4})/); if (d) { achado.inicio_vigencia = achado.inicio_vigencia || d[1]; achado.fim_vigencia = achado.fim_vigencia || d[2]; } }
+    ['data_celebracao', 'inicio_vigencia', 'fim_vigencia'].forEach(k => { if (achado[k]) { const m = achado[k].match(/\d{1,2}\/\d{1,2}\/\d{2,4}/); achado[k] = m ? lerData(m[0]) : ''; } });
+    if (achado.valor_total) { const m = achado.valor_total.match(/[\d.]+,\d{2}/); achado.valor_total = m ? lerNumero(m[0]) : ''; }
+    Object.keys(achado).forEach(k => { if (achado[k] === '' || achado[k] == null) delete achado[k]; });
+    return achado;
+  }
+  $('btnColarSit').addEventListener('click', () => {
+    $('sitTexto').value = ''; $('sitTextoPrevia').innerHTML = ''; $('btnSitTextoAplicar').disabled = true; msg('msgSitTexto', '');
+    $('dlgSitTexto').showModal();
+  });
+  $('sitTexto').addEventListener('input', () => {
+    sitLido = lerTextoSit($('sitTexto').value);
+    const nomes = Object.fromEntries(CAMPOS_PROJETO.map(([k, r]) => [k, r]));
+    const ks = Object.keys(sitLido);
+    $('sitTextoPrevia').innerHTML = ks.length ? `<div class="tabela-wrap"><table><thead><tr><th>Campo</th><th>Valor encontrado</th></tr></thead><tbody>${
+      ks.map(k => `<tr><td>${esc((nomes[k] || k).replace(' *', ''))}</td><td><b>${esc(/^\d{4}-\d{2}-\d{2}$/.test(sitLido[k]) ? dataBr(sitLido[k]) : k === 'valor_total' ? brl(sitLido[k]) : sitLido[k])}</b></td></tr>`).join('')}</tbody></table></div>`
+      : '<div class="vazio">Nenhum campo reconhecido ainda. Se o texto do SIT vier diferente, me envie um exemplo para eu ajustar a leitura.</div>';
+    $('btnSitTextoAplicar').disabled = !ks.length;
+  });
+  $('btnSitTextoAplicar').addEventListener('click', () => {
+    Object.keys(sitLido).forEach(k => {
+      const el = $('p_' + k); if (!el) return;
+      el.value = k === 'valor_total' ? num2(sitLido[k]) : sitLido[k];
+    });
+    $('dlgSitTexto').close(); trocarAba('dados');
+    msg('msgProjeto', `${Object.keys(sitLido).length} campo(s) preenchido(s) com os dados do SIT. Confira e clique em Salvar.`, 'ok');
+  });
+
+  // ---------- documentos do computador (cotações, contratos…)
+  let docsLista = [];
+  const TIPO_POR_NOME = [
+    [/cota[cç]/, 'Cotação'], [/minuta/, 'Minuta de contrato'], [/contrat/, 'Contrato'],
+    [/comprov|pagto|pagamento|\bpix\b|transf/, 'Comprovante de pagamento'], [/\bnf\b|nfs|nfse|nota/, 'Nota fiscal'],
+    [/termo de fomento|termo/, 'Termo de fomento'], [/plano de trabalho/, 'Plano de trabalho'], [/extrato/, 'Extrato bancário']];
+  function prepararDocs(files) {
+    const ctrs = (atual.contratacoes || []).map(c => ({ id: c.id_contratacao, nome: c.fornecedor_nome, rub: c.rubrica_descricao }));
+    docsLista = [...files].filter(f => /\.(pdf|jpe?g|png|docx?|xlsx?)$/i.test(f.name)).map(f => {
+      const caminho = (f.webkitRelativePath || f.name);
+      const t = semAcento(caminho);
+      const tipo = (TIPO_POR_NOME.find(([re]) => re.test(t)) || [0, 'Outro'])[1];
+      // de quem é: compara as palavras do caminho com o nome dos contratados
+      const ws = palavras(caminho);
+      let melhor = null, nota = 0;
+      ctrs.forEach(c => {
+        const pc = palavras(c.nome).filter(w => w.length > 2 && !CONECT.includes(w));
+        const pts = pc.filter(w => ws.some(x => parecido(w, x))).length;
+        const digitos = String(c.nome).replace(/\D/g, '');
+        const bonus = digitos.length >= 8 && caminho.replace(/\D/g, '').includes(digitos.slice(0, 8)) ? 2 : 0;
+        if (pts + bonus > nota) { nota = pts + bonus; melhor = c; }
+      });
+      const doProjeto = ['Termo de fomento', 'Plano de trabalho', 'Extrato bancário'].includes(tipo);
+      return { f, caminho, tipo, id_contratacao: doProjeto ? '' : (melhor && nota >= 1 ? melhor.id : ''),
+               incluir: !['Nota fiscal', 'Comprovante de pagamento'].includes(tipo), status: '' };
+    });
+    desenharDocs();
+  }
+  const CONECT = ['de', 'da', 'do', 'das', 'dos', 'e', 'ltda', 'me', 'eireli', 'epp', 'sa'];
+  function desenharDocs() {
+    const ctrs = atual.contratacoes || [];
+    const tipos = ['Cotação', 'Contrato', 'Minuta de contrato', 'Nota fiscal', 'Comprovante de pagamento', 'Termo de fomento', 'Plano de trabalho', 'Extrato bancário', 'Outro'];
+    $('docsPrevia').innerHTML = docsLista.length ? `<div class="tabela-wrap"><table>
+      <thead><tr><th><input type="checkbox" id="docsTodos" ${docsLista.every(d => d.incluir) ? 'checked' : ''} aria-label="Todos"></th><th>Arquivo</th><th>Tipo</th><th>De quem</th><th>Situação</th></tr></thead>
+      <tbody>${docsLista.map((d, i) => `<tr>
+        <td><input type="checkbox" data-dinc="${i}" ${d.incluir ? 'checked' : ''}></td>
+        <td style="max-width:320px;word-break:break-all"><small>${esc(d.caminho)}</small></td>
+        <td><select data-dtipo="${i}">${tipos.map(t => `<option ${t === d.tipo ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
+        <td><select data-dctr="${i}" style="max-width:260px"><option value="">Documento do projeto (sem contratado)</option>${ctrs.map(c =>
+          `<option value="${esc(c.id_contratacao)}" ${c.id_contratacao === d.id_contratacao ? 'selected' : ''}>${esc(c.fornecedor_nome)} · ${esc(c.rubrica_descricao)}</option>`).join('')}</select></td>
+        <td data-dst="${i}">${d.status || (d.id_contratacao || ['Termo de fomento', 'Plano de trabalho', 'Extrato bancário'].includes(d.tipo) ? '' : '<span style="color:var(--alerta)">⚠️ confira de quem é</span>')}</td></tr>`).join('')}</tbody></table></div>`
+      : '<div class="vazio">Nenhum arquivo PDF, imagem ou documento encontrado.</div>';
+    const on = (sel, fn) => $('docsPrevia').querySelectorAll(sel).forEach(el => el.addEventListener('change', () => fn(el)));
+    on('[data-dinc]', el => { docsLista[el.dataset.dinc].incluir = el.checked; contarDocs(); });
+    on('[data-dtipo]', el => { docsLista[el.dataset.dtipo].tipo = el.value; });
+    on('[data-dctr]', el => { docsLista[el.dataset.dctr].id_contratacao = el.value; });
+    const todos = $('docsTodos'); if (todos) todos.addEventListener('change', () => { docsLista.forEach(d => d.incluir = todos.checked); desenharDocs(); });
+    contarDocs();
+  }
+  function contarDocs() {
+    const n = docsLista.filter(d => d.incluir && !d.enviado).length;
+    $('btnDocsEnviar').disabled = !n; $('btnDocsEnviar').textContent = `Enviar ${n} arquivo(s)`;
+  }
+  $('btnImpDocs').addEventListener('click', () => {
+    $('docsPasta').value = ''; $('docsArquivos').value = ''; docsLista = []; $('docsPrevia').innerHTML = ''; msg('msgDocs', '');
+    contarDocs(); $('dlgDocs').showModal();
+  });
+  $('docsPasta').addEventListener('change', e => prepararDocs(e.target.files));
+  $('docsArquivos').addEventListener('change', e => prepararDocs(e.target.files));
+  $('btnDocsEnviar').addEventListener('click', async () => {
+    const btn = $('btnDocsEnviar'); btn.disabled = true;
+    const fila = docsLista.map((d, i) => ({ d, i })).filter(x => x.d.incluir && !x.d.enviado);
+    let ok = 0, ja = 0, erro = 0;
+    for (let k = 0; k < fila.length; k++) {
+      const { d, i } = fila[k], cel = $('docsPrevia').querySelector(`[data-dst="${i}"]`);
+      msg('msgDocs', `Enviando ${k + 1} de ${fila.length}…`, 'ok');
+      if (cel) cel.innerHTML = '<span class="st amarelo">enviando…</span>';
+      try {
+        const arquivo = await lerArquivo(d.f);
+        arquivo.nome = d.f.name;
+        const r = await api('enviarDocumento', { id_projeto: atual.projeto.id_projeto, id_contratacao: d.id_contratacao, tipo: d.tipo, arquivo, leve: true });
+        d.enviado = true; r.ja_existia ? ja++ : ok++;
+        d.status = r.ja_existia ? '<span class="st">já estava no sistema</span>' : '<span class="st verde">✓ enviado</span>';
+      } catch (err) { erro++; d.status = `<span style="color:var(--erro);font-weight:700">✗ ${esc(err.message)}</span>`; }
+      if (cel) cel.innerHTML = d.status;
+    }
+    msg('msgDocs', `Concluído: ${ok} enviado(s), ${ja} já estava(m) no sistema${erro ? `, ${erro} com erro — clique em Enviar para tentar de novo só esses` : ''}.`, erro ? 'erro' : 'ok');
+    contarDocs();
+    recarregarProjeto().catch(() => {});
+  });
+
+  // ---------- pagamentos a partir do projeto
+  $('btnImpPagProj').addEventListener('click', () => {
+    const p = atual.projeto;
+    abrirImportadorPagamentos([{ id_projeto: p.id_projeto, sigla: p.sigla, nome_projeto: p.nome_projeto }], p.id_projeto);
+  });
 
   // ---------- campos de data: digitar (dd/mm/aaaa) ou escolher no calendário
   // O campo original (type=date) continua guardando o valor no formato do sistema (aaaa-mm-dd);
