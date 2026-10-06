@@ -116,6 +116,12 @@
   .status-sinc { display: flex; align-items: center; gap: 6px; font-size: 12px; }
   .status-sinc::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
   .status-sinc.carregando::before { background: #e08a2c; }
+  .status-sinc.erro { color: #b3261e; font-weight: 700; }
+  .status-sinc.erro::before { background: #b3261e; }
+  .status-sinc.clicavel { cursor: pointer; text-decoration: underline; }
+  .toast.acao { display: flex; gap: 10px; align-items: center; max-width: min(640px, 92vw); }
+  .toast.erro { background: #7a1f19; }
+  .toast.acao button { background: rgba(255,255,255,.15); color: #fff; border: 0; border-radius: 6px; padding: 5px 10px; font-weight: 700; cursor: pointer; white-space: nowrap; }
   main { width: 100%; max-width: none; padding: 34px 44px 56px; }
   .rodape { margin-top: auto; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 18px 44px; font-size: 11px; color: var(--suave-2); letter-spacing: .04em; }
   .rodape b { letter-spacing: .14em; font-weight: 700; }
@@ -360,7 +366,7 @@
         <span class="migalha" id="migalha">Projetos</span>
       </div>
       <div class="topo-dir">
-        <span class="status-sinc esconder-mob" id="statusSinc">Sincronizado</span>
+        <span class="status-sinc" id="statusSinc" aria-live="polite">Sincronizado</span>
         <span class="sep esconder-mob"></span>
         <span class="esconder-mob" id="dataHoje"></span>
         <div class="avatar" id="avatarTopo" style="width:36px;height:36px;font-size:12px"></div>
@@ -850,22 +856,30 @@
 
   // ---------- respostas guardadas: a tela aparece na hora com o que já foi carregado
   // e é atualizada assim que a resposta nova chega do servidor.
-  const memCache = new Map();
-  function lerCache(k) {
+  // Cada resposta guardada leva a hora em que chegou. Se for bem recente (acabou de vir junto
+  // com uma gravação, por exemplo), a tela usa direto, sem perguntar ao servidor de novo.
+  const memCache = new Map(), FRESCO_MS = 10000;
+  const chaveDe = (acao, dados) => acao + '|' + JSON.stringify(dados || {});
+  function entradaCache(k) {
     if (memCache.has(k)) return memCache.get(k);
-    try { const v = sessionStorage.getItem('c:' + k); if (v) { const o = JSON.parse(v); memCache.set(k, o); return o; } } catch {}
+    try { const v = sessionStorage.getItem('c2:' + k); if (v) { const o = JSON.parse(v); memCache.set(k, o); return o; } } catch {}
   }
+  function lerCache(k) { const e = entradaCache(k); return e ? e.v : undefined; }
+  function cacheFresco(k) { const e = entradaCache(k); return e && Date.now() - e.t < FRESCO_MS ? e.v : undefined; }
   function gravarCache(k, v) {
-    memCache.set(k, v);
-    try { sessionStorage.setItem('c:' + k, JSON.stringify(v)); } catch {}
+    const e = { t: Date.now(), v };
+    memCache.set(k, e);
+    try { sessionStorage.setItem('c2:' + k, JSON.stringify(e)); } catch {}
   }
-  function limparCache() {
-    memCache.clear();
-    try { Object.keys(sessionStorage).filter(k => k.startsWith('c:')).forEach(k => sessionStorage.removeItem(k)); } catch {}
+  function limparCache(manter) {
+    [...memCache.keys()].forEach(k => { if (!manter || !manter.test(k)) memCache.delete(k); });
+    try { Object.keys(sessionStorage).filter(k => k.startsWith('c2:') && (!manter || !manter.test(k.slice(3)))).forEach(k => sessionStorage.removeItem(k)); } catch {}
   }
   let seqTela = 0;              // muda a cada troca de tela: respostas atrasadas de telas antigas são ignoradas
   async function apiRapida(acao, dados, mostrarDados, qualquerTela) {
-    const k = acao + '|' + JSON.stringify(dados || {}), velho = lerCache(k), minhaTela = seqTela;
+    const k = chaveDe(acao, dados), velho = lerCache(k), minhaTela = seqTela;
+    const fresco = cacheFresco(k);
+    if (fresco !== undefined) { mostrarDados(fresco, false); return fresco; }   // acabou de chegar: não pergunta de novo
     if (velho !== undefined) mostrarDados(velho, true);
     let novo;
     try { novo = await api(acao, dados); }
@@ -877,30 +891,119 @@
   // Não redesenha uma tela enquanto a pessoa está digitando nela ou com uma janela aberta
   const ocupado = el => !!document.querySelector('dialog[open]') || (document.activeElement && el.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
 
-  let pendentes = 0;
-  function sinc(delta) {
-    pendentes = Math.max(0, pendentes + delta);
+  // ---------- comunicação com o servidor
+  // Indicador discreto no topo: Carregando… / Salvando… / Salvo ✓ / Erro ao salvar — tentar novamente
+  let lendo = 0;
+  const fila = { pendentes: 0, falhas: [], salvoEm: 0 };
+  function indicador() {
     const el = document.getElementById('statusSinc');
     if (!el) return;
-    el.classList.toggle('carregando', pendentes > 0);
-    el.textContent = pendentes > 0 ? 'Sincronizando…' : 'Sincronizado';
+    el.classList.remove('carregando', 'erro', 'clicavel');
+    el.onclick = null;
+    if (fila.pendentes > 0) { el.classList.add('carregando'); el.textContent = 'Salvando…'; }
+    else if (fila.falhas.length) {
+      el.classList.add('erro', 'clicavel');
+      el.textContent = 'Erro ao salvar — tentar novamente';
+      el.title = fila.falhas.map(f => f.rotulo + ': ' + f.erro).join('\n');
+      el.onclick = repetirFalhas;
+    }
+    else if (Date.now() - fila.salvoEm < 2500) { el.textContent = 'Salvo ✓'; setTimeout(indicador, 2600); }
+    else if (lendo > 0) { el.classList.add('carregando'); el.textContent = 'Carregando…'; }
+    else el.textContent = 'Sincronizado';
+  }
+  function sinc(delta) { lendo = Math.max(0, lendo + delta); indicador(); }
+
+  const LEITURA = /^(listar|obter|me$|previa)/;
+  const emVoo = new Map();      // mesma ação já enviada e ainda sem resposta: não envia de novo
+  async function postar(corpo, ehLeitura) {
+    for (let tentativa = 0; ; tentativa++) {
+      try {
+        const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify(corpo) });
+        return await resp.json();
+      } catch (err) {
+        // leituras podem ser repetidas com segurança; gravações não (poderiam duplicar)
+        if (ehLeitura && tentativa < 1) { await new Promise(r => setTimeout(r, 900)); continue; }
+        throw new Error(ehLeitura ? 'Sem conexão com o servidor. Confira a internet e tente de novo.'
+          : 'A conexão caiu antes da confirmação. Confira se a alteração aparece antes de repetir.');
+      }
+    }
   }
 
-  async function api(acao, dados = {}) {
-    const token = sessao.get();
-    sinc(1);
-    let json;
-    try {
-      const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ acao, token, dados }) });
-      json = await resp.json();
-    } finally { sinc(-1); }
-    // Depois de qualquer gravação, as telas guardadas ficam velhas: descarta para não mostrar dado antigo
-    if (!/^(listar|obter|me$|previa|login$|logout$)/.test(acao)) limparCache();
-    if (!json.ok) {
-      if (json.erro === 'SESSAO_EXPIRADA') { sair(true); throw new Error('Sua sessão expirou. Entre novamente.'); }
-      throw new Error(json.erro);
-    }
-    return json.dados;
+  /**
+   * api(acao, dados, { tambem: [[acao, dados], …] })
+   * "tambem" = leituras que vêm junto na MESMA chamada (ex.: gravar e já trazer a tela atualizada).
+   */
+  function api(acao, dados = {}, opcoes = {}) {
+    const tambem = opcoes.tambem || [];
+    const chave = chaveDe(acao, dados) + (tambem.length ? '|' + JSON.stringify(tambem) : '');
+    if (emVoo.has(chave)) return emVoo.get(chave);
+    const ehLeitura = LEITURA.test(acao);
+    const p = (async () => {
+      const token = sessao.get();
+      sinc(1);
+      let json;
+      try {
+        json = tambem.length
+          ? await postar({ acao: 'lote', token, dados: { itens: [{ acao, dados }].concat(tambem.map(([a, d]) => ({ acao: a, dados: d }))) } }, ehLeitura)
+          : await postar({ acao, token, dados }, ehLeitura);
+      } finally { sinc(-1); }
+      // Depois de uma gravação, o que estava guardado pode estar velho (menos a lista de instituições)
+      if (!ehLeitura && !/^(login|logout)$/.test(acao)) limparCache(/^listarInstituicoes\|/);
+      if (!json.ok) {
+        if (json.erro === 'SESSAO_EXPIRADA') { sair(true); throw new Error('Sua sessão expirou. Entre novamente.'); }
+        throw new Error(json.erro);
+      }
+      if (!tambem.length) { if (ehLeitura) gravarCache(chaveDe(acao, dados), json.dados); return json.dados; }
+      const [principal, ...leituras] = json.dados;
+      leituras.forEach((r, i) => { if (r.ok) gravarCache(chaveDe(tambem[i][0], tambem[i][1]), r.dados); });
+      if (!principal.ok) throw new Error(principal.erro);
+      return principal.dados;
+    })();
+    emVoo.set(chave, p);
+    p.then(() => emVoo.delete(chave), () => emVoo.delete(chave));
+    return p;
+  }
+  /** Leitura que usa a resposta guardada se ela acabou de chegar. */
+  function lerAgora(acao, dados) {
+    const f = cacheFresco(chaveDe(acao, dados));
+    return f !== undefined ? Promise.resolve(f) : api(acao, dados);
+  }
+
+  /**
+   * Gravação em segundo plano: a tela muda na hora (aplicar), a gravação segue na fila
+   * (uma de cada vez, na ordem) e, se falhar, a mudança é desfeita e aparece "tentar novamente".
+   */
+  let filaCorrente = Promise.resolve();
+  function salvarEmSegundoPlano(t) {
+    try { t.aplicar && t.aplicar(); } catch (e) { console.warn(e); }
+    fila.pendentes++; indicador();
+    const rodar = async () => {
+      try {
+        const r = await api(t.acao, t.dados, { tambem: t.tambem ? t.tambem() : [] });
+        fila.salvoEm = Date.now();
+        try { t.depois && t.depois(r); } catch (e) { console.warn(e); }
+      } catch (err) {
+        fila.falhas.push({ rotulo: t.rotulo, erro: err.message, tarefa: t });
+        try { t.desfazer && t.desfazer(err); } catch (e) { console.warn(e); }
+        toastAcao(`Não foi possível salvar: ${t.rotulo}. ${err.message}`, 'Tentar novamente', repetirFalhas);
+      } finally { fila.pendentes--; indicador(); }
+    };
+    filaCorrente = filaCorrente.then(rodar, rodar);
+    return filaCorrente;
+  }
+  function repetirFalhas() {
+    const lista = fila.falhas.splice(0);
+    indicador();
+    lista.forEach(f => salvarEmSegundoPlano(Object.assign({}, f.tarefa, { aplicar: f.tarefa.aplicar })));
+  }
+  window.addEventListener('beforeunload', e => { if (fila.pendentes > 0) { e.preventDefault(); e.returnValue = ''; } });
+  // Um erro inesperado não deve obrigar a recarregar a página
+  window.addEventListener('unhandledrejection', e => { console.warn(e.reason); });
+
+  /** Mensagem de erro no lugar do conteúdo, com botão para repetir só aquela operação. */
+  function erroComRepetir(el, err, repetir) {
+    el.innerHTML = `<div class="vazio">${esc(err.message || err)}<br><button class="btn-sec" style="margin-top:12px">↻ Tentar de novo</button></div>`;
+    el.querySelector('button').addEventListener('click', repetir);
   }
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const brl = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -1032,7 +1135,7 @@
         el.addEventListener('keydown', e => { if (e.key === 'Enter') abrirProjeto(el.dataset.id); });
       });
       });
-    } catch (err) { $('listaProjetos').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
+    } catch (err) { erroComRepetir($('listaProjetos'), err, mostrarLista); }
   }
 
   $('btnVoltar').addEventListener('click', () => voltarTela(mostrarLista));
@@ -1060,7 +1163,10 @@
         renderDetalhe(); trocarAba(abaUsar);
         $('migalha').textContent = 'Projetos  /  ' + (atual.projeto.sigla || atual.projeto.id_projeto);
       });
-    } catch (err) { $('detNome').textContent = err.message; }
+    } catch (err) {
+      $('detNome').textContent = 'Não foi possível abrir o projeto';
+      erroComRepetir($('detResumo'), err, () => abrirProjeto(id, aba));
+    }
   }
 
   function renderDetalhe() {
@@ -1129,13 +1235,34 @@
     CAMPOS_PROJETO.forEach(([campo]) => { dados[campo] = $('p_' + campo).value; });
     // se a lista de instituições ainda não tinha carregado, mantém a instituição que o projeto já tem
     if (!dados.id_instituicao && atual.projeto && atual.projeto.id_instituicao) dados.id_instituicao = atual.projeto.id_instituicao;
+    if (!atual.novo) {
+      // Projeto existente: grava em segundo plano; dá para continuar usando o sistema
+      const idp = atual.projeto.id_projeto;
+      btn.disabled = false; msg('msgProjeto', 'Salvando em segundo plano…', 'ok');
+      salvarEmSegundoPlano({
+        rotulo: 'dados do projeto', acao: 'salvarProjeto', dados,
+        depois: r => {
+          gravarCache(chaveDe('obterProjeto', { id_projeto: idp }), r);
+          if (atual && atual.projeto && atual.projeto.id_projeto === idp && !ocupado($('viewDetalhe'))) {
+            const aba = abaAtual(); atual = r; renderDetalhe(); trocarAba(aba);
+            msg('msgProjeto', 'Dados salvos ✓', 'ok');
+          }
+        },
+        desfazer: err => { if (atual && atual.projeto && atual.projeto.id_projeto === idp) msg('msgProjeto', err.message); }
+      });
+      return;
+    }
     try {
       atual = await api('salvarProjeto', dados);
-      renderDetalhe();
+      guardarProjeto(); renderDetalhe();
       msg('msgProjeto', 'Dados salvos ✓', 'ok');
     } catch (err) { msg('msgProjeto', err.message); }
     btn.disabled = false;
   });
+  const abaAtual = () => { const a = document.querySelector('.aba[aria-selected="true"]'); return a ? a.dataset.aba : 'dados'; };
+  function guardarProjeto() {
+    if (atual && atual.projeto && atual.projeto.id_projeto) gravarCache(chaveDe('obterProjeto', { id_projeto: atual.projeto.id_projeto }), atual);
+  }
 
   // ---------- abas
   function trocarAba(nome) {
@@ -1226,14 +1353,14 @@
     CAMPOS_RUB.forEach(c => dados[c] = $('r_' + c).value);
     try {
       atual = await api('salvarRubrica', dados);
-      $('dlgRubrica').close(); renderDetalhe(); trocarAba('orcamento');
+      $('dlgRubrica').close(); guardarProjeto(); renderDetalhe(); trocarAba('orcamento');
     } catch (err) { msg('msgRubrica', err.message); }
     btn.disabled = false;
   });
 
   async function excluirRubrica(r) {
     if (!confirm(`Excluir a rubrica "${r.descricao}"?`)) return;
-    try { atual = await api('excluirRubrica', { id_rubrica: r.id_rubrica }); renderDetalhe(); trocarAba('orcamento'); }
+    try { atual = await api('excluirRubrica', { id_rubrica: r.id_rubrica }); guardarProjeto(); renderDetalhe(); trocarAba('orcamento'); }
     catch (err) { alert(err.message); }
   }
 
@@ -1284,7 +1411,7 @@
         linhas: linhasColar.map(({ descricao, quantidade, valor_unitario_max, tipo_despesa, meses }) =>
           ({ descricao, quantidade, valor_unitario_max, tipo_despesa, meses }))
       });
-      $('dlgColar').close(); renderDetalhe(); trocarAba('orcamento');
+      $('dlgColar').close(); guardarProjeto(); renderDetalhe(); trocarAba('orcamento');
     } catch (err) { msg('msgColar', err.message); btn.disabled = false; }
   });
 
@@ -1343,8 +1470,10 @@
   }
 
   async function recarregarProjeto() {
+    const aba = abaAtual(), y = window.scrollY;
     atual = await api('obterProjeto', { id_projeto: atual.projeto.id_projeto });
-    renderDetalhe(); trocarAba('contratacoes');
+    renderDetalhe(); trocarAba(aba || 'contratacoes');
+    window.scrollTo(0, y);                     // continua no mesmo ponto da tela
   }
 
   // --- formulário (nova / editar)
@@ -1431,7 +1560,8 @@
   // Janela da parcela aberta a partir da contratação
   const ctxCtr = {
     lista: () => (ctrAtual && ctrAtual.parcelas_det) || [],
-    recarregar: async () => { ctrAtual = await api('obterContratacao', { id_contratacao: ctrAtual.contratacao.id_contratacao }); ctrMudou = true; renderCtr(); },
+    recarregar: async () => { ctrAtual = await lerAgora('obterContratacao', { id_contratacao: ctrAtual.contratacao.id_contratacao }); ctrMudou = true; renderCtr(); },
+    leitura: () => ['obterContratacao', { id_contratacao: ctrAtual.contratacao.id_contratacao }],
     get pode_conferir() { return ctrAtual && ctrAtual.pode_conferir; },
     get pode_lancar_direto() { return ctrAtual && ctrAtual.pode_lancar_direto; }
   };
@@ -1915,7 +2045,7 @@
         if (atualizacao && ocupado($('viewPag'))) { pag = d; return; }
         pag = d; renderPag();
       });
-    } catch (err) { $('pagTabela').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
+    } catch (err) { erroComRepetir($('pagTabela'), err, carregarPag); }
   }
 
   function renderPag() {
@@ -1979,17 +2109,28 @@
   const todasParcelas = () => (pag ? pag.parcelas.concat(pag.atrasadas) : []);
   const selecionadas = () => [...document.querySelectorAll('[data-sel]:checked')].map(x => x.value);
 
-  async function acaoLote(acao, ids, rotulo) {
+  function acaoLote(acao, ids, rotulo) {
     if (!ids.length) return alert('Selecione as parcelas na tabela.');
-    try {
-      const r = await api(acao, { ids });
-      const ok = r.liberadas || r.conferidas || [];
-      const ign = r.ignoradas || [];
-      toast(`${ok.length} parcela(s) ${rotulo}` + (ign.length ? ` · ${ign.length} ignorada(s)` : ''));
-      if (ign.length) alert('Não foram alteradas:\n' + ign.map(i => {
-        const x = todasParcelas().find(p => p.id_parcela === i.id); return `• ${x ? x.contratado : i.id}: ${i.motivo}`; }).join('\n'));
-      await carregarPag();
-    } catch (err) { alert(err.message); }
+    const leit = ctxPag.leitura(), chave = chaveDe(...leit), antes = JSON.stringify(pag);
+    const nomes = {}; todasParcelas().forEach(p => { nomes[p.id_parcela] = p.contratado; });
+    const naTela = () => !$('viewPag').classList.contains('oculto') && chaveDe(...ctxPag.leitura()) === chave;
+    salvarEmSegundoPlano({
+      rotulo: acao === 'liberarParcelas' ? 'liberação das parcelas' : rotulo, acao, dados: { ids }, tambem: () => [leit],
+      aplicar: () => {     // muda na hora as que têm NF; o servidor confirma em seguida
+        todasParcelas().forEach(x => {
+          if (ids.includes(x.id_parcela) && x.nf && x.nf.url && idxSt(x.status) < idxSt('Liberada para pagamento')) x.status = 'Liberada para pagamento';
+        });
+        if (naTela()) renderPag();
+      },
+      depois: r => {
+        const ok = r.liberadas || r.conferidas || [], ign = r.ignoradas || [];
+        toast(`${ok.length} parcela(s) ${rotulo}` + (ign.length ? ` · ${ign.length} não alterada(s)` : ''));
+        const novo = lerCache(chave);
+        if (novo && naTela()) { pag = novo; renderPag(); }
+        if (ign.length) toastAcao('Não foram alteradas: ' + ign.map(i => `${nomes[i.id] || i.id} (${i.motivo})`).join('; '), 'OK', () => {});
+      },
+      desfazer: () => { if (naTela()) { pag = JSON.parse(antes); renderPag(); } }
+    });
   }
 
   $('btnLiberar').addEventListener('click', () => acaoLote('liberarParcelas', selecionadas(), 'liberada(s) para pagamento'));
@@ -2069,8 +2210,9 @@
   const ctxPag = {
     lista: () => todasParcelas(),
     recarregar: () => carregarPag(),
-    get pode_conferir() { return pag && ctxParc.pode_conferir; },
-    get pode_lancar_direto() { return pag && ctxParc.pode_lancar_direto; }
+    leitura: () => ['listarMesPagamentos', { mes: $('pagMes').value, id_projeto: pagFiltro }],
+    get pode_conferir() { return pag && pag.pode_conferir; },
+    get pode_lancar_direto() { return pag && pag.pode_lancar_direto; }
   };
   let ctxParc = ctxPag;
   function abrirParcela(id, ctx) {
@@ -2183,7 +2325,7 @@
     on('pAcExcluir', async () => {
       if (!confirm(`Excluir a NF e o pagamento lançados nesta parcela (${x.contratado}, ${mesExt(x.competencia_mes)})?\n\nA parcela volta para "Prevista". O arquivo continua na pasta do Drive.`)) return;
       msg('msgCorrigir', 'Excluindo…', 'ok');
-      try { await api('excluirLancamento', { id_parcela: x.id_parcela }); toast('Lançamento excluído'); await atualizarParcAberta(); }
+      try { await api('excluirLancamento', { id_parcela: x.id_parcela }, { tambem: [ctxParc.leitura()] }); toast('Lançamento excluído'); await atualizarParcAberta(); }
       catch (err) { msg('msgCorrigir', err.message); }
     });
     on('pAcMoverAbrir', async () => {
@@ -2202,7 +2344,7 @@
       const dest = $('pDestino').value; if (!dest) return;
       msg('msgCorrigir', 'Movendo…', 'ok');
       try {
-        await api('moverLancamento', { id_parcela: x.id_parcela, id_destino: dest });
+        await api('moverLancamento', { id_parcela: x.id_parcela, id_destino: dest }, { tambem: [ctxParc.leitura()] });
         toast('Lançamento movido ✓'); $('dlgParc').close(); await ctxParc.recarregar();
       } catch (err) { msg('msgCorrigir', err.message); }
     });
@@ -2218,7 +2360,7 @@
   async function acaoParc(acao, dados, ok) {
     msg('msgParc', 'Aguarde…', 'ok');
     try {
-      const r = await api(acao, dados);
+      const r = await api(acao, dados, { tambem: [ctxParc.leitura()] });
       if (r && r.falhas && r.falhas.length) throw new Error(r.falhas.map(f => f.motivo).join('; '));
       if (r && r.ignoradas && r.ignoradas.length) throw new Error(r.ignoradas.map(f => f.motivo).join('; '));
       toast(ok); await atualizarParcAberta();
@@ -2229,7 +2371,7 @@
     const btn = e.currentTarget; btn.disabled = true; msg('msgNF', 'Enviando…', 'ok');
     try {
       const f = $('up_nf').files[0]; if (!f) throw new Error('Selecione o arquivo da nota.');
-      await api('anexarNF', { id_parcela: parcAtual.id_parcela, arquivo: await lerArquivo(f) });
+      await api('anexarNF', { id_parcela: parcAtual.id_parcela, arquivo: await lerArquivo(f) }, { tambem: [ctxParc.leitura()] });
       toast('Nota fiscal anexada ✓'); await atualizarParcAberta();
     } catch (err) { msg('msgNF', err.message); btn.disabled = false; }
   }
@@ -2238,7 +2380,7 @@
     const btn = e.currentTarget; btn.disabled = true; msg('msgPG', 'Enviando…', 'ok');
     try {
       const f = $('up_comp').files[0]; if (!f) throw new Error('Selecione o arquivo do comprovante.');
-      await api('anexarComprovante', { id_parcela: parcAtual.id_parcela, arquivo: await lerArquivo(f), data_pagamento: $('comp_data').value });
+      await api('anexarComprovante', { id_parcela: parcAtual.id_parcela, arquivo: await lerArquivo(f), data_pagamento: $('comp_data').value }, { tambem: [ctxParc.leitura()] });
       toast('Comprovante anexado ✓'); await atualizarParcAberta();
     } catch (err) { msg('msgPG', err.message); btn.disabled = false; }
   }
@@ -2250,7 +2392,7 @@
         nf: { tipo_documento: $('nf_tipo').value, numero: $('nf_numero').value, data_emissao: $('nf_data').value, valor: $('nf_valor').value,
               descricao: $('nf_descricao').value, cnpj_emitente: $('nf_cnpj').value, razao_social_emitente: $('nf_razao').value },
         pagamento: { forma_pagamento: $('pg_forma').value, num_identificacao_pix: $('pg_pix').value, data_pagamento: $('pg_data').value,
-                     data_debito_conta: $('pg_debito').value, valor: $('pg_valor').value } });
+                     data_debito_conta: $('pg_debito').value, valor: $('pg_valor').value } }, { tambem: [ctxParc.leitura()] });
       toast((marcar ? 'Conferida ✓' : 'Dados salvos ✓') + (r.divergencias.length ? ' (com avisos)' : ''));
       await atualizarParcAberta();
     } catch (err) { msg('msgSIT', err.message); btn.disabled = false; ctxParc.recarregar().catch(() => {}); }
@@ -2481,6 +2623,15 @@
     const t = document.createElement('div'); t.className = 'toast'; t.textContent = texto;
     document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
   }
+  function toastAcao(texto, rotulo, fn) {
+    document.querySelectorAll('.toast.acao').forEach(x => x.remove());
+    const t = document.createElement('div'); t.className = 'toast acao erro'; t.setAttribute('role', 'alert');
+    t.innerHTML = `<span>${esc(texto)}</span> <button type="button">${esc(rotulo)}</button> <button type="button" aria-label="Fechar">✕</button>`;
+    const [b1, b2] = t.querySelectorAll('button');
+    b1.addEventListener('click', () => { t.remove(); fn(); });
+    b2.addEventListener('click', () => t.remove());
+    document.body.appendChild(t); setTimeout(() => t.remove(), 15000);
+  }
   async function copiar(texto) {
     try { await navigator.clipboard.writeText(texto); toast('Copiado ✓'); } catch { prompt('Copie o texto:', texto); }
   }
@@ -2492,7 +2643,7 @@
     $('btnNovaInst').classList.toggle('oculto', !podeCadInst());
     if (!lerCache('listarInstituicoesCompleto|{}')) $('listaInst').innerHTML = '<div class="vazio">Carregando…</div>';
     try { await apiRapida('listarInstituicoesCompleto', {}, d => { listaInst = d; renderInstituicoes(); }); }
-    catch (err) { $('listaInst').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
+    catch (err) { erroComRepetir($('listaInst'), err, abrirInstituicoes); }
   }
 
   function renderInstituicoes() {
@@ -2577,6 +2728,7 @@
   const ctxSit = {
     lista: () => sitBim ? sitBim.lancamentos.concat(sitBim.sem_pagamento) : [],
     recarregar: () => carregarBimestre(true),
+    leitura: () => ['obterBimestre', { id_projeto: sit.projeto.id_projeto, numero: sitBim.numero }],
     get pode_conferir() { return sit && sit.pode_conferir; },
     get pode_lancar_direto() { return sit && sit.pode_lancar_direto; }
   };
@@ -2595,7 +2747,7 @@
         idProjeto = (projetos.find(p => p.id_projeto === $('sitProjeto').value) || projetos[0]).id_projeto;
       }
       await carregarBimestres(idProjeto, numero);
-    } catch (err) { $('sitCorpo').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
+    } catch (err) { erroComRepetir($('sitCorpo'), err, () => abrirSit(idProjeto, numero)); }
   }
 
   async function carregarBimestres(idProjeto, numero) {
@@ -2652,9 +2804,9 @@
     };
     if (!manterTela && !lerCache('obterBimestre|' + JSON.stringify(dados))) $('sitCorpo').innerHTML = '<div class="vazio">Carregando…</div>';
     try {
-      if (manterTela) { const d = await api('obterBimestre', dados); gravarCache('obterBimestre|' + JSON.stringify(dados), d); mostrarBim(d); }
+      if (manterTela) mostrarBim(await lerAgora('obterBimestre', dados));
       else await apiRapida('obterBimestre', dados, mostrarBim);
-    } catch (err) { $('sitCorpo').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
+    } catch (err) { erroComRepetir($('sitCorpo'), err, () => carregarBimestre()); }
   }
 
   const cp = (v, mostrar) => (v === '' || v == null) ? '<span style="color:var(--suave)">—</span>'
@@ -2795,26 +2947,63 @@
     contaBim();
   }
 
-  async function marcarSit(desfazer) {
+  function marcarSit(desfazer) {
     const ids = [...$('sitCorpo').querySelectorAll('[data-sitsel]:checked')].map(x => x.value);
     if (!ids.length) return msg('msgSitLanc', 'Selecione os lançamentos na tabela (só aparecem para seleção os que já foram conferidos).');
-    msg('msgSitLanc', 'Salvando…', 'ok');
-    try {
-      const r = await api('marcarLancadasSIT', { id_projeto: sit.projeto.id_projeto, numero: sitBim.numero, ids, desfazer });
-      toast(`${r.alteradas.length} lançamento(s) ${desfazer ? 'desmarcado(s)' : 'marcado(s) como lançado(s) no SIT'}` + (r.ignoradas.length ? ` · ${r.ignoradas.length} ignorado(s)` : ''));
-      await carregarBimestre(true);
-    } catch (err) { msg('msgSitLanc', err.message); }
+    const idp = sit.projeto.id_projeto, n = sitBim.numero, antes = JSON.stringify(sitBim);
+    const leit = ['obterBimestre', { id_projeto: idp, numero: n }];
+    const naTela = () => !$('viewSit').classList.contains('oculto') && sit && sit.projeto.id_projeto === idp && sitBim && sitBim.numero === n;
+    salvarEmSegundoPlano({
+      rotulo: desfazer ? 'desmarcar lançadas no SIT' : 'marcar lançadas no SIT',
+      acao: 'marcarLancadasSIT', dados: { id_projeto: idp, numero: n, ids, desfazer },
+      tambem: () => [leit, ['listarBimestres', { id_projeto: idp }]],
+      aplicar: () => {
+        sitBim.lancamentos.forEach(x => {
+          if (!ids.includes(x.id_parcela)) return;
+          if (desfazer && x.status === 'Lançada no SIT') x.status = 'Conferida';
+          if (!desfazer && idxSt(x.status) >= idxSt('Conferida')) x.status = 'Lançada no SIT';
+        });
+        sitBim.lancadas = sitBim.lancamentos.filter(x => x.status === 'Lançada no SIT').length;
+        renderBimestre();
+      },
+      depois: r => {
+        toast(`${r.alteradas.length} lançamento(s) ${desfazer ? 'desmarcado(s)' : 'marcado(s) como lançado(s) no SIT'}` + (r.ignoradas.length ? ` · ${r.ignoradas.length} ignorado(s)` : ''));
+        const novo = lerCache(chaveDe(...leit));
+        if (novo && naTela() && !ocupado($('viewSit'))) { sitBim = novo; renderBimestre(); }
+      },
+      desfazer: () => { if (naTela()) { sitBim = JSON.parse(antes); renderBimestre(); } }
+    });
   }
 
   async function salvarBim(e, enviar) {
-    const btn = e.currentTarget; btn.disabled = true; msg('msgBim', 'Salvando…', 'ok');
+    const btn = e.currentTarget;
+    const idp = sit.projeto.id_projeto, n = sitBim.numero;
+    const dados = { id_projeto: idp, numero: n, prazo_envio: $('bim_prazo').value,
+      saldo_inicial: $('bim_saldo_ini').value, creditos: $('bim_creditos').value, rendimentos: $('bim_rend').value,
+      observacoes: $('bim_obs').value };
+    const leit = ['obterBimestre', { id_projeto: idp, numero: n }], lista = ['listarBimestres', { id_projeto: idp }];
+    const naTela = () => !$('viewSit').classList.contains('oculto') && sit && sit.projeto.id_projeto === idp && sitBim && sitBim.numero === n;
+    if (enviar === undefined) {
+      // Só salvar os valores: segue em segundo plano (os valores já estão na tela)
+      msg('msgBim', 'Salvando em segundo plano…', 'ok');
+      salvarEmSegundoPlano({
+        rotulo: 'dados do bimestre', acao: 'salvarBimestre', dados, tambem: () => [leit, lista],
+        depois: () => {
+          const novo = lerCache(chaveDe(...leit));
+          if (novo && naTela() && !ocupado($('viewSit'))) { sitBim = novo; renderBimestre(); }
+          const l = lerCache(chaveDe(...lista));
+          if (l && naTela()) { sit = l; renderTrilhoSit(); }
+          if (naTela()) msg('msgBim', 'Dados do bimestre salvos ✓', 'ok');
+        },
+        desfazer: err => { if (naTela()) msg('msgBim', err.message); }
+      });
+      return;
+    }
+    btn.disabled = true; msg('msgBim', 'Salvando…', 'ok');
     try {
-      const dados = { id_projeto: sit.projeto.id_projeto, numero: sitBim.numero, prazo_envio: $('bim_prazo').value,
-        saldo_inicial: $('bim_saldo_ini').value, creditos: $('bim_creditos').value, rendimentos: $('bim_rend').value,
-        observacoes: $('bim_obs').value };
-      if (enviar !== undefined) dados.enviar = enviar;
-      await api('salvarBimestre', dados);
-      toast(enviar === true ? 'Bimestre marcado como enviado ✓' : enviar === false ? 'Bimestre reaberto' : 'Dados do bimestre salvos ✓');
+      dados.enviar = enviar;
+      await api('salvarBimestre', dados, { tambem: [leit, lista] });
+      toast(enviar ? 'Bimestre marcado como enviado ✓' : 'Bimestre reaberto');
       await carregarBimestre(true);
     } catch (err) { msg('msgBim', err.message); btn.disabled = false; }
   }
