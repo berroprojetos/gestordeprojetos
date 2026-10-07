@@ -2414,7 +2414,8 @@
   const palavras = t => semAcento(t).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(w => w && !/^\d+$/.test(w));
 
   function lerLinhasLancamento(texto, ano) {
-    const re = /^\s*(\d{1,2})\/(\d{1,2})\s+NF\s*(\S+)\s*-\s*(\d{1,2})\/(\d{1,2})\s+(\d[\d.]*,\d{2}|\d+(?:\.\d{1,2})?)\s+(\S+)\s+(.+?)\s*$/i;
+    // aceita NF, NFS, NFSe, NFe, "NF nº", com ou sem o traço entre a NF e a data do pagamento
+    const re = /^\s*(\d{1,2})\/(\d{1,2})\s+N\.?\s*F\.?\s*(?:S\s*-?\s*E|S|E)?\.?\s*(?:n\s*[ºo°.]\s*)?(\S+?)\s*-?\s+(\d{1,2})\/(\d{1,2})\s+(\d[\d.]*,\d{2}|\d+(?:\.\d{1,2})?)\s+(\S+)\s+(.+?)\s*$/i;
     const ok = [], ignoradas = [];
     String(texto).split(/\r?\n/).forEach((l, i) => {
       if (!l.trim() || /^\s*lan[cç]amentos/i.test(l)) return;
@@ -2444,9 +2445,16 @@
     return a.length >= 4 && distancia(a, b.slice(0, Math.max(a.length, Math.min(b.length, a.length + 1)))) <= 1;
   }
   function acharContratacao(nome, contratacoes) {
-    const alvo = palavras(nome)[0];
-    if (!alvo || alvo.length < 3) return [];
-    return contratacoes.filter(c => palavras(c.contratado + ' ' + (c.representante || '') + ' ' + (c.rubrica || '')).some(w => parecido(alvo, w)));
+    const alvos = palavras(nome).filter(w => w.length >= 3);
+    if (!alvos.length) return [];
+    // pontua pelas palavras do nome que aparecem no contratado (ex.: "Ana Cristina" × "Ana Flávia")
+    const pont = contratacoes.map(c => {
+      const ws = palavras(c.contratado + ' ' + (c.representante || '') + ' ' + (c.rubrica || ''));
+      const pts = alvos.filter(a => ws.some(w => parecido(a, w))).length;
+      return { c, pts: ws.some(w => parecido(alvos[0], w)) ? pts : 0 };
+    }).filter(x => x.pts > 0);
+    const max = Math.max(0, ...pont.map(x => x.pts));
+    return pont.filter(x => x.pts === max).map(x => x.c);
   }
 
   function competenciaAnterior(isoData) {
