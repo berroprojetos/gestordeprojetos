@@ -1182,8 +1182,13 @@
 
   $('btnVoltar').addEventListener('click', () => voltarTela(mostrarLista));
   $('btnNovoProjeto').addEventListener('click', () => {
-    atual = { projeto: {}, instituicao: null, rubricas: [], resumo: null, podeEditar: true, novo: true };
+    navAtivo('navProjetos', 'Projetos  /  Novo projeto');
+    ['viewLista', 'viewInst', 'viewPag', 'viewSit'].forEach(v => $(v).classList.add('oculto'));
+    $('viewDetalhe').classList.remove('oculto');
+    atual = { projeto: {}, instituicao: null, rubricas: [], contratacoes: [], fornecedores: [], modelos: [],
+              processos_cotacao: [], resumo: null, podeEditar: true, podeContratar: false, novo: true };
     renderDetalhe(); trocarAba('dados');
+    gravarRota('projetos/novo');
   });
 
   // ---------- detalhe do projeto
@@ -1296,8 +1301,10 @@
     }
     try {
       atual = await api('salvarProjeto', dados);
-      guardarProjeto(); renderDetalhe();
-      msg('msgProjeto', 'Dados salvos ✓', 'ok');
+      guardarProjeto(); renderDetalhe(); trocarAba('dados');
+      gravarRota('projeto/' + atual.projeto.id_projeto + '/dados');
+      $('migalha').textContent = 'Projetos  /  ' + (atual.projeto.sigla || atual.projeto.id_projeto);
+      msg('msgProjeto', 'Projeto criado ✓ Agora importe o orçamento e os contratados.', 'ok');
     } catch (err) { msg('msgProjeto', err.message); }
     btn.disabled = false;
   });
