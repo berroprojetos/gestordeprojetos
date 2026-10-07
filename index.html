@@ -347,6 +347,7 @@
       <button class="nav-item" id="btnInstituicoes"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6M9 11h.01M15 11h.01"/></svg>Instituições</button>
       <button class="nav-item" id="navPagamentos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>Pagamentos</button>
       <button class="nav-item" id="navSit"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Prestação SIT</button>
+      <button class="nav-item oculto" id="navConfig"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</button>
     </nav>
     <div class="lateral-rodape">
       <div class="lema"><div class="ponto">Gestor de Projetos</div>Do edital à prestação de contas, tudo num lugar só.</div>
@@ -446,6 +447,29 @@
       </div>
       <div class="bim-trilho" id="sitBimestres"></div>
       <div id="sitCorpo"></div>
+    </div>
+
+    <!-- Configurações (administrador) -->
+    <div id="viewConfig" class="oculto">
+      <div class="pagina-cab">
+        <div>
+          <p class="sobretitulo">Administração</p>
+          <h1>Configurações</h1>
+          <p class="subtitulo">Usuários e alçadas, projetos por instituição e exclusões.</p>
+        </div>
+      </div>
+      <div class="abas" role="tablist">
+        <button class="aba" data-cfg="usuarios" aria-selected="true">Usuários e alçadas</button>
+        <button class="aba" data-cfg="projetos" aria-selected="false">Projetos por instituição</button>
+      </div>
+      <section class="painel" id="cfgUsuarios">
+        <div class="titulo-linha"><h2 style="font-size:16px">Usuários</h2><button class="btn" id="btnNovoUsuario">+ Novo usuário</button></div>
+        <div id="cfgListaUsuarios"><div class="vazio">Carregando…</div></div>
+        <div class="secao"><h4>O que cada alçada pode fazer</h4><div id="cfgAlcadas"></div></div>
+      </section>
+      <section class="painel oculto" id="cfgProjetos">
+        <div id="cfgListaProjetos"><div class="vazio">Carregando…</div></div>
+      </section>
     </div>
 
     <!-- Detalhe -->
@@ -598,6 +622,46 @@
     <div class="msg" id="msgDocs"></div>
     <button type="button" class="btn-sec" data-fechar>Fechar</button>
     <button type="button" class="btn" id="btnDocsEnviar" disabled>Enviar</button>
+  </div>
+</dialog>
+
+<!-- MODAL: USUÁRIO -->
+<dialog id="dlgUsuario">
+  <form id="formUsuario">
+    <div class="modal-cab"><h3 id="tituloUsuario">Novo usuário</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+    <div class="modal-corpo">
+      <div class="form-grade">
+        <div class="largo" style="grid-column:1/-1"><label for="us_nome">Nome *</label><input id="us_nome" required></div>
+        <div class="largo" style="grid-column:1/-1"><label for="us_email">E-mail (login) *</label><input id="us_email" type="email" required></div>
+        <div><label for="us_perfil">Alçada *</label><select id="us_perfil" required></select></div>
+        <div><label for="us_inst">Instituição</label><select id="us_inst"></select></div>
+        <div><label class="checkbox" style="margin-top:28px"><input type="checkbox" id="us_ativo" checked> Ativo</label></div>
+      </div>
+      <p class="dica" id="us_dica" style="margin-top:12px"></p>
+      <div id="us_senha"></div>
+    </div>
+    <div class="modal-rodape">
+      <div class="msg" id="msgUsuario"></div>
+      <button type="button" class="btn-link oculto" id="btnUsSenha">🔑 Gerar nova senha</button>
+      <button type="button" class="btn-sec" data-fechar>Fechar</button>
+      <button type="submit" class="btn" id="btnUsSalvar">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- MODAL: EXCLUIR PROJETO -->
+<dialog id="dlgExcluirProj">
+  <div class="modal-cab"><h3>Excluir projeto</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+  <div class="modal-corpo">
+    <div id="exProjInfo"></div>
+    <label for="exProjConf" style="margin-top:14px">Para confirmar, digite o código do projeto</label>
+    <input id="exProjConf" autocomplete="off">
+    <label class="checkbox" style="margin-top:12px"><input type="checkbox" id="exProjPasta"> Mandar também a pasta do projeto no Drive para a lixeira</label>
+  </div>
+  <div class="modal-rodape">
+    <div class="msg" id="msgExProj"></div>
+    <button type="button" class="btn-sec" data-fechar>Cancelar</button>
+    <button type="button" class="btn" id="btnExProj" style="background:#b42318">Excluir definitivamente</button>
   </div>
 </dialog>
 
@@ -1122,6 +1186,7 @@
     $('avatarLateral').textContent = ini; $('avatarTopo').textContent = ini; $('avatarTopo').title = usuario.nome;
     $('dataHoje').textContent = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
     $('btnNovoProjeto').classList.toggle('oculto', !(podeEditar() && ehGlobal()));
+    $('navConfig').classList.toggle('oculto', usuario.perfil !== 'ADMIN');
     try { sessionStorage.setItem('usuario', JSON.stringify(usuario)); } catch {}
     try { if (!history.state) history.replaceState({ prof: 0 }, '', location.href); } catch {}
     apiRapida('listarInstituicoes', {}, d => {
@@ -1135,6 +1200,7 @@
     document.querySelectorAll('dialog[open]').forEach(d => d.close());
     if (rota.tipo === 'projeto' && rota.id) return abrirProjeto(rota.id, rota.aba);
     if (rota.tipo === 'instituicoes') return abrirInstituicoes();
+    if (rota.tipo === 'config' && usuario.perfil === 'ADMIN') return abrirConfig(rota.id);
     if (rota.tipo === 'pagamentos') return abrirPagamentos(rota.id, rota.aba);
     if (rota.tipo === 'sit') return abrirSit(rota.id, rota.aba);
     return mostrarLista();
@@ -1142,6 +1208,8 @@
   // Botões voltar/avançar do navegador (e do mouse)
   window.addEventListener('popstate', () => { if (usuario && sessao.get()) irParaRota(lerRota()); });
 
+  const VIEWS = ['viewLista', 'viewDetalhe', 'viewInst', 'viewPag', 'viewSit', 'viewConfig'];
+  function mostrarView(id) { VIEWS.forEach(v => $(v).classList.toggle('oculto', v !== id)); }
   function navAtivo(id, migalha) {
     seqTela++;
     document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('ativo', b.id === id));
@@ -1155,7 +1223,7 @@
   async function mostrarLista() {
     navAtivo('navProjetos', 'Projetos');
     gravarRota('projetos');
-    $('viewDetalhe').classList.add('oculto'); $('viewInst').classList.add('oculto'); $('viewPag').classList.add('oculto'); $('viewSit').classList.add('oculto'); $('viewLista').classList.remove('oculto');
+    mostrarView('viewLista');
     if (!lerCache('listarProjetos|{}')) $('listaProjetos').innerHTML = '<div class="vazio">Carregando…</div>';
     try {
       await apiRapida('listarProjetos', {}, projetos => {
@@ -1183,8 +1251,7 @@
   $('btnVoltar').addEventListener('click', () => voltarTela(mostrarLista));
   $('btnNovoProjeto').addEventListener('click', () => {
     navAtivo('navProjetos', 'Projetos  /  Novo projeto');
-    ['viewLista', 'viewInst', 'viewPag', 'viewSit'].forEach(v => $(v).classList.add('oculto'));
-    $('viewDetalhe').classList.remove('oculto');
+    mostrarView('viewDetalhe');
     atual = { projeto: {}, instituicao: null, rubricas: [], contratacoes: [], fornecedores: [], modelos: [],
               processos_cotacao: [], resumo: null, podeEditar: true, podeContratar: false, novo: true };
     renderDetalhe(); trocarAba('dados');
@@ -1194,7 +1261,7 @@
   // ---------- detalhe do projeto
   async function abrirProjeto(id, aba) {
     navAtivo('navProjetos', 'Projetos  /  Detalhe do projeto');
-    $('viewLista').classList.add('oculto'); $('viewInst').classList.add('oculto'); $('viewPag').classList.add('oculto'); $('viewSit').classList.add('oculto'); $('viewDetalhe').classList.remove('oculto');
+    mostrarView('viewDetalhe');
     if (!lerCache('obterProjeto|' + JSON.stringify({ id_projeto: id }))) {
       $('detNome').textContent = 'Carregando…'; $('detSigla').textContent = ''; $('detInst').textContent = '';
       $('detResumo').innerHTML = ''; $('camposProjeto').innerHTML = ''; $('tabelaRubricas').innerHTML = '';
@@ -1612,6 +1679,7 @@
       <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
         ${pode ? (ehCompra ? '<button class="btn-sec" id="btnEditarCompra">✏️ Editar compra</button>' : '<button class="btn-sec" id="btnEditarCtr">✏️ Editar dados</button>') : ''}
         ${ctrAtual.pasta_url ? `<a class="btn-sec" href="${esc(ctrAtual.pasta_url)}" target="_blank" rel="noopener" style="text-decoration:none">📁 Pasta no Drive</a>` : ''}
+        ${usuario.perfil === 'ADMIN' ? '<button class="btn-link perigo" id="btnExcluirCtr">🗑 Excluir contratação</button>' : ''}
       </div>
 
       ${blocoItens}
@@ -1697,6 +1765,7 @@
 
     const ligar = (id, fn) => { const el = $(id); if (el) el.addEventListener('click', fn); };
     ligar('btnEditarCtr', () => abrirFormCtr(ctrAtual));
+    ligar('btnExcluirCtr', excluirContratacaoAtual);
     ligar('btnEditarCompra', () => { $('dlgCtr').close(); abrirCompra(ctrAtual); });
     ligar('btnGerarContrato', gerarContrato);
     ligar('btnUpload', enviarDoc);
@@ -2040,8 +2109,7 @@
   async function abrirPagamentos(mes, projeto) {
     navAtivo('navPagamentos', 'Pagamentos');
     if (projeto !== undefined) pagFiltro = projeto || '';
-    ['viewLista', 'viewDetalhe', 'viewInst', 'viewSit'].forEach(v => $(v).classList.add('oculto'));
-    $('viewPag').classList.remove('oculto');
+    mostrarView('viewPag');
     $('pagMes').value = /^\d{4}-\d{2}$/.test(mes || '') ? mes : ($('pagMes').value || hojeYM());
     await carregarPag();
   }
@@ -2658,7 +2726,7 @@
   async function abrirInstituicoes() {
     navAtivo('btnInstituicoes', 'Instituições');
     gravarRota('instituicoes');
-    $('viewLista').classList.add('oculto'); $('viewDetalhe').classList.add('oculto'); $('viewPag').classList.add('oculto'); $('viewSit').classList.add('oculto'); $('viewInst').classList.remove('oculto');
+    mostrarView('viewInst');
     $('btnNovaInst').classList.toggle('oculto', !podeCadInst());
     if (!lerCache('listarInstituicoesCompleto|{}')) $('listaInst').innerHTML = '<div class="vazio">Carregando…</div>';
     try { await apiRapida('listarInstituicoesCompleto', {}, d => { listaInst = d; renderInstituicoes(); }); }
@@ -2756,8 +2824,7 @@
 
   async function abrirSit(idProjeto, numero) {
     navAtivo('navSit', 'Prestação SIT');
-    ['viewLista', 'viewDetalhe', 'viewInst', 'viewPag'].forEach(v => $(v).classList.add('oculto'));
-    $('viewSit').classList.remove('oculto');
+    mostrarView('viewSit');
     if (!sit || !idProjeto || sit.projeto.id_projeto !== idProjeto) { $('sitBimestres').innerHTML = ''; $('sitCorpo').innerHTML = '<div class="vazio">Carregando…</div>'; }
     try {
       if (!idProjeto) {
@@ -3467,6 +3534,171 @@
     const p = atual.projeto;
     abrirImportadorPagamentos([{ id_projeto: p.id_projeto, sigla: p.sigla, nome_projeto: p.nome_projeto }], p.id_projeto);
   });
+
+
+  // =====================================================================
+  // CONFIGURAÇÕES (só administrador)
+  // =====================================================================
+  const ALCADAS = {
+    ADMIN: ['Administrador', 'Tudo, em todos os projetos: configurações, usuários, exclusão de projetos e lançamentos.'],
+    PRESTACAO_CONTAS: ['Prestação de contas', 'Todos os projetos: cadastros, orçamento, contratações, importações, conferência, lançamentos diretos e Prestação SIT.'],
+    GERENTE_PROJETO: ['Gerente do projeto', 'Edita projeto, orçamento e contratações; confere notas e pagamentos. Vê todos os projetos, ou só os da instituição se tiver uma vinculada.'],
+    INSTITUICAO_CONTRATACAO: ['Instituição – contratação', 'Só projetos da sua instituição: cotações, contratações, contratos e documentos.'],
+    INSTITUICAO_PAGAMENTO: ['Instituição – pagamentos', 'Só projetos da sua instituição: anexar notas fiscais e comprovantes, liberar parcelas para pagamento.']
+  };
+  let cfg = null, usEditando = null;
+
+  function abrirConfig(aba) {
+    navAtivo('navConfig', 'Configurações');
+    mostrarView('viewConfig');
+    trocarAbaCfg(aba === 'projetos' ? 'projetos' : 'usuarios');
+  }
+  function trocarAbaCfg(aba) {
+    document.querySelectorAll('[data-cfg]').forEach(b => b.setAttribute('aria-selected', b.dataset.cfg === aba));
+    $('cfgUsuarios').classList.toggle('oculto', aba !== 'usuarios');
+    $('cfgProjetos').classList.toggle('oculto', aba !== 'projetos');
+    gravarRota('config/' + aba);
+    aba === 'usuarios' ? carregarUsuarios() : carregarProjetosAdmin();
+  }
+  document.querySelectorAll('[data-cfg]').forEach(b => b.addEventListener('click', () => trocarAbaCfg(b.dataset.cfg)));
+  $('navConfig').addEventListener('click', () => abrirConfig());
+
+  async function carregarUsuarios() {
+    $('cfgAlcadas').innerHTML = `<div class="tabela-wrap"><table><tbody>${Object.keys(ALCADAS).map(k =>
+      `<tr><td style="white-space:nowrap"><b>${ALCADAS[k][0]}</b></td><td>${ALCADAS[k][1]}</td></tr>`).join('')}</tbody></table></div>`;
+    try {
+      await apiRapida('listarUsuarios', {}, d => {
+        cfg = d;
+        $('cfgListaUsuarios').innerHTML = `<div class="tabela-wrap"><table>
+          <thead><tr><th>Nome</th><th>E-mail</th><th>Alçada</th><th>Instituição</th><th class="num">Projetos que vê</th><th>Situação</th><th>Último acesso</th><th></th></tr></thead>
+          <tbody>${d.usuarios.map(x => `<tr>
+            <td><b>${esc(x.nome)}</b></td><td>${esc(x.email)}</td>
+            <td>${esc((ALCADAS[x.perfil] || [x.perfil])[0])}</td>
+            <td>${esc(x.instituicao_sigla || 'Todas')}</td>
+            <td class="num">${x.projetos_visiveis}</td>
+            <td>${x.ativo === true ? '<span class="st verde">ativo</span>' : '<span class="st">inativo</span>'}${x.deve_trocar_senha === true ? ' <span class="tag">1º acesso</span>' : ''}</td>
+            <td>${dataBr(x.ultimo_acesso)}</td>
+            <td><button class="btn-sec" style="padding:5px 12px" data-us="${esc(x.id_usuario)}">Editar</button></td></tr>`).join('')}</tbody></table></div>`;
+        $('cfgListaUsuarios').querySelectorAll('[data-us]').forEach(b => b.addEventListener('click', () => abrirUsuario(cfg.usuarios.find(x => x.id_usuario === b.dataset.us))));
+      });
+    } catch (err) { erroComRepetir($('cfgListaUsuarios'), err, carregarUsuarios); }
+  }
+
+  function abrirUsuario(x) {
+    if (!cfg) return;
+    usEditando = x || null;
+    $('tituloUsuario').textContent = x ? 'Editar usuário' : 'Novo usuário';
+    $('us_nome').value = x ? x.nome : ''; $('us_email').value = x ? x.email : '';
+    $('us_perfil').innerHTML = cfg.perfis.map(p => `<option value="${p}" ${x && x.perfil === p ? 'selected' : ''}>${esc((ALCADAS[p] || [p])[0])}</option>`).join('');
+    $('us_inst').innerHTML = '<option value="">Todas (equipe global)</option>' + cfg.instituicoes.map(i =>
+      `<option value="${esc(i.id_instituicao)}" ${x && x.id_instituicao === i.id_instituicao ? 'selected' : ''}>${esc(i.sigla)}</option>`).join('');
+    $('us_ativo').checked = x ? x.ativo === true : true;
+    $('us_senha').innerHTML = ''; msg('msgUsuario', '');
+    $('btnUsSenha').classList.toggle('oculto', !x);
+    $('btnUsSalvar').disabled = false;
+    dicaUsuario();
+    $('dlgUsuario').showModal();
+  }
+  function dicaUsuario() {
+    const p = $('us_perfil').value, inst = $('us_inst').value;
+    const deInst = ['INSTITUICAO_CONTRATACAO', 'INSTITUICAO_PAGAMENTO'].includes(p);
+    $('us_dica').textContent = (ALCADAS[p] || ['', ''])[1] + (deInst && !inst ? ' ⚠️ Escolha a instituição.' : inst ? ' Verá só os projetos desta instituição.' : '');
+  }
+  $('us_perfil').addEventListener('change', dicaUsuario); $('us_inst').addEventListener('change', dicaUsuario);
+  $('btnNovoUsuario').addEventListener('click', () => abrirUsuario(null));
+
+  function mostrarSenha(senha, email) {
+    $('us_senha').innerHTML = `<div class="sucesso" style="margin-top:12px">Senha temporária: <b style="font-size:16px;letter-spacing:.05em">${esc(senha)}</b>
+      <button type="button" class="btn-link" id="btnCopiarSenha">📋 copiar</button><br>
+      <small>Envie para ${esc(email)}. No primeiro acesso a pessoa cria a própria senha. Esta senha não aparece de novo.</small></div>`;
+    $('btnCopiarSenha').addEventListener('click', () => copiar(`Acesso ao Gestor de Projetos\nE-mail: ${email}\nSenha temporária: ${senha}\n${location.href.split('#')[0]}`));
+  }
+  $('formUsuario').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = $('btnUsSalvar'); btn.disabled = true; msg('msgUsuario', 'Salvando…', 'ok');
+    try {
+      const dados = { id_usuario: usEditando ? usEditando.id_usuario : '', nome: $('us_nome').value, email: $('us_email').value,
+        perfil: $('us_perfil').value, id_instituicao: $('us_inst').value, ativo: $('us_ativo').checked };
+      const r = await api('salvarUsuario', dados, { tambem: [['listarUsuarios', {}]] });
+      msg('msgUsuario', usEditando ? 'Usuário atualizado ✓' : 'Usuário criado ✓', 'ok');
+      if (r.senha_temporaria) { mostrarSenha(r.senha_temporaria, dados.email); usEditando = { id_usuario: r.id_usuario }; $('btnUsSenha').classList.remove('oculto'); }
+      btn.disabled = false;
+      carregarUsuarios();
+    } catch (err) { msg('msgUsuario', err.message); btn.disabled = false; }
+  });
+  $('btnUsSenha').addEventListener('click', async () => {
+    if (!usEditando || !confirm('Gerar uma nova senha temporária? A senha atual deixa de valer.')) return;
+    try { const r = await api('redefinirSenhaUsuario', { id_usuario: usEditando.id_usuario }); mostrarSenha(r.senha_temporaria, $('us_email').value); }
+    catch (err) { msg('msgUsuario', err.message); }
+  });
+
+  // --- projetos por instituição + exclusão
+  let projAdmin = [], exProj = null;
+  async function carregarProjetosAdmin() {
+    try {
+      await apiRapida('listarProjetosAdmin', {}, lista => {
+        projAdmin = lista;
+        const grupos = {};
+        lista.forEach(p => { (grupos[p.instituicao] = grupos[p.instituicao] || []).push(p); });
+        // projetos com o mesmo nome/termo na mesma instituição: possível duplicidade
+        const chave = p => p.id_instituicao + '|' + (p.termo || normTxt(p.nome_projeto));
+        const cont = {}; lista.forEach(p => { cont[chave(p)] = (cont[chave(p)] || 0) + 1; });
+        $('cfgListaProjetos').innerHTML = Object.keys(grupos).sort().map(inst => `
+          <div class="secao" style="margin-top:0;margin-bottom:22px"><h4>${esc(inst)} · ${grupos[inst].length} projeto(s)</h4>
+          <div class="tabela-wrap"><table>
+            <thead><tr><th>Código</th><th>Projeto</th><th>Termo</th><th>Status</th><th class="num">Valor</th><th class="num">Rubricas</th><th class="num">Contratações</th><th class="num">Pagamentos</th><th class="num">Documentos</th><th>Criado em</th><th></th></tr></thead>
+            <tbody>${grupos[inst].map(p => `<tr>
+              <td style="white-space:nowrap">${esc(p.id_projeto)}${cont[chave(p)] > 1 ? ' <span class="tag" style="background:var(--alerta-fundo);color:var(--alerta)">possível duplicado</span>' : ''}</td>
+              <td><b>${esc(p.nome_projeto)}</b>${p.sigla ? `<br><small>${esc(p.sigla)}</small>` : ''}</td>
+              <td>${esc(p.termo)}</td><td>${esc(p.status || '—')}</td><td class="num">${brl(p.valor_total)}</td>
+              <td class="num">${p.rubricas}</td><td class="num">${p.contratacoes}</td><td class="num">${p.pagamentos}</td><td class="num">${p.documentos}</td>
+              <td style="white-space:nowrap">${esc(p.criado_em)}</td>
+              <td style="white-space:nowrap"><button class="btn-sec" style="padding:5px 10px" data-abrirproj="${esc(p.id_projeto)}">Abrir</button>
+                <button class="btn-link perigo" data-exproj="${esc(p.id_projeto)}">Excluir</button></td></tr>`).join('')}</tbody></table></div></div>`).join('')
+          || '<div class="vazio">Nenhum projeto cadastrado.</div>';
+        $('cfgListaProjetos').querySelectorAll('[data-abrirproj]').forEach(b => b.addEventListener('click', () => abrirProjeto(b.dataset.abrirproj)));
+        $('cfgListaProjetos').querySelectorAll('[data-exproj]').forEach(b => b.addEventListener('click', () => abrirExcluirProjeto(b.dataset.exproj)));
+      });
+    } catch (err) { erroComRepetir($('cfgListaProjetos'), err, carregarProjetosAdmin); }
+  }
+  function abrirExcluirProjeto(id) {
+    exProj = projAdmin.find(p => p.id_projeto === id); if (!exProj) return;
+    const p = exProj, vazio = !p.rubricas && !p.contratacoes && !p.pagamentos && !p.documentos;
+    $('exProjInfo').innerHTML = `<p><b>${esc(p.id_projeto)} · ${esc(p.nome_projeto)}</b> (${esc(p.instituicao)})</p>
+      <p>Serão excluídos o projeto e <b>tudo o que está ligado a ele</b>: ${p.rubricas} rubrica(s), ${p.contratacoes} contratação(ões) com parcelas,
+      ${p.pagamentos} pagamento(s) e notas, ${p.documentos} registro(s) de documentos, cotações, bimestres e saldos mensais.</p>
+      ${vazio ? '<div class="sucesso">Este projeto está vazio — parece mesmo um cadastro em dobro.</div>' : '<div class="aviso">⚠️ Este projeto tem dados lançados. Confira se é mesmo o que deve ser excluído.</div>'}
+      <p class="dica">Os dados apagados ficam copiados na aba LIXEIRA da planilha. Os contratados (cadastro de fornecedores) não são apagados.</p>`;
+    $('exProjConf').value = ''; $('exProjPasta').checked = vazio; msg('msgExProj', ''); $('btnExProj').disabled = false;
+    $('dlgExcluirProj').showModal();
+  }
+  $('btnExProj').addEventListener('click', async () => {
+    if ($('exProjConf').value.trim().toUpperCase() !== exProj.id_projeto.toUpperCase()) return msg('msgExProj', 'Digite exatamente ' + exProj.id_projeto + ' para confirmar.');
+    const btn = $('btnExProj'); btn.disabled = true; msg('msgExProj', 'Excluindo… (pode levar alguns segundos)', 'ok');
+    try {
+      const r = await api('excluirProjeto', { id_projeto: exProj.id_projeto, confirmacao: $('exProjConf').value, apagar_pasta: $('exProjPasta').checked },
+        { tambem: [['listarProjetosAdmin', {}]] });
+      $('dlgExcluirProj').close();
+      const tot = Object.values(r.removidos).reduce((s, n) => s + n, 0);
+      toast(`Projeto excluído ✓ (${tot} registro(s) ligados)` + (r.pasta ? ' · ' + r.pasta : ''));
+      carregarProjetosAdmin();
+    } catch (err) { msg('msgExProj', err.message); btn.disabled = false; }
+  });
+
+  // --- excluir contratação (dentro do projeto, só administrador)
+  async function excluirContratacaoAtual() {
+    const c = ctrAtual.contratacao, f = ctrAtual.fornecedor || {};
+    const pagas = (ctrAtual.parcelas_det || []).filter(p => p.pagamento).length;
+    const resp = prompt(`Excluir ${c.id_contratacao} – ${f.razao_social || ''}?\n\nApaga a contratação, as ${(ctrAtual.parcelas || []).length} parcela(s)` +
+      (pagas ? `, ${pagas} pagamento(s) lançado(s) com as notas` : '') + `, cotações, itens e registros de documentos (cópia na aba LIXEIRA).\n\nPara confirmar, digite ${c.id_contratacao}:`);
+    if (resp === null) return;
+    if (resp.trim().toUpperCase() !== c.id_contratacao.toUpperCase()) return alert('Código não confere. Nada foi excluído.');
+    try {
+      await api('excluirContratacao', { id_contratacao: c.id_contratacao });
+      $('dlgCtr').close(); toast('Contratação excluída ✓');
+      recarregarProjeto().catch(() => {});
+    } catch (err) { alert(err.message); }
+  }
 
   // ---------- campos de data: digitar (dd/mm/aaaa) ou escolher no calendário
   // O campo original (type=date) continua guardando o valor no formato do sistema (aaaa-mm-dd);
