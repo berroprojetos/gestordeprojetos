@@ -500,6 +500,7 @@
           <div class="form-grade" id="camposProjeto"></div>
           <div class="form-acoes" id="acoesProjeto">
             <div class="msg" id="msgProjeto" role="alert"></div>
+            <button class="btn-link perigo oculto" type="button" id="btnExcluirProjeto">🗑 Excluir projeto</button>
             <button class="btn-sec" type="button" id="btnColarSit">📋 Colar dados do SIT</button>
             <button class="btn" type="submit">Salvar dados do projeto</button>
           </div>
@@ -1339,6 +1340,7 @@
     }).join('');
     if (!edita) $('camposProjeto').querySelectorAll('input,select,textarea').forEach(el => el.disabled = true);
     $('acoesProjeto').classList.toggle('oculto', !edita);
+    $('btnExcluirProjeto').classList.toggle('oculto', !(usuario && usuario.perfil === 'ADMIN' && !atual.novo));
     msg('msgProjeto', '');
   }
 
@@ -3661,6 +3663,16 @@
       });
     } catch (err) { erroComRepetir($('cfgListaProjetos'), err, carregarProjetosAdmin); }
   }
+  // Botão dentro do projeto (aba Dados gerais)
+  let voltarAposExcluir = false;
+  $('btnExcluirProjeto').addEventListener('click', async () => {
+    const id = atual.projeto.id_projeto;
+    try {
+      projAdmin = await api('listarProjetosAdmin');
+      voltarAposExcluir = true;
+      abrirExcluirProjeto(id);
+    } catch (err) { msg('msgProjeto', err.message); }
+  });
   function abrirExcluirProjeto(id) {
     exProj = projAdmin.find(p => p.id_projeto === id); if (!exProj) return;
     const p = exProj, vazio = !p.rubricas && !p.contratacoes && !p.pagamentos && !p.documentos;
@@ -3681,7 +3693,8 @@
       $('dlgExcluirProj').close();
       const tot = Object.values(r.removidos).reduce((s, n) => s + n, 0);
       toast(`Projeto excluído ✓ (${tot} registro(s) ligados)` + (r.pasta ? ' · ' + r.pasta : ''));
-      carregarProjetosAdmin();
+      if (voltarAposExcluir) { voltarAposExcluir = false; limparCache(/^listarInstituicoes\|/); mostrarLista(); }
+      else carregarProjetosAdmin();
     } catch (err) { msg('msgExProj', err.message); btn.disabled = false; }
   });
 
