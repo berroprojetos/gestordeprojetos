@@ -666,6 +666,27 @@
   </div>
 </dialog>
 
+<!-- MODAL: ENCERRAR CONTRATO / SUBSTITUIR PRESTADOR -->
+<dialog id="dlgEncerrar">
+  <div class="modal-cab"><h3 id="tituloEncerrar">Encerrar contrato</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+  <div class="modal-corpo">
+    <p class="dica" style="margin-top:0">Use quando o prestador sai antes do fim do contrato. As parcelas já pagas ficam como estão;
+      as parcelas futuras (ainda previstas, sem nota nem pagamento) são retiradas e o valor volta a ficar disponível na rubrica.</p>
+    <div class="form-grade">
+      <div><label for="enc_ultima">Última parcela executada *</label><select id="enc_ultima"></select></div>
+      <div><label for="enc_data">Data do encerramento</label><input id="enc_data" type="date"></div>
+      <div class="largo"><label for="enc_motivo">Motivo (vai para as observações)</label><input id="enc_motivo" placeholder="ex.: rescisão a pedido da prestadora"></div>
+    </div>
+    <div class="total-preview" id="enc_resumo"></div>
+    <label class="checkbox" style="margin-top:12px"><input type="checkbox" id="enc_subst" checked> Contratar o substituto agora (abre a nova contratação já preenchida com a rubrica, os meses e o valor que sobraram)</label>
+  </div>
+  <div class="modal-rodape">
+    <div class="msg" id="msgEncerrar"></div>
+    <button type="button" class="btn-sec" data-fechar>Cancelar</button>
+    <button type="button" class="btn" id="btnEncerrarOk">Encerrar contrato</button>
+  </div>
+</dialog>
+
 <!-- MODAL: FORMULÁRIO DE CONTRATAÇÃO -->
 <dialog id="dlgFormCtr" class="grande">
   <form id="formCtr">
@@ -689,10 +710,13 @@
         <div class="largo"><label for="c_observacoes">Observações</label><input id="c_observacoes"></div>
       </div>
       <div class="total-preview" id="c_total">Total do contrato: R$ 0,00</div>
+      <div class="aviso oculto" id="c_aviso_pagas" style="margin-top:10px"></div>
 
       <fieldset>
         <legend>Dados do contratado</legend>
         <p class="dica">Digite o CPF ou CNPJ primeiro: se o contratado já estiver cadastrado, os dados são preenchidos sozinhos.</p>
+        <div style="margin-bottom:10px"><label for="f_existente">…ou escolha um contratado já cadastrado (pode ter outros contratos)</label>
+          <select id="f_existente"></select></div>
         <div class="form-grade">
           <div><label for="f_cnpj_cpf">CPF / CNPJ *</label><input id="f_cnpj_cpf" required></div>
           <div class="largo"><label for="f_razao_social">Nome completo / razão social *</label><input id="f_razao_social" required></div>
@@ -1546,11 +1570,11 @@
   }
 
   // --- formulário (nova / editar)
-  function abrirFormCtr(det) {
+  function abrirFormCtr(det, pre) {
     ctrEditando = det ? det.contratacao : null;
     procParaContratar = '';
-    const c = det ? det.contratacao : {}, f = det && det.fornecedor ? det.fornecedor : {};
-    $('tituloFormCtr').textContent = det ? `Editar ${c.id_contratacao}` : 'Nova contratação';
+    const c = det ? det.contratacao : (pre || {}), f = det && det.fornecedor ? det.fornecedor : {};
+    $('tituloFormCtr').textContent = det ? `Editar ${c.id_contratacao}` : (pre ? 'Contratar substituto' : 'Nova contratação');
     $('c_id_rubrica').innerHTML = '<option value="">Selecione…</option>' + atual.rubricas.map(r =>
       `<option value="${esc(r.id_rubrica)}" ${r.id_rubrica === c.id_rubrica ? 'selected' : ''}>${esc(r.codigo ? r.codigo + ' – ' : '')}${esc(r.descricao)}</option>`).join('');
     $('c_status').innerHTML = STATUS_CTR.map(s => `<option ${s === (c.status || 'Em execução') ? 'selected' : ''}>${s}</option>`).join('');
@@ -1558,7 +1582,17 @@
       .forEach(k => $('c_' + k).value = c[k] ?? '');
     $('c_valor_parcela').value = num2(c.valor_parcela ?? '');
     CAMPOS_FORN.forEach(k => $('f_' + k).value = f[k] ?? '');
-    msg('msgCtr', ''); atualizarSaldoCtr(); atualizarTotalCtr(); regraDataContrato();
+    const forns = (atual.fornecedores || []).slice().sort((a, b) => String(a.razao_social || '').localeCompare(String(b.razao_social || ''), 'pt-BR'));
+    $('f_existente').innerHTML = '<option value="">—</option>' + forns.map(x =>
+      `<option value="${esc(x.id_fornecedor || x.cnpj_cpf)}">${esc(x.razao_social || '')}${x.cnpj_cpf ? ' · ' + esc(x.cnpj_cpf) : ''}</option>`).join('');
+    // Contrato com parcelas já pagas: explica o que pode mudar
+    const travadas = det ? (det.parcelas_det || []).filter(p => p.status !== 'Prevista' || (p.nf && p.nf.numero) || p.pagamento) : [];
+    const ultTrav = travadas.reduce((m, p) => Math.max(m, Number(p.num_parcela) || 0), 0);
+    $('c_aviso_pagas').classList.toggle('oculto', !travadas.length);
+    $('c_aviso_pagas').innerHTML = travadas.length ? `Este contrato já tem ${travadas.length} parcela(s) com lançamento (até a ${ultTrav}ª). ` +
+      `Você pode reduzir o nº de parcelas (mínimo ${ultTrav}), prorrogar ou mudar o valor das <b>parcelas futuras</b> — as já lançadas não mudam. ` +
+      `O mês de início não pode mudar. Para o prestador que saiu, use <b>⏹ Encerrar / substituir</b>.` : '';
+    msg('msgCtr', pre && pre._aviso ? pre._aviso : '', 'ok'); atualizarSaldoCtr(); atualizarTotalCtr(); regraDataContrato();
     $('dlgFormCtr').showModal();
   }
 
@@ -1598,6 +1632,12 @@
     atualizarSaldoCtr(); atualizarTotalCtr();
   });
   ['c_num_parcelas', 'c_valor_parcela'].forEach(id => $(id).addEventListener('input', atualizarTotalCtr));
+
+  $('f_existente').addEventListener('change', () => {
+    const v = $('f_existente').value;
+    const f = v && (atual.fornecedores || []).find(x => (x.id_fornecedor || x.cnpj_cpf) === v);
+    if (f) CAMPOS_FORN.forEach(k => { $('f_' + k).value = f[k] ?? ''; });
+  });
 
   $('f_cnpj_cpf').addEventListener('blur', () => {
     const d = digitos($('f_cnpj_cpf').value);
@@ -1681,6 +1721,8 @@
       <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
         ${pode ? (ehCompra ? '<button class="btn-sec" id="btnEditarCompra">✏️ Editar compra</button>' : '<button class="btn-sec" id="btnEditarCtr">✏️ Editar dados</button>') : ''}
         ${ctrAtual.pasta_url ? `<a class="btn-sec" href="${esc(ctrAtual.pasta_url)}" target="_blank" rel="noopener" style="text-decoration:none">📁 Pasta no Drive</a>` : ''}
+        ${pode && !ehCompra && ['Encerrada', 'Cancelada'].indexOf(c.status) === -1 && Number(c.num_parcelas) > 1
+          ? '<button class="btn-sec" id="btnEncerrarCtr" title="Prestador saiu antes do fim: mantém o que foi pago e libera o restante">⏹ Encerrar / substituir prestador</button>' : ''}
         ${usuario.perfil === 'ADMIN' ? '<button class="btn-link perigo" id="btnExcluirCtr">🗑 Excluir contratação</button>' : ''}
       </div>
 
@@ -1768,6 +1810,7 @@
     const ligar = (id, fn) => { const el = $(id); if (el) el.addEventListener('click', fn); };
     ligar('btnEditarCtr', () => abrirFormCtr(ctrAtual));
     ligar('btnExcluirCtr', excluirContratacaoAtual);
+    ligar('btnEncerrarCtr', abrirEncerrar);
     ligar('btnEditarCompra', () => { $('dlgCtr').close(); abrirCompra(ctrAtual); });
     ligar('btnGerarContrato', gerarContrato);
     ligar('btnUpload', enviarDoc);
@@ -3699,6 +3742,55 @@
   });
 
   // --- excluir contratação (dentro do projeto, só administrador)
+  // ---------- encerramento antecipado / substituição de prestador
+  function abrirEncerrar() {
+    const c = ctrAtual.contratacao, f = ctrAtual.fornecedor || {};
+    const parc = (ctrAtual.parcelas_det || ctrAtual.parcelas || []).slice().sort((a, b) => Number(a.num_parcela) - Number(b.num_parcela));
+    const trav = parc.filter(p => p.status !== 'Prevista' || (p.nf && p.nf.numero) || p.pagamento);
+    const minimo = Math.max(1, trav.reduce((m, p) => Math.max(m, Number(p.num_parcela) || 0), 0));
+    $('tituloEncerrar').textContent = `Encerrar ${c.id_contratacao} · ${f.razao_social || ''}`;
+    $('enc_ultima').innerHTML = parc.filter(p => Number(p.num_parcela) >= minimo && Number(p.num_parcela) < Number(c.num_parcelas))
+      .map(p => `<option value="${p.num_parcela}" ${Number(p.num_parcela) === minimo ? 'selected' : ''}>${p.num_parcela}ª · ${mesAno(p.competencia)} · ${esc(p.status)}</option>`).join('');
+    $('enc_data').value = ''; $('enc_motivo').value = ''; $('enc_subst').checked = true;
+    msg('msgEncerrar', $('enc_ultima').options.length ? '' : 'Não há parcelas futuras para retirar: todas já têm lançamento.');
+    $('btnEncerrarOk').disabled = !$('enc_ultima').options.length;
+    resumoEncerrar();
+    $('dlgEncerrar').showModal();
+  }
+  function resumoEncerrar() {
+    const c = ctrAtual.contratacao, n = parseInt($('enc_ultima').value, 10);
+    if (!n) { $('enc_resumo').textContent = ''; return; }
+    const parc = ctrAtual.parcelas_det || ctrAtual.parcelas || [];
+    const fica = parc.filter(p => Number(p.num_parcela) <= n).reduce((s, p) => s + Number(p.valor_previsto || 0), 0);
+    const sai = Number(c.valor_total_contratado || 0) - fica, resto = Number(c.num_parcelas) - n;
+    const ult = parc.find(p => Number(p.num_parcela) === n);
+    $('enc_resumo').innerHTML = `Contrato passa a ter <b>${n} parcela(s)</b> = <b>${brl(fica)}</b>` +
+      (ult ? ` (até ${mesAno(ult.competencia)})` : '') + `.<br>Saem <b>${resto} parcela(s)</b> previstas = <b>${brl(sai)}</b>, que voltam para o saldo da rubrica.`;
+  }
+  $('enc_ultima').addEventListener('change', resumoEncerrar);
+  $('btnEncerrarOk').addEventListener('click', async () => {
+    const btn = $('btnEncerrarOk'), antigo = ctrAtual.contratacao, fAnt = ctrAtual.fornecedor || {};
+    btn.disabled = true; msg('msgEncerrar', 'Encerrando…', 'ok');
+    try {
+      const res = await api('encerrarContratacao', { id_contratacao: antigo.id_contratacao,
+        ultima_parcela: $('enc_ultima').value, data_encerramento: $('enc_data').value, motivo: $('enc_motivo').value });
+      const subst = $('enc_subst').checked, rem = res.remanescente;
+      $('dlgEncerrar').close();
+      ctrAtual = res; ctrMudou = true;
+      toast(`Contrato encerrado ✓ · ${brl(rem.valor_liberado)} liberados na rubrica`);
+      await recarregarProjeto();
+      if (subst && rem.num_parcelas > 0) {
+        $('dlgCtr').close();
+        abrirFormCtr(null, { id_rubrica: rem.id_rubrica, objeto: rem.objeto, inicio_execucao: rem.inicio_execucao,
+          fim_execucao: rem.fim_execucao, num_parcelas: rem.num_parcelas, valor_parcela: rem.valor_parcela,
+          carga_horaria_mensal: rem.carga_horaria_mensal, descricao_nf: rem.descricao_nf, status: 'Em execução',
+          observacoes: `Substitui ${fAnt.razao_social || ''} (${antigo.id_contratacao}), encerrado na ${$('enc_ultima').value}ª parcela.`,
+          _aviso: `Restante do contrato anterior: ${rem.num_parcelas} parcela(s) de ${brl(rem.valor_parcela)}. Escolha o novo contratado abaixo (pode ser alguém que já tem contrato) e ajuste o que precisar.` });
+      } else renderCtr();
+    } catch (err) { msg('msgEncerrar', err.message); }
+    btn.disabled = false;
+  });
+
   async function excluirContratacaoAtual() {
     const c = ctrAtual.contratacao, f = ctrAtual.fornecedor || {};
     const pagas = (ctrAtual.parcelas_det || []).filter(p => p.pagamento).length;
