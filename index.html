@@ -697,7 +697,8 @@
           <div class="dica" id="c_saldo" style="margin:6px 0 0"></div></div>
         <div class="largo"><label for="c_objeto">Objeto da contratação *</label><input id="c_objeto" required placeholder="Ex.: prestação de serviços de educador social"></div>
         <div><label for="c_inicio_execucao">Início da execução *</label><input id="c_inicio_execucao" type="date" required></div>
-        <div><label for="c_fim_execucao">Fim da execução</label><input id="c_fim_execucao" type="date"></div>
+        <div><label for="c_fim_execucao">Fim da execução</label><input id="c_fim_execucao" type="date">
+          <div class="dica" id="c_fim_dica" style="margin:4px 0 0"></div></div>
         <div><label for="c_num_parcelas">Nº de parcelas *</label><input id="c_num_parcelas" inputmode="numeric" required></div>
         <div><label for="c_valor_parcela">Valor da parcela (R$) *</label><input id="c_valor_parcela" inputmode="decimal" required></div>
         <div><label for="c_carga_horaria_mensal">Carga horária mensal (h)</label><input id="c_carga_horaria_mensal" inputmode="numeric" placeholder="ex.: 60"></div>
@@ -1592,6 +1593,7 @@
     $('c_aviso_pagas').innerHTML = travadas.length ? `Este contrato já tem ${travadas.length} parcela(s) com lançamento (até a ${ultTrav}ª). ` +
       `Você pode reduzir o nº de parcelas (mínimo ${ultTrav}), prorrogar ou mudar o valor das <b>parcelas futuras</b> — as já lançadas não mudam. ` +
       `O mês de início não pode mudar. Para o prestador que saiu, use <b>⏹ Encerrar / substituir</b>.` : '';
+    $('c_fim_dica').textContent = '';
     msg('msgCtr', pre && pre._aviso ? pre._aviso : '', 'ok'); atualizarSaldoCtr(); atualizarTotalCtr(); regraDataContrato();
     $('dlgFormCtr').showModal();
   }
@@ -1628,10 +1630,24 @@
       $('c_num_parcelas').value = meses || 1;
       $('c_valor_parcela').value = num2(meses ? Number(r.quantidade) * Number(r.valor_unitario_max) : Number(r.valor_total_orcado));
       if (!$('c_objeto').value) $('c_objeto').value = r.descricao;
+      calcularFimCtr();
     }
     atualizarSaldoCtr(); atualizarTotalCtr();
   });
   ['c_num_parcelas', 'c_valor_parcela'].forEach(id => $(id).addEventListener('input', atualizarTotalCtr));
+
+  // Fim da execução calculado: início + nº de parcelas (meses) − 1 dia. Ex.: 01/03/2025 + 19 → 30/09/2026
+  function calcularFimCtr() {
+    const ini = $('c_inicio_execucao').value, n = parseInt($('c_num_parcelas').value, 10);
+    const dica = $('c_fim_dica');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ini) || !(n > 0)) { dica.textContent = ''; return; }
+    const [a, m, d] = ini.split('-').map(Number);
+    const fim = new Date(a, m - 1 + n, d - 1);
+    $('c_fim_execucao').value = `${fim.getFullYear()}-${String(fim.getMonth() + 1).padStart(2, '0')}-${String(fim.getDate()).padStart(2, '0')}`;
+    dica.textContent = `calculado: ${n} ${n === 1 ? 'mês' : 'meses'} a partir do início (pode alterar)`;
+  }
+  $('c_inicio_execucao').addEventListener('change', calcularFimCtr);
+  $('c_num_parcelas').addEventListener('input', calcularFimCtr);
 
   $('f_existente').addEventListener('change', () => {
     const v = $('f_existente').value;
@@ -2008,7 +2024,7 @@
     $('tituloFormCtr').textContent = `Nova contratação – a partir de ${p.id_processo}`;
     $('c_id_rubrica').value = p.id_rubrica;
     $('c_objeto').value = 'prestação de serviços de ' + String(p.funcao || '').toLowerCase();
-    $('c_num_parcelas').value = p.meses;
+    $('c_num_parcelas').value = p.meses; calcularFimCtr();
     $('c_valor_parcela').value = num2(v.valor_unitario_mensal);
     $('c_carga_horaria_mensal').value = p.horas_mensais || '';
     $('c_data_cotacao').value = p.data_cotacao || '';
