@@ -1586,16 +1586,34 @@
     const forns = (atual.fornecedores || []).slice().sort((a, b) => String(a.razao_social || '').localeCompare(String(b.razao_social || ''), 'pt-BR'));
     $('f_existente').innerHTML = '<option value="">—</option>' + forns.map(x =>
       `<option value="${esc(x.id_fornecedor || x.cnpj_cpf)}">${esc(x.razao_social || '')}${x.cnpj_cpf ? ' · ' + esc(x.cnpj_cpf) : ''}</option>`).join('');
-    // Contrato com parcelas já pagas: explica o que pode mudar
-    const travadas = det ? (det.parcelas_det || []).filter(p => p.status !== 'Prevista' || (p.nf && p.nf.numero) || p.pagamento) : [];
-    const ultTrav = travadas.reduce((m, p) => Math.max(m, Number(p.num_parcela) || 0), 0);
-    $('c_aviso_pagas').classList.toggle('oculto', !travadas.length);
-    $('c_aviso_pagas').innerHTML = travadas.length ? `Este contrato já tem ${travadas.length} parcela(s) com lançamento (até a ${ultTrav}ª). ` +
-      `Você pode reduzir o nº de parcelas (mínimo ${ultTrav}), prorrogar ou mudar o valor das <b>parcelas futuras</b> — as já lançadas não mudam. ` +
-      `O mês de início não pode mudar. Para o prestador que saiu, use <b>⏹ Encerrar / substituir</b>.` : '';
+    renderLancadasForm();
     $('c_fim_dica').textContent = '';
     msg('msgCtr', pre && pre._aviso ? pre._aviso : '', 'ok'); atualizarSaldoCtr(); atualizarTotalCtr(); regraDataContrato();
     $('dlgFormCtr').showModal();
+  }
+
+  // Edição de contrato com parcelas já lançadas: aviso + atalho para corrigir NF/pagamento de cada parcela
+  const parcTravadas = () => ctrEditando && ctrAtual && ctrAtual.contratacao && ctrAtual.contratacao.id_contratacao === ctrEditando.id_contratacao
+    ? (ctrAtual.parcelas_det || []).filter(p => p.status !== 'Prevista' || (p.nf && p.nf.numero) || p.pagamento) : [];
+  function renderLancadasForm() {
+    const trav = parcTravadas(), el = $('c_aviso_pagas');
+    el.classList.toggle('oculto', !trav.length);
+    if (!trav.length) { el.innerHTML = ''; return; }
+    const ult = trav.reduce((m, p) => Math.max(m, Number(p.num_parcela) || 0), 0);
+    el.innerHTML = `<b>Este contrato já tem ${trav.length} parcela(s) com lançamento.</b> Você pode mudar o início
+      (as competências de todas as parcelas acompanham; notas e pagamentos continuam nas mesmas parcelas),
+      reduzir o nº de parcelas (mínimo ${ult}), prorrogar ou mudar o valor das parcelas futuras.
+      Para o prestador que saiu, use <b>⏹ Encerrar / substituir</b>.
+      <div class="tabela-wrap" style="margin-top:10px;background:#fff"><table>
+        <thead><tr><th>Nº</th><th>Competência</th><th>Status</th><th>NF</th><th>Pagamento</th><th class="num">Valor pago</th><th></th></tr></thead>
+        <tbody>${trav.map(p => { const nf = p.nf || {}, pg = p.pagamento || {}; return `<tr>
+          <td>${esc(p.num_parcela)}</td><td>${mesAno(p.competencia)}</td><td><span class="st ${stClasse(p.status)}">${esc(p.status)}</span></td>
+          <td>${nf.numero ? 'nº ' + esc(nf.numero) + (nf.data_emissao ? ' · ' + dataBr(nf.data_emissao) : '') : '—'}</td>
+          <td>${pg.data_pagamento ? dataBr(pg.data_pagamento) : '—'}</td><td class="num">${pg.valor ? brl(pg.valor) : '—'}</td>
+          <td><button type="button" class="btn-sec" style="padding:5px 10px" data-corrparc="${esc(p.id_parcela)}">✏️ Corrigir</button></td></tr>`; }).join('')}</tbody>
+      </table></div>
+      <p class="dica" style="margin:6px 0 0">“Corrigir” abre a parcela: dá para alterar número, datas e valores da nota e do pagamento, trocar arquivos, mover para outra parcela ou excluir o lançamento.</p>`;
+    el.querySelectorAll('[data-corrparc]').forEach(b => b.addEventListener('click', () => abrirParcela(b.dataset.corrparc, ctxCtr)));
   }
 
   function rubricaSel() { return atual.rubricas.find(r => r.id_rubrica === $('c_id_rubrica').value); }
@@ -1665,6 +1683,13 @@
 
   $('formCtr').addEventListener('submit', async e => {
     e.preventDefault();
+    const trav = parcTravadas();
+    if (trav.length && ctrEditando && String(ctrEditando.inicio_execucao || '').slice(0, 7) !== $('c_inicio_execucao').value.slice(0, 7)) {
+      const sit = trav.filter(p => p.status === 'Lançada no SIT').length;
+      if (!confirm(`Mudar o início para ${dataBr($('c_inicio_execucao').value)}?\n\nAs competências de todas as parcelas vão acompanhar o novo início ` +
+        `(a 1ª parcela passa a ser ${mesAno($('c_inicio_execucao').value)}). As notas e pagamentos já lançados continuam nas mesmas parcelas.` +
+        (sit ? `\n\nAtenção: ${sit} parcela(s) já estão como "Lançada no SIT" — confira se o SIT também precisa de ajuste.` : ''))) return;
+    }
     const btn = e.submitter; btn.disabled = true; msg('msgCtr', 'Salvando… (na primeira vez o sistema cria as parcelas e a pasta no Drive)', 'ok');
     const dados = { id_projeto: atual.projeto.id_projeto, id_contratacao: ctrEditando ? ctrEditando.id_contratacao : '',
                     id_processo_cotacao: ctrEditando ? '' : procParaContratar, fornecedor: {} };
@@ -1694,7 +1719,8 @@
   // Janela da parcela aberta a partir da contratação
   const ctxCtr = {
     lista: () => (ctrAtual && ctrAtual.parcelas_det) || [],
-    recarregar: async () => { ctrAtual = await lerAgora('obterContratacao', { id_contratacao: ctrAtual.contratacao.id_contratacao }); ctrMudou = true; renderCtr(); },
+    recarregar: async () => { ctrAtual = await lerAgora('obterContratacao', { id_contratacao: ctrAtual.contratacao.id_contratacao }); ctrMudou = true; renderCtr();
+      if ($('dlgFormCtr').open && ctrEditando) renderLancadasForm(); },
     leitura: () => ['obterContratacao', { id_contratacao: ctrAtual.contratacao.id_contratacao }],
     get pode_conferir() { return ctrAtual && ctrAtual.pode_conferir; },
     get pode_lancar_direto() { return ctrAtual && ctrAtual.pode_lancar_direto; }
