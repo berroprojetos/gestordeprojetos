@@ -1052,8 +1052,18 @@
     for (let tentativa = 0; ; tentativa++) {
       try {
         const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify(corpo) });
-        return await resp.json();
+        const texto = await resp.text();
+        try { return JSON.parse(texto); }
+        catch (e) {
+          // O servidor respondeu, mas com uma página de erro do Google (não com os dados): mostra o motivo
+          const motivo = (texto.match(/<title>([^<]*)<\/title>/i) || [])[1] ||
+            texto.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+          console.error('Resposta inesperada do servidor:', texto.slice(0, 2000));
+          throw Object.assign(new Error('O servidor respondeu com erro: ' + (motivo || 'resposta vazia') +
+            (ehLeitura ? '' : ' — confira se a alteração foi gravada antes de repetir.')), { servidor: true });
+        }
       } catch (err) {
+        if (err.servidor) throw err;
         // leituras podem ser repetidas com segurança; gravações não (poderiam duplicar)
         if (ehLeitura && tentativa < 1) { await new Promise(r => setTimeout(r, 900)); continue; }
         throw new Error(ehLeitura ? 'Sem conexão com o servidor. Confira a internet e tente de novo.'
