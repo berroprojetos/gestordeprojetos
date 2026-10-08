@@ -501,6 +501,7 @@
           <div class="form-acoes" id="acoesProjeto">
             <div class="msg" id="msgProjeto" role="alert"></div>
             <button class="btn-link perigo oculto" type="button" id="btnExcluirProjeto">🗑 Excluir projeto</button>
+            <button class="btn-sec oculto" type="button" id="btnPadronizarNomes" title="Renomeia no padrão os arquivos que já estão no Drive">🏷 Padronizar nomes dos arquivos</button>
             <button class="btn-sec" type="button" id="btnColarSit">📋 Colar dados do SIT</button>
             <button class="btn" type="submit">Salvar dados do projeto</button>
           </div>
@@ -1366,6 +1367,7 @@
     if (!edita) $('camposProjeto').querySelectorAll('input,select,textarea').forEach(el => el.disabled = true);
     $('acoesProjeto').classList.toggle('oculto', !edita);
     $('btnExcluirProjeto').classList.toggle('oculto', !(usuario && usuario.perfil === 'ADMIN' && !atual.novo));
+    $('btnPadronizarNomes').classList.toggle('oculto', !(usuario && ['ADMIN', 'PRESTACAO_CONTAS'].includes(usuario.perfil) && !atual.novo));
     msg('msgProjeto', '');
   }
 
@@ -3750,6 +3752,22 @@
   }
   // Botão dentro do projeto (aba Dados gerais)
   let voltarAposExcluir = false;
+  $('btnPadronizarNomes').addEventListener('click', async () => {
+    if (!confirm('Renomear no padrão todos os arquivos deste projeto que já estão no Drive?\n\n' +
+      '• Nota Fiscal - Rubrica - Representante legal - Nº da NF\n• Comprovante Pagto - Rubrica - Representante legal - Nº da NF - Nº de identificação\n' +
+      '• Contrato - Rubrica - Representante legal\n• Cotação - Rubrica - Representante legal\n\n' +
+      'Os links continuam funcionando. Minutas e cotações geradas pelo sistema mantêm o nome.')) return;
+    const btn = $('btnPadronizarNomes'); btn.disabled = true;
+    msg('msgProjeto', 'Renomeando os arquivos no Drive… (pode levar alguns minutos)', 'ok');
+    try {
+      const r = await api('padronizarNomesArquivos', { id_projeto: atual.projeto.id_projeto });
+      msg('msgProjeto', `✓ ${r.renomeados} arquivo(s) renomeado(s) · ${r.ja_no_padrao} já estavam no padrão · ${r.mantidos} mantido(s)` +
+        (r.erros ? ` · ${r.erros} não puderam ser renomeados (sem acesso ou apagados no Drive)` : '') +
+        (r.restantes ? ` · faltam ${r.restantes}: clique de novo para continuar` : ''), 'ok');
+    } catch (err) { msg('msgProjeto', err.message); }
+    btn.disabled = false;
+  });
+
   $('btnExcluirProjeto').addEventListener('click', async () => {
     const id = atual.projeto.id_projeto;
     try {
