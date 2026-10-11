@@ -570,7 +570,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.11-a</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.11-b</span></span></div>
   </div>
 </section>
 
@@ -2556,7 +2556,7 @@
           <div><label for="pg_forma">Forma</label><select id="pg_forma">${['PIX', 'Transferência'].map(t => `<option ${t === (pg.forma_pagamento || 'PIX') ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
           <div><label for="pg_pix">Nº de identificação (extrato)</label><input id="pg_pix" value="${esc(pg.num_identificacao_pix || '')}"></div>
           <div><label for="pg_data">Data do pagamento</label><input id="pg_data" type="date" value="${esc(pg.data_pagamento || '')}"></div>
-          <div><label for="pg_debito">Data do débito na conta</label><input id="pg_debito" type="date" value="${esc(pg.data_debito_conta || '')}"></div>
+          <div><label for="pg_debito">Data do débito na conta</label><input id="pg_debito" type="date" value="${esc(pg.data_debito_conta || pg.data_pagamento || '')}"></div>
           <div><label for="pg_valor">Valor pago (R$)</label><input id="pg_valor" inputmode="decimal" value="${esc(num2(pg.valor || nf.valor || x.valor_previsto))}"></div>
         </div></fieldset>
         <div class="form-acoes"><div class="msg" id="msgSIT"></div>
@@ -2599,6 +2599,15 @@
     const on = (id, fn) => { const el = $(id); if (el) el.addEventListener('click', fn); };
     on('btnAnexarNF', anexarNFParc); on('btnAnexarComp', anexarCompParc);
     on('btnSalvarSIT', e => salvarSIT(e, false)); on('btnConferirSIT', e => salvarSIT(e, true));
+    // Data do débito acompanha a data do pagamento, até ser alterada à mão (débito em outro dia)
+    if ($('pg_data') && $('pg_debito')) {
+      let pgAnterior = $('pg_data').value;
+      $('pg_data').addEventListener('change', () => {
+        const deb = $('pg_debito').value;
+        if (!deb || deb === pgAnterior) $('pg_debito').value = $('pg_data').value;
+        pgAnterior = $('pg_data').value;
+      });
+    }
     on('pAcPedir', () => acaoParc('solicitarNFs', { ids: [x.id_parcela], mes: $('pagMes').value || hojeYM(), id_projeto: x.id_projeto }, 'Pedido de NF enviado ✓'));
     on('pAcLiberar', () => acaoParc('liberarParcelas', { ids: [x.id_parcela] }, 'Liberada para pagamento ✓'));
     on('pAcVoltar', () => acaoParc('voltarEtapaParcela', { id_parcela: x.id_parcela }, 'Etapa desfeita'));
