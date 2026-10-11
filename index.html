@@ -468,8 +468,8 @@
       <div class="linha-form" style="margin:6px 0 12px">
         <div style="grid-column:span 2"><label for="fornBusca">Buscar</label><input id="fornBusca" placeholder="nome, CPF/CNPJ, e-mail, projeto…" autocomplete="off"></div>
         <div><label for="fornFiltro">Mostrar</label><select id="fornFiltro">
-          <option value="">Todos</option><option value="planilha">Só na planilha (ainda não estão no sistema)</option>
-          <option value="sistema">Só no sistema (ainda não estão na planilha)</option><option value="dif">Com dados diferentes</option>
+          <option value="">Todos</option><option value="planilha">Ainda não sincronizados</option>
+          <option value="dif">Com dados diferentes do cadastro no projeto</option>
           <option value="contrato">Com contrato em algum projeto</option></select></div>
       </div>
       <div class="msg" id="msgForn"></div>
@@ -779,36 +779,13 @@
 
       <fieldset>
         <legend>Dados do contratado</legend>
-        <p class="dica">Digite o CPF ou CNPJ primeiro: se o contratado já estiver cadastrado, os dados são preenchidos sozinhos.</p>
-        <div style="margin-bottom:10px"><label for="f_existente">…ou escolha um contratado já cadastrado (pode ter outros contratos)</label>
-          <select id="f_existente"></select></div>
-        <div class="form-grade">
-          <div><label for="f_cnpj_cpf">CPF / CNPJ *</label><input id="f_cnpj_cpf" required></div>
-          <div class="largo"><label for="f_razao_social">Nome completo / razão social *</label><input id="f_razao_social" required></div>
-          <div><label for="f_nome_fantasia">Nome fantasia</label><input id="f_nome_fantasia"></div>
-          <div><label for="f_rg">RG</label><input id="f_rg"></div>
-          <div><label for="f_nacionalidade">Nacionalidade</label><input id="f_nacionalidade"></div>
-          <div><label for="f_estado_civil">Estado civil</label><input id="f_estado_civil"></div>
-          <div><label for="f_profissao">Profissão</label><input id="f_profissao"></div>
-          <div class="largo"><label for="f_endereco">Endereço (rua)</label><input id="f_endereco"></div>
-          <div><label for="f_numero">Número</label><input id="f_numero"></div>
-          <div><label for="f_complemento">Complemento</label><input id="f_complemento"></div>
-          <div><label for="f_bairro">Bairro</label><input id="f_bairro"></div>
-          <div><label for="f_cidade">Cidade</label><input id="f_cidade"></div>
-          <div><label for="f_uf">UF</label><input id="f_uf" maxlength="2"></div>
-          <div><label for="f_cep">CEP</label><input id="f_cep"></div>
-          <div><label for="f_email">E-mail</label><input id="f_email" type="email"></div>
-          <div><label for="f_telefone">Telefone</label><input id="f_telefone"></div>
-          <div><label for="f_representante_nome">Representante (se empresa)</label><input id="f_representante_nome"></div>
-          <div><label for="f_representante_cpf">CPF do representante</label><input id="f_representante_cpf"></div>
-          <div><label for="f_representante_cargo">Cargo do representante</label><input id="f_representante_cargo"></div>
-          <div><label for="f_representante_genero">Gênero do representante / da pessoa</label>
-            <select id="f_representante_genero"><option value="">—</option><option>Feminino</option><option>Masculino</option></select></div>
-          <div><label for="f_chave_pix">Chave PIX</label><input id="f_chave_pix"></div>
-          <div><label for="f_banco">Banco</label><input id="f_banco"></div>
-          <div><label for="f_agencia">Agência</label><input id="f_agencia"></div>
-          <div><label for="f_conta">Conta</label><input id="f_conta"></div>
+        <div class="linha-form" style="margin-bottom:6px">
+          <div><label for="f_busca">Buscar contratado</label><input id="f_busca" placeholder="nome, CNPJ ou CPF" autocomplete="off"></div>
+          <div style="grid-column:span 2"><label for="f_escolha">Contratado *</label><select id="f_escolha"></select></div>
+          <div style="display:flex;align-items:end;gap:6px"><button type="button" class="btn-sec oculto" id="f_editar" style="width:100%">✏️ Editar cadastro</button></div>
         </div>
+        <p class="dica" id="f_dica">Os dados vêm do cadastro de Fornecedores (formulário de prestação de serviços).</p>
+        <div class="form-grade" id="f_campos"></div>
       </fieldset>
     </div>
     <div class="modal-rodape">
@@ -1588,9 +1565,13 @@
   // ---------- contratações
   const STATUS_CTR = ['Em cotação', 'Contrato em elaboração', 'Contrato assinado', 'Em execução', 'Encerrada', 'Cancelada'];
   const TIPOS_UPLOAD = ['Contrato', 'Cotação', 'Nota fiscal', 'Comprovante de pagamento', 'Outro'];
-  const CAMPOS_FORN = ['cnpj_cpf', 'razao_social', 'nome_fantasia', 'rg', 'nacionalidade', 'estado_civil', 'profissao',
-    'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep', 'email', 'telefone',
-    'representante_nome', 'representante_cpf', 'representante_cargo', 'representante_genero', 'chave_pix', 'banco', 'agencia', 'conta'];
+  // Dados do contratado mostrados na contratação (vêm do cadastro de Fornecedores)
+  const CAMPOS_FORN_CTR = [['cnpj', 'CNPJ'], ['razao_social', 'Razão social'], ['nome_fantasia', 'Nome fantasia'],
+    ['nome_completo', 'Nome completo'], ['cpf', 'CPF'], ['rg', 'RG'], ['endereco', 'Rua'], ['numero', 'Nº'], ['complemento', 'Complemento'],
+    ['bairro', 'Bairro'], ['cidade', 'Cidade'], ['uf', 'Estado'], ['representante_genero', 'Gênero'], ['email', 'E-mail'],
+    ['telefone', 'Celular (WhatsApp)'], ['chave_pix', 'Chave PIX'], ['banco', 'Banco'], ['agencia', 'Agência'], ['conta', 'Conta com dígito']];
+  const CAMPOS_FORN = CAMPOS_FORN_CTR.map(c => c[0]);
+  const CAMPOS_FORN_EXTRA = ['cep', 'nacionalidade', 'estado_civil', 'profissao', 'representante_cargo'];
   const LIMITE_MB = 20;
   let ctrAtual = null, ctrEditando = null, ctrMudou = false, procParaContratar = '';
 
@@ -1660,10 +1641,7 @@
     ['objeto', 'inicio_execucao', 'fim_execucao', 'data_cotacao', 'data_assinatura_contrato', 'observacoes', 'num_parcelas', 'carga_horaria_mensal', 'descricao_nf']
       .forEach(k => $('c_' + k).value = c[k] ?? '');
     $('c_valor_parcela').value = num2(c.valor_parcela ?? '');
-    CAMPOS_FORN.forEach(k => $('f_' + k).value = f[k] ?? '');
-    const forns = (atual.fornecedores || []).slice().sort((a, b) => String(a.razao_social || '').localeCompare(String(b.razao_social || ''), 'pt-BR'));
-    $('f_existente').innerHTML = '<option value="">—</option>' + forns.map(x =>
-      `<option value="${esc(x.id_fornecedor || x.cnpj_cpf)}">${esc(x.razao_social || '')}${x.cnpj_cpf ? ' · ' + esc(x.cnpj_cpf) : ''}</option>`).join('');
+    prepararContratado(det && det.fornecedor ? det.fornecedor : null);
     renderLancadasForm();
     $('c_fim_dica').textContent = '';
     msg('msgCtr', pre && pre._aviso ? pre._aviso : '', 'ok'); atualizarSaldoCtr(); atualizarTotalCtr(); regraDataContrato();
@@ -1745,17 +1723,108 @@
   $('c_inicio_execucao').addEventListener('change', calcularFimCtr);
   $('c_num_parcelas').addEventListener('input', calcularFimCtr);
 
-  $('f_existente').addEventListener('change', () => {
-    const v = $('f_existente').value;
-    const f = v && (atual.fornecedores || []).find(x => (x.id_fornecedor || x.cnpj_cpf) === v);
-    if (f) CAMPOS_FORN.forEach(k => { $('f_' + k).value = f[k] ?? ''; });
+  // ---------- contratado: escolhido no cadastro de Fornecedores
+  let fOpcoes = [], fSel = null, fBase = null;
+  // Cadastro antigo (só cnpj_cpf): separa CNPJ, CPF e nome completo
+  function visaoLocal(f) {
+    const o = Object.assign({}, f || {}), d = digitos(o.cnpj_cpf);
+    if (!o.cnpj && d.length === 14) o.cnpj = o.cnpj_cpf;
+    if (!o.cpf) o.cpf = d.length === 11 ? o.cnpj_cpf : (o.representante_cpf || '');
+    if (!o.nome_completo) o.nome_completo = d.length === 14 ? (o.representante_nome || '') : (o.razao_social || '');
+    if (d.length === 11 && o.razao_social === o.nome_completo) o.razao_social = '';
+    return o;
+  }
+  const nomeForn = x => x.razao_social || x.nome_completo || '(sem nome)';
+  function montarOpcoesContratado() {
+    const base = (fBase && fBase.lista) || [];
+    const ligados = {};
+    base.forEach(x => { if (x.id_fornecedor) ligados[x.id_fornecedor] = true; });
+    // cadastros que não estão na planilha: só os que já têm contrato neste projeto
+    const doProjeto = {};
+    (atual.contratacoes || []).forEach(c => { if (c.id_fornecedor) doProjeto[c.id_fornecedor] = true; });
+    const locais = (atual.fornecedores || []).filter(f => !ligados[f.id_fornecedor] && (doProjeto[f.id_fornecedor] || (fSel && fSel.id_fornecedor === f.id_fornecedor)));
+    fOpcoes = base.map(x => ({ chave: 'b:' + x.chave, tipo: 'base', id_fornecedor: x.id_fornecedor, dados: x.dados, doc: x.doc_contrato }))
+      .concat(locais.map(f => ({ chave: 'l:' + f.id_fornecedor, tipo: 'local', id_fornecedor: f.id_fornecedor, dados: visaoLocal(f), doc: f.cnpj_cpf })));
+  }
+  function renderOpcoesContratado() {
+    const q = semAcento($('f_busca').value).trim(), qd = digitos($('f_busca').value);
+    const passa = o => !q || semAcento(nomeForn(o.dados) + ' ' + (o.dados.nome_completo || '')).includes(q) || (qd && digitos(o.doc + ' ' + (o.dados.cpf || '')).includes(qd));
+    const op = o => `<option value="${esc(o.chave)}" ${fSel && fSel.chave === o.chave ? 'selected' : ''}>${esc(nomeForn(o.dados))}${o.doc ? ' · ' + esc(o.doc) : ''}</option>`;
+    const base = fOpcoes.filter(o => o.tipo === 'base' && (passa(o) || (fSel && fSel.chave === o.chave)));
+    const loc = fOpcoes.filter(o => o.tipo === 'local' && (passa(o) || (fSel && fSel.chave === o.chave)));
+    $('f_escolha').innerHTML = `<option value="">${fBase ? 'Selecione…' : 'Carregando o cadastro de Fornecedores…'}</option>` +
+      (base.length ? `<optgroup label="Cadastro de Fornecedores">${base.map(op).join('')}</optgroup>` : '') +
+      (loc.length ? `<optgroup label="Cadastrados só neste projeto">${loc.map(op).join('')}</optgroup>` : '') +
+      `<option value="novo" ${fSel && fSel.tipo === 'novo' ? 'selected' : ''}>+ Não está no cadastro — preencher aqui</option>`;
+  }
+  function renderCamposContratado() {
+    const editavel = fSel && fSel.tipo !== 'base';
+    const d = (fSel && fSel.dados) || {};
+    $('f_campos').innerHTML = CAMPOS_FORN_CTR.map(([k, rot]) => {
+      const largo = ['razao_social', 'nome_completo', 'endereco'].includes(k) ? ' class="largo"' : '';
+      const ro = editavel ? '' : ' readonly tabindex="-1" style="background:var(--fundo, #f6f4ef)"';
+      const campo = k === 'representante_genero'
+        ? (editavel ? `<select id="f_${k}"><option value="">—</option>${['Feminino', 'Masculino'].map(g => `<option ${d[k] === g ? 'selected' : ''}>${g}</option>`).join('')}</select>`
+                    : `<input id="f_${k}" value="${esc(d[k] || '')}"${ro}>`)
+        : `<input id="f_${k}" value="${esc(d[k] ?? '')}"${ro}>`;
+      return `<div${largo}><label for="f_${k}">${esc(rot)}</label>${campo}</div>`;
+    }).join('');
+    const podeEditarBase = fSel && fSel.tipo === 'base' && podeFornecedores();
+    $('f_editar').classList.toggle('oculto', !podeEditarBase);
+    $('f_dica').textContent = !fSel ? 'Escolha o contratado no cadastro de Fornecedores (formulário de prestação de serviços).'
+      : fSel.tipo === 'base' ? 'Dados do cadastro de Fornecedores. Para corrigir algo, use “Editar cadastro”' + (podeEditarBase ? '.' : ' (peça à prestação de contas).')
+      : fSel.tipo === 'local' ? 'Cadastro feito neste projeto (ainda não está na planilha do formulário). Pode corrigir aqui.'
+      : 'Preencha os dados do contratado' + (podeFornecedores() && fBase && fBase.conectada ? ' — ele também será incluído no cadastro de Fornecedores e na planilha.' : '.');
+  }
+  function escolherContratado(chave) {
+    if (chave === 'novo') fSel = { chave: 'novo', tipo: 'novo', id_fornecedor: '', dados: {} };
+    else fSel = fOpcoes.find(o => o.chave === chave) || null;
+    renderCamposContratado();
+  }
+  function prepararContratado(fornecedorAtual, preNovo) {
+    fSel = null; $('f_busca').value = '';
+    const posicionar = () => {
+      montarOpcoesContratado();
+      if (fornecedorAtual) {
+        const d = digitos(fornecedorAtual.cnpj_cpf);
+        fSel = fOpcoes.find(o => o.id_fornecedor && o.id_fornecedor === fornecedorAtual.id_fornecedor)
+          || fOpcoes.find(o => d && (digitos(o.doc) === d || digitos(o.dados.cpf) === d || digitos(o.dados.cnpj) === d))
+          || (fornecedorAtual.id_fornecedor ? { chave: 'l:' + fornecedorAtual.id_fornecedor, tipo: 'local', id_fornecedor: fornecedorAtual.id_fornecedor, dados: visaoLocal(fornecedorAtual), doc: fornecedorAtual.cnpj_cpf } : null);
+        if (fSel && fSel.tipo === 'local' && !fOpcoes.some(o => o.chave === fSel.chave)) fOpcoes.push(fSel);
+      }
+      if (!fSel && preNovo) fSel = { chave: 'novo', tipo: 'novo', id_fornecedor: '', dados: preNovo };
+      renderOpcoesContratado(); renderCamposContratado();
+    };
+    posicionar();
+    apiRapida('listarFornecedoresBase', { para_contratacao: true }, d => {
+      fBase = d;
+      if (!$('dlgFormCtr').open || (fSel && fSel.tipo === 'novo' && Object.values(fSel.dados).some(Boolean) && !preNovo)) { renderOpcoesContratado(); return; }
+      const chaveAntes = fSel && fSel.chave;
+      posicionar();
+      if (chaveAntes && !fSel) fSel = null;
+    }, true).catch(err => { fBase = { lista: [], conectada: false }; renderOpcoesContratado(); $('f_dica').textContent = 'Não consegui carregar o cadastro de Fornecedores: ' + err.message; });
+  }
+  $('f_busca').addEventListener('input', renderOpcoesContratado);
+  $('f_escolha').addEventListener('change', () => escolherContratado($('f_escolha').value));
+  $('f_editar').addEventListener('click', async () => {
+    if (!fSel || fSel.tipo !== 'base') return;
+    if (!fornDados) { try { fornDados = await lerAgora('listarFornecedoresBase', {}); } catch (err) { return msg('msgCtr', err.message); } }
+    const item = fornDados.lista.find(x => 'b:' + x.chave === fSel.chave) || fornDados.lista.find(x => x.id_fornecedor && x.id_fornecedor === fSel.id_fornecedor);
+    if (!item) return msg('msgCtr', 'Não encontrei este cadastro na lista de Fornecedores.');
+    fornAoSalvar = async () => {
+      fBase = await lerAgora('listarFornecedoresBase', { para_contratacao: true });
+      const chave = fSel.chave; montarOpcoesContratado(); fSel = fOpcoes.find(o => o.chave === chave) || fSel;
+      renderOpcoesContratado(); renderCamposContratado();
+    };
+    abrirFornDlg(item);
   });
-
-  $('f_cnpj_cpf').addEventListener('blur', () => {
-    const d = digitos($('f_cnpj_cpf').value);
-    const f = d && (atual.fornecedores || []).find(x => digitos(x.cnpj_cpf) === d);
-    if (f) CAMPOS_FORN.forEach(k => { if (f[k] !== undefined && f[k] !== '') $('f_' + k).value = f[k]; });
-  });
+  function dadosContratadoDoForm() {
+    if (!fSel) return null;
+    const d = Object.assign({}, fSel.dados);
+    if (fSel.tipo !== 'base') CAMPOS_FORN.forEach(k => { const el = $('f_' + k); if (el) d[k] = el.value; });
+    d.id_fornecedor = fSel.id_fornecedor || '';
+    return d;
+  }
 
   $('btnNovaCtr').addEventListener('click', () => abrirFormCtr(null));
 
@@ -1773,8 +1842,15 @@
                     id_processo_cotacao: ctrEditando ? '' : procParaContratar, fornecedor: {} };
     ['id_rubrica', 'objeto', 'inicio_execucao', 'fim_execucao', 'num_parcelas', 'valor_parcela', 'data_cotacao',
      'data_assinatura_contrato', 'status', 'observacoes', 'carga_horaria_mensal', 'descricao_nf'].forEach(k => dados[k] = $('c_' + k).value);
-    CAMPOS_FORN.forEach(k => dados.fornecedor[k] = $('f_' + k).value);
+    const fd = dadosContratadoDoForm();
+    if (!fd) { btn.disabled = false; return msg('msgCtr', 'Escolha o contratado (cadastro de Fornecedores).'); }
+    dados.fornecedor = fd;
     try {
+      // Contratado novo, preenchido aqui: entra também no cadastro de Fornecedores (planilha do formulário)
+      if (fSel.tipo === 'novo' && podeFornecedores() && fBase && fBase.conectada) {
+        const r = await api('salvarFornecedorBase', fd);
+        dados.fornecedor.id_fornecedor = r.id_fornecedor;
+      }
       ctrAtual = await api('salvarContratacao', dados);
       $('dlgFormCtr').close();
       await recarregarProjeto();
@@ -2132,9 +2208,11 @@
     $('c_valor_parcela').value = num2(v.valor_unitario_mensal);
     $('c_carga_horaria_mensal').value = p.horas_mensais || '';
     $('c_data_cotacao').value = p.data_cotacao || '';
-    const f = { cnpj_cpf: v.cnpj || v.resp_cpf, razao_social: v.razao_social, representante_nome: v.resp_nome,
-                representante_cpf: v.resp_cpf, endereco: v.resp_endereco, telefone: v.resp_telefone, email: v.resp_email };
-    Object.keys(f).forEach(k => { if (f[k]) $('f_' + k).value = f[k]; });
+    const docCot = digitos(v.cnpj), pre = { cnpj: docCot.length === 14 ? v.cnpj : '', cpf: docCot.length === 11 ? v.cnpj : (v.resp_cpf || ''),
+      razao_social: docCot.length === 14 ? v.razao_social : '', nome_completo: v.resp_nome || (docCot.length === 14 ? '' : v.razao_social),
+      endereco: v.resp_endereco, telefone: v.resp_telefone, email: v.resp_email };
+    // Se o vencedor já está no cadastro de Fornecedores, usa o cadastro; senão abre para preencher
+    prepararContratado({ cnpj_cpf: v.cnpj || v.resp_cpf }, pre);
     atualizarSaldoCtr(); atualizarTotalCtr();
     msg('msgCtr', 'Dados trazidos da cotação vencedora. Confira, complete o que faltar (ex.: nacionalidade, início da execução) e salve.', 'ok');
   }
@@ -3879,8 +3957,8 @@
 
   // --- excluir contratação (dentro do projeto, só administrador)
   // ---------- FORNECEDORES (base única ligada à planilha do formulário)
-  let fornDados = null, fornEditando = null, fcCfg = null;
-  const ORIGEM_FORN = { ambos: ['verde', 'Sistema + planilha'], sistema: ['azul', 'Só no sistema'], planilha: ['', 'Só na planilha'] };
+  let fornDados = null, fornEditando = null, fcCfg = null, fornAoSalvar = null;
+  const ORIGEM_FORN = { ambos: ['verde', 'Sincronizado'], sistema: ['azul', 'Só no sistema'], planilha: ['', 'Não sincronizado'] };
 
   function abrirFornecedores() {
     navAtivo('navForn', 'Fornecedores');
@@ -3896,26 +3974,28 @@
   }
   function renderFornecedores() {
     const d = fornDados; if (!d) return;
-    const nPl = d.lista.filter(x => x.origem === 'planilha' && !x.doc_invalido).length, nSis = d.lista.filter(x => x.origem === 'sistema').length;
+    const nPl = d.lista.filter(x => x.origem === 'planilha' && !x.doc_invalido).length, nSis = d.so_no_sistema || 0;
     $('fornAviso').innerHTML = !d.conectada
-      ? `<div class="aviso">A planilha do formulário ainda não está conectada. A lista mostra só os prestadores já cadastrados nos projetos.
+      ? `<div class="aviso">A planilha do formulário ainda não está conectada.
           ${['ADMIN', 'PRESTACAO_CONTAS'].includes(usuario.perfil) ? 'Clique em <b>⚙ Conectar planilha</b>.' : 'Peça à prestação de contas para conectar.'}</div>`
       : d.erro_base ? `<div class="aviso">⚠️ ${esc(d.erro_base)}</div>`
-      : (nPl || nSis) ? `<div class="aviso">${nPl ? `<b>${nPl}</b> cadastro(s) da planilha ainda não estão no sistema` : ''}${nPl && nSis ? ' · ' : ''}${nSis ? `<b>${nSis}</b> prestador(es) do sistema ainda não estão na planilha` : ''}.
-          Clique em <b>🔄 Sincronizar</b> para unir as duas bases (nada é apagado).</div>` : '<div class="sucesso">✓ Sistema e planilha do formulário estão em dia.</div>';
+      : `<div class="${nPl ? 'aviso' : 'sucesso'}">${nPl ? `<b>${nPl}</b> cadastro(s) da planilha ainda não estão no sistema — clique em <b>🔄 Sincronizar</b> para poder usá-los nas contratações.`
+          : '✓ Todos os cadastros da planilha já podem ser usados nas contratações.'}
+          ${nSis ? `<div class="dica" style="margin:4px 0 0">${nSis} prestador(es) cadastrado(s) direto nos projetos ainda não estão na planilha — continuam aparecendo só dentro dos projetos.</div>` : ''}</div>`;
     const q = normTxt($('fornBusca').value), filtro = $('fornFiltro').value;
     const lista = d.lista.filter(x => {
       if (filtro === 'dif' ? !x.diferencas.length : filtro === 'contrato' ? !x.contratos.length : (filtro && x.origem !== filtro)) return false;
       if (!q) return true;
-      const t = normTxt([x.dados.razao_social, x.dados.nome_fantasia, x.dados.cnpj_cpf, digitos(x.dados.cnpj_cpf), x.dados.email, x.dados.representante_nome,
+      const t = normTxt([x.dados.razao_social, x.dados.nome_fantasia, x.dados.nome_completo, x.dados.cnpj, digitos(x.dados.cnpj), x.dados.cpf, digitos(x.dados.cpf), x.dados.email,
         x.contratos.map(c => c.projeto + ' ' + c.instituicao).join(' ')].join(' '));
       return t.includes(q);
     });
     $('fornLista').innerHTML = lista.length ? `<div class="tabela-wrap"><table>
-      <thead><tr><th>Nome / razão social</th><th>CPF / CNPJ</th><th>Contato</th><th>Projetos</th><th>Origem</th></tr></thead>
+      <thead><tr><th>Razão social / nome</th><th>CNPJ</th><th>CPF</th><th>Contato</th><th>Projetos</th><th>Situação</th></tr></thead>
       <tbody>${lista.map(x => { const o = ORIGEM_FORN[x.origem]; return `<tr class="clicavel" tabindex="0" data-forn="${esc(x.chave)}">
-        <td><b>${esc(x.dados.razao_social || '(sem nome)')}</b>${x.dados.representante_nome ? `<div class="dica" style="margin:0">rep.: ${esc(x.dados.representante_nome)}</div>` : ''}</td>
-        <td>${esc(x.dados.cnpj_cpf || '')}${x.doc_invalido ? ' <span class="st" style="background:#fdecea;color:#b3261e">CPF/CNPJ inválido</span>' : ''}</td>
+        <td><b>${esc(x.dados.razao_social || x.dados.nome_completo || '(sem nome)')}</b>${x.dados.razao_social && x.dados.nome_completo && x.dados.nome_completo !== x.dados.razao_social ? `<div class="dica" style="margin:0">${esc(x.dados.nome_completo)}</div>` : ''}</td>
+        <td>${esc(x.dados.cnpj || '')}${x.doc_sistema ? `<div class="dica" style="margin:0" title="Documento usado nos contratos">no projeto: ${esc(x.doc_sistema)}</div>` : ''}</td>
+        <td>${esc(x.dados.cpf || '')}${x.doc_invalido ? ' <span class="st" style="background:#fdecea;color:#b3261e">sem CNPJ/CPF válido</span>' : ''}</td>
         <td>${esc(x.dados.email || '')}${x.dados.telefone ? `<div class="dica" style="margin:0">${esc(x.dados.telefone)}</div>` : ''}</td>
         <td>${x.contratos.length ? x.contratos.map(c => `<span class="tag" title="${esc(c.id_contratacao)} · ${esc(c.status)}">${esc(c.projeto)}${c.instituicao ? ' · ' + esc(c.instituicao) : ''}</span>`).join(' ') : '<span class="dica" style="margin:0">—</span>'}</td>
         <td><span class="st ${o[0]}">${o[1]}</span>${x.diferencas.length ? ` <span class="st" style="background:#fff4e5;color:#8a5300" title="${esc(x.diferencas.map(f => f.rotulo).join(', '))}">dados diferentes</span>` : ''}</td>
@@ -3932,27 +4012,36 @@
 
   function abrirFornDlg(x) {
     fornEditando = x || null;
-    const campos = (fornDados && fornDados.campos) || [];
+    const campos = (fornDados && fornDados.campos) || CAMPOS_FORN_CTR, extras = (fornDados && fornDados.extras) || [];
     const dd = x ? x.dados : {};
-    $('tituloForn').textContent = x ? (x.dados.razao_social || 'Prestador') : 'Novo prestador';
-    $('fornCampos').innerHTML = campos.map(([k, rot]) => {
-      const largo = ['razao_social', 'endereco'].includes(k) ? ' class="largo"' : '';
-      const v = esc(dd[k] ?? '');
+    $('tituloForn').textContent = x ? (x.dados.razao_social || x.dados.nome_completo || 'Prestador') : 'Novo prestador';
+    const campoHtml = ([k, rot]) => {
+      const largo = ['razao_social', 'nome_completo', 'endereco'].includes(k) ? ' class="largo"' : '';
       const campo = k === 'representante_genero'
         ? `<select id="fd_${k}"><option value="">—</option>${['Feminino', 'Masculino'].map(g => `<option ${dd[k] === g ? 'selected' : ''}>${g}</option>`).join('')}</select>`
-        : `<input id="fd_${k}" value="${v}" ${k === 'cnpj_cpf' || k === 'razao_social' ? 'required' : ''}>`;
-      return `<div${largo}><label for="fd_${k}">${esc(rot)}${k === 'cnpj_cpf' || k === 'razao_social' ? ' *' : ''}</label>${campo}</div>`;
-    }).join('');
-    $('fd_cnpj_cpf').readOnly = !!(x && x.id_fornecedor);      // o CPF/CNPJ é a chave do cadastro
+        : `<input id="fd_${k}" value="${esc(dd[k] ?? '')}">`;
+      return `<div${largo}><label for="fd_${k}">${esc(rot)}</label>${campo}</div>`;
+    };
+    const resp = x && x.respostas ? x.respostas : [];
+    $('fornCampos').innerHTML = campos.map(campoHtml).join('') +
+      (extras.length ? `<div class="largo"><h4 style="margin:10px 0 0">Outros dados (usados nos modelos de contrato)</h4></div>` + extras.map(campoHtml).join('') : '') +
+      (resp.length ? `<div class="largo"><details style="margin-top:10px"><summary><b>Respostas completas do formulário</b> (${resp.length} colunas, linha ${x.linha_planilha} da planilha)</summary>
+        <div class="tabela-wrap" style="margin-top:8px"><table><tbody>${resp.map(([h, v]) => `<tr><td style="width:40%">${esc(h)}</td><td>${esc(v) || '<span class="dica" style="margin:0">—</span>'}</td></tr>`).join('')}</tbody></table></div>
+        </details></div>` : '');
+    // o documento de quem já tem contrato não muda por aqui
+    if (x && x.id_fornecedor && !x.doc_sistema) {
+      const d = digitos(x.doc_contrato);
+      if (d.length === 14) $('fd_cnpj').readOnly = true; else if (d.length === 11) $('fd_cpf').readOnly = true;
+    }
     const info = [];
     if (x) {
       info.push(`<div class="info-grade" style="margin-bottom:12px">
         <div><span>Origem</span>${ORIGEM_FORN[x.origem][1]}${x.linha_planilha ? ` (linha ${x.linha_planilha} da planilha)` : ''}</div>
         <div><span>Contratos</span>${x.contratos.length ? x.contratos.map(c => `${esc(c.projeto)}${c.instituicao ? ' · ' + esc(c.instituicao) : ''} (${esc(c.id_contratacao)})`).join('<br>') : 'nenhum ainda'}</div></div>`);
-      if (x.diferencas.length) info.push(`<div class="aviso"><b>Dados diferentes entre o sistema e a planilha.</b> O formulário abaixo mostra o que está no sistema.
+      if (x.diferencas.length) info.push(`<div class="aviso"><b>Dados diferentes entre a planilha e o cadastro usado nos projetos.</b> O formulário abaixo mostra o que está na planilha.
         <div class="tabela-wrap" style="margin-top:8px;background:#fff"><table><thead><tr><th>Campo</th><th>No sistema</th><th>Na planilha</th><th></th></tr></thead><tbody>
         ${x.diferencas.map(f => `<tr><td>${esc(f.rotulo)}</td><td>${esc(f.sistema)}</td><td>${esc(f.planilha)}</td>
-          <td><button type="button" class="btn-link" data-usarpl="${esc(f.campo)}" data-valor="${esc(f.planilha)}">usar da planilha</button></td></tr>`).join('')}
+          <td><button type="button" class="btn-link" data-usarpl="${esc(f.campo)}" data-valor="${esc(f.sistema)}">usar o do projeto</button></td></tr>`).join('')}
         </tbody></table></div>Ao salvar, o que estiver no formulário vai para o sistema e para a planilha.</div>`);
     } else info.push('<p class="dica" style="margin-top:0">O cadastro fica disponível para qualquer projeto e é gravado também numa linha nova da planilha do formulário.</p>');
     $('fornInfo').innerHTML = info.join('');
@@ -3965,27 +4054,27 @@
   $('formForn').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = e.submitter; btn.disabled = true; msg('msgFornDlg', 'Salvando no sistema e na planilha…', 'ok');
-    const dados = {};
-    (fornDados.campos || []).forEach(([k]) => { dados[k] = $('fd_' + k).value; });
+    const dados = { id_fornecedor: fornEditando ? fornEditando.id_fornecedor : '' };
+    ((fornDados && fornDados.campos) || CAMPOS_FORN_CTR).concat((fornDados && fornDados.extras) || []).forEach(([k]) => { const el = $('fd_' + k); if (el) dados[k] = el.value; });
     try {
       const r = await api('salvarFornecedorBase', dados);
       $('dlgForn').close();
       toast(r.planilha === 'criado' ? 'Salvo ✓ · linha nova na planilha do formulário' : r.planilha === 'atualizado' ? 'Salvo ✓ · planilha atualizada'
         : String(r.planilha).indexOf('erro') === 0 ? 'Salvo no sistema · ⚠️ planilha: ' + r.planilha : 'Salvo ✓');
       carregarFornecedores();
+      if (fornAoSalvar) { const f = fornAoSalvar; fornAoSalvar = null; f().catch(() => {}); }
     } catch (err) { msg('msgFornDlg', err.message); }
     btn.disabled = false;
   });
 
   $('btnFornSync').addEventListener('click', async () => {
     if (!fornDados || !fornDados.conectada) return msg('msgForn', 'Conecte a planilha do formulário primeiro.');
-    if (!confirm('Sincronizar o sistema com a planilha do formulário?\n\n• Quem está só na planilha passa a existir no sistema.\n' +
-      '• Campos vazios no sistema são completados com a planilha (o que já está preenchido no sistema não muda).\n' +
-      '• Quem está só no sistema ganha uma linha nova na planilha.\n\nNada é apagado.')) return;
+    if (!confirm('Trazer os cadastros da planilha do formulário para o sistema?\n\n• Quem está na planilha e ainda não está no sistema passa a poder ser usado nas contratações.\n' +
+      '• Quem já tem cadastro nos projetos só tem os campos vazios completados (o que já está preenchido não muda).\n\nNada é apagado e nada é escrito na planilha.')) return;
     const btn = $('btnFornSync'); btn.disabled = true; msg('msgForn', 'Sincronizando… (pode levar alguns minutos na primeira vez)', 'ok');
     try {
       const r = await api('sincronizarFornecedores', {});
-      msg('msgForn', `✓ ${r.novos_no_sistema} novo(s) no sistema · ${r.completados_no_sistema} completado(s) · ${r.enviados_para_planilha} enviado(s) para a planilha` +
+      msg('msgForn', `✓ ${r.novos_no_sistema} novo(s) no sistema · ${r.completados_no_sistema} cadastro(s) de projeto completado(s)` +
         (r.divergentes ? ` · ${r.divergentes} com dados diferentes (filtro “Com dados diferentes”)` : '') +
         (r.sem_documento ? ` · ${r.sem_documento} linha(s) da planilha sem nome ou CPF/CNPJ válido ficaram de fora` : ''), 'ok');
       carregarFornecedores();
