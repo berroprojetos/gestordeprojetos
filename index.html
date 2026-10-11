@@ -573,7 +573,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive</span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.10-c</span></span></div>
   </div>
 </section>
 
@@ -4038,14 +4038,31 @@
       info.push(`<div class="info-grade" style="margin-bottom:12px">
         <div><span>Origem</span>${ORIGEM_FORN[x.origem][1]}${x.linha_planilha ? ` (linha ${x.linha_planilha} da planilha)` : ''}</div>
         <div><span>Contratos</span>${x.contratos.length ? x.contratos.map(c => `${esc(c.projeto)}${c.instituicao ? ' · ' + esc(c.instituicao) : ''} (${esc(c.id_contratacao)})`).join('<br>') : 'nenhum ainda'}</div></div>`);
-      if (x.diferencas.length) info.push(`<div class="aviso"><b>Dados diferentes entre a planilha e o cadastro usado nos projetos.</b> O formulário abaixo mostra o que está na planilha.
-        <div class="tabela-wrap" style="margin-top:8px;background:#fff"><table><thead><tr><th>Campo</th><th>No sistema</th><th>Na planilha</th><th></th></tr></thead><tbody>
-        ${x.diferencas.map(f => `<tr><td>${esc(f.rotulo)}</td><td>${esc(f.sistema)}</td><td>${esc(f.planilha)}</td>
-          <td><button type="button" class="btn-link" data-usarpl="${esc(f.campo)}" data-valor="${esc(f.sistema)}">usar o do projeto</button></td></tr>`).join('')}
-        </tbody></table></div>Ao salvar, o que estiver no formulário vai para o sistema e para a planilha.</div>`);
+      if (x.diferencas.length) info.push(`<div class="aviso"><b>Dados diferentes entre a planilha e o cadastro usado nos projetos.</b>
+        Escolha, em cada linha, qual informação está certa — o campo no formulário abaixo muda na hora.
+        <div class="tabela-wrap" style="margin-top:8px;background:#fff"><table>
+          <thead><tr><th>Campo</th><th>Na planilha</th><th>No sistema (projetos)</th></tr></thead><tbody>
+          ${x.diferencas.map(f => `<tr>
+            <td>${esc(f.rotulo)}</td>
+            <td><label class="checkbox" style="margin:0"><input type="radio" name="dif_${esc(f.campo)}" data-dif="${esc(f.campo)}" value="${esc(f.planilha)}" checked> ${esc(f.planilha)}</label></td>
+            <td><label class="checkbox" style="margin:0"><input type="radio" name="dif_${esc(f.campo)}" data-dif="${esc(f.campo)}" value="${esc(f.sistema)}"> ${esc(f.sistema)}</label></td>
+          </tr>`).join('')}
+          </tbody></table></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">
+          <button type="button" class="btn-link" data-diftodos="0">usar tudo da planilha</button>
+          <button type="button" class="btn-link" data-diftodos="1">usar tudo do sistema</button>
+        </div>
+        Ao salvar, o que estiver no formulário passa a valer no sistema e na planilha.</div>`);
     } else info.push('<p class="dica" style="margin-top:0">O cadastro fica disponível para qualquer projeto e é gravado também numa linha nova da planilha do formulário.</p>');
     $('fornInfo').innerHTML = info.join('');
-    $('fornInfo').querySelectorAll('[data-usarpl]').forEach(b => b.addEventListener('click', () => { $('fd_' + b.dataset.usarpl).value = b.dataset.valor; b.textContent = '✓ copiado'; }));
+    const aplicarDif = r => { const el = $('fd_' + r.dataset.dif); if (!el) return; el.value = r.value;
+      el.style.outline = '2px solid var(--azul-claro, #7aa7d6)'; setTimeout(() => { el.style.outline = ''; }, 1200); };
+    $('fornInfo').querySelectorAll('[data-dif]').forEach(r => r.addEventListener('change', () => aplicarDif(r)));
+    $('fornInfo').querySelectorAll('[data-diftodos]').forEach(b => b.addEventListener('click', () => {
+      const lado = +b.dataset.diftodos;
+      const nomes = [...new Set([...$('fornInfo').querySelectorAll('[data-dif]')].map(r => r.name))];
+      nomes.forEach(n => { const r = $('fornInfo').querySelectorAll(`[name="${n}"]`)[lado]; if (r) { r.checked = true; aplicarDif(r); } });
+    }));
     msg('msgFornDlg', '');
     $('dlgForn').showModal();
   }
