@@ -347,6 +347,7 @@
       <button class="nav-item" id="btnInstituicoes"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6M9 11h.01M15 11h.01"/></svg>Instituições</button>
       <button class="nav-item" id="navPagamentos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>Pagamentos</button>
       <button class="nav-item" id="navSit"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Prestação SIT</button>
+      <button class="nav-item oculto" id="navForn"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Fornecedores</button>
       <button class="nav-item oculto" id="navConfig"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</button>
     </nav>
     <div class="lateral-rodape">
@@ -450,6 +451,31 @@
     </div>
 
     <!-- Configurações (administrador) -->
+    <div id="viewForn" class="oculto">
+      <div class="pagina-cab">
+        <div>
+          <p class="sobretitulo">Cadastro único</p>
+          <h1>Fornecedores</h1>
+          <p class="subtitulo">Prestadores e fornecedores do formulário e dos projetos — um cadastro serve para qualquer projeto e instituição.</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-sec" id="btnFornCfg">⚙ Conectar planilha</button>
+          <button class="btn-sec" id="btnFornSync">🔄 Sincronizar</button>
+          <button class="btn" id="btnFornNovo">+ Novo prestador</button>
+        </div>
+      </div>
+      <div id="fornAviso"></div>
+      <div class="linha-form" style="margin:6px 0 12px">
+        <div style="grid-column:span 2"><label for="fornBusca">Buscar</label><input id="fornBusca" placeholder="nome, CPF/CNPJ, e-mail, projeto…" autocomplete="off"></div>
+        <div><label for="fornFiltro">Mostrar</label><select id="fornFiltro">
+          <option value="">Todos</option><option value="planilha">Só na planilha (ainda não estão no sistema)</option>
+          <option value="sistema">Só no sistema (ainda não estão na planilha)</option><option value="dif">Com dados diferentes</option>
+          <option value="contrato">Com contrato em algum projeto</option></select></div>
+      </div>
+      <div class="msg" id="msgForn"></div>
+      <div id="fornLista"><div class="vazio">Carregando…</div></div>
+    </div>
+
     <div id="viewConfig" class="oculto">
       <div class="pagina-cab">
         <div>
@@ -685,6 +711,43 @@
     <div class="msg" id="msgEncerrar"></div>
     <button type="button" class="btn-sec" data-fechar>Cancelar</button>
     <button type="button" class="btn" id="btnEncerrarOk">Encerrar contrato</button>
+  </div>
+</dialog>
+
+<!-- MODAL: CADASTRO DE FORNECEDOR (base única) -->
+<dialog id="dlgForn" class="grande">
+  <form id="formForn">
+    <div class="modal-cab"><h3 id="tituloForn">Novo prestador</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+    <div class="modal-corpo">
+      <div id="fornInfo"></div>
+      <div class="form-grade" id="fornCampos"></div>
+    </div>
+    <div class="modal-rodape">
+      <div class="msg" id="msgFornDlg"></div>
+      <button type="button" class="btn-sec" data-fechar>Cancelar</button>
+      <button type="submit" class="btn">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- MODAL: CONECTAR PLANILHA DO FORMULÁRIO -->
+<dialog id="dlgFornCfg" class="grande">
+  <div class="modal-cab"><h3>Planilha do formulário de fornecedores</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+  <div class="modal-corpo">
+    <div id="fcStatus"></div>
+    <div class="linha-form">
+      <div style="grid-column:span 2"><label for="fcLink">Link da planilha de respostas</label><input id="fcLink" placeholder="https://docs.google.com/spreadsheets/d/…"></div>
+      <div><label for="fcAba">Aba</label><select id="fcAba"><option value="">(primeira aba)</option></select></div>
+      <div><button class="btn" id="btnFcConectar" style="width:100%">Conectar</button></div>
+    </div>
+    <div class="msg" id="msgFc"></div>
+    <div id="fcMapa" class="oculto">
+      <h4 style="margin:18px 0 6px">Qual coluna da planilha corresponde a cada campo</h4>
+      <p class="dica">O sistema sugeriu pelos títulos das colunas — confira. A <b>alternativa</b> é usada quando a principal está vazia
+        (ex.: formulário com uma pergunta de CPF e outra de CNPJ). Novos cadastros feitos pelo sistema são gravados na coluna principal.</p>
+      <div class="tabela-wrap"><table><thead><tr><th>Campo do sistema</th><th>Coluna principal</th><th>Alternativa</th></tr></thead><tbody id="fcLinhas"></tbody></table></div>
+      <div class="form-acoes"><div class="msg" id="msgFcMapa"></div><button class="btn" id="btnFcMapa">Salvar colunas</button></div>
+    </div>
   </div>
 </dialog>
 
@@ -1164,6 +1227,7 @@
   function mostrar(tela) { ['telaCarregando', 'telaLogin', 'telaSenha', 'telaApp'].forEach(t => $(t).classList.toggle('oculto', t !== tela)); }
   const podeEditar = () => usuario && PERFIS_EDICAO.includes(usuario.perfil);
   const ehGlobal = () => usuario && !usuario.id_instituicao;
+  const podeFornecedores = () => usuario && ['ADMIN', 'PRESTACAO_CONTAS', 'GERENTE_PROJETO'].includes(usuario.perfil) && ehGlobal();
 
   document.querySelectorAll('[data-fechar]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
 
@@ -1224,6 +1288,7 @@
     $('dataHoje').textContent = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
     $('btnNovoProjeto').classList.toggle('oculto', !(podeEditar() && ehGlobal()));
     $('navConfig').classList.toggle('oculto', usuario.perfil !== 'ADMIN');
+    $('navForn').classList.toggle('oculto', !podeFornecedores());
     try { sessionStorage.setItem('usuario', JSON.stringify(usuario)); } catch {}
     try { if (!history.state) history.replaceState({ prof: 0 }, '', location.href); } catch {}
     apiRapida('listarInstituicoes', {}, d => {
@@ -1238,6 +1303,7 @@
     if (rota.tipo === 'projeto' && rota.id) return abrirProjeto(rota.id, rota.aba);
     if (rota.tipo === 'instituicoes') return abrirInstituicoes();
     if (rota.tipo === 'config' && usuario.perfil === 'ADMIN') return abrirConfig(rota.id);
+    if (rota.tipo === 'fornecedores' && podeFornecedores()) return abrirFornecedores();
     if (rota.tipo === 'pagamentos') return abrirPagamentos(rota.id, rota.aba);
     if (rota.tipo === 'sit') return abrirSit(rota.id, rota.aba);
     return mostrarLista();
@@ -1245,7 +1311,7 @@
   // Botões voltar/avançar do navegador (e do mouse)
   window.addEventListener('popstate', () => { if (usuario && sessao.get()) irParaRota(lerRota()); });
 
-  const VIEWS = ['viewLista', 'viewDetalhe', 'viewInst', 'viewPag', 'viewSit', 'viewConfig'];
+  const VIEWS = ['viewLista', 'viewDetalhe', 'viewInst', 'viewPag', 'viewSit', 'viewConfig', 'viewForn'];
   function mostrarView(id) { VIEWS.forEach(v => $(v).classList.toggle('oculto', v !== id)); }
   function navAtivo(id, migalha) {
     seqTela++;
@@ -3812,6 +3878,157 @@
   });
 
   // --- excluir contratação (dentro do projeto, só administrador)
+  // ---------- FORNECEDORES (base única ligada à planilha do formulário)
+  let fornDados = null, fornEditando = null, fcCfg = null;
+  const ORIGEM_FORN = { ambos: ['verde', 'Sistema + planilha'], sistema: ['azul', 'Só no sistema'], planilha: ['', 'Só na planilha'] };
+
+  function abrirFornecedores() {
+    navAtivo('navForn', 'Fornecedores');
+    mostrarView('viewForn');
+    gravarRota('fornecedores');
+    $('btnFornCfg').classList.toggle('oculto', !['ADMIN', 'PRESTACAO_CONTAS'].includes(usuario.perfil));
+    carregarFornecedores();
+  }
+  async function carregarFornecedores() {
+    try {
+      await apiRapida('listarFornecedoresBase', {}, d => { fornDados = d; renderFornecedores(); });
+    } catch (err) { $('fornLista').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
+  }
+  function renderFornecedores() {
+    const d = fornDados; if (!d) return;
+    const nPl = d.lista.filter(x => x.origem === 'planilha' && !x.doc_invalido).length, nSis = d.lista.filter(x => x.origem === 'sistema').length;
+    $('fornAviso').innerHTML = !d.conectada
+      ? `<div class="aviso">A planilha do formulário ainda não está conectada. A lista mostra só os prestadores já cadastrados nos projetos.
+          ${['ADMIN', 'PRESTACAO_CONTAS'].includes(usuario.perfil) ? 'Clique em <b>⚙ Conectar planilha</b>.' : 'Peça à prestação de contas para conectar.'}</div>`
+      : d.erro_base ? `<div class="aviso">⚠️ ${esc(d.erro_base)}</div>`
+      : (nPl || nSis) ? `<div class="aviso">${nPl ? `<b>${nPl}</b> cadastro(s) da planilha ainda não estão no sistema` : ''}${nPl && nSis ? ' · ' : ''}${nSis ? `<b>${nSis}</b> prestador(es) do sistema ainda não estão na planilha` : ''}.
+          Clique em <b>🔄 Sincronizar</b> para unir as duas bases (nada é apagado).</div>` : '<div class="sucesso">✓ Sistema e planilha do formulário estão em dia.</div>';
+    const q = normTxt($('fornBusca').value), filtro = $('fornFiltro').value;
+    const lista = d.lista.filter(x => {
+      if (filtro === 'dif' ? !x.diferencas.length : filtro === 'contrato' ? !x.contratos.length : (filtro && x.origem !== filtro)) return false;
+      if (!q) return true;
+      const t = normTxt([x.dados.razao_social, x.dados.nome_fantasia, x.dados.cnpj_cpf, digitos(x.dados.cnpj_cpf), x.dados.email, x.dados.representante_nome,
+        x.contratos.map(c => c.projeto + ' ' + c.instituicao).join(' ')].join(' '));
+      return t.includes(q);
+    });
+    $('fornLista').innerHTML = lista.length ? `<div class="tabela-wrap"><table>
+      <thead><tr><th>Nome / razão social</th><th>CPF / CNPJ</th><th>Contato</th><th>Projetos</th><th>Origem</th></tr></thead>
+      <tbody>${lista.map(x => { const o = ORIGEM_FORN[x.origem]; return `<tr class="clicavel" tabindex="0" data-forn="${esc(x.chave)}">
+        <td><b>${esc(x.dados.razao_social || '(sem nome)')}</b>${x.dados.representante_nome ? `<div class="dica" style="margin:0">rep.: ${esc(x.dados.representante_nome)}</div>` : ''}</td>
+        <td>${esc(x.dados.cnpj_cpf || '')}${x.doc_invalido ? ' <span class="st" style="background:#fdecea;color:#b3261e">CPF/CNPJ inválido</span>' : ''}</td>
+        <td>${esc(x.dados.email || '')}${x.dados.telefone ? `<div class="dica" style="margin:0">${esc(x.dados.telefone)}</div>` : ''}</td>
+        <td>${x.contratos.length ? x.contratos.map(c => `<span class="tag" title="${esc(c.id_contratacao)} · ${esc(c.status)}">${esc(c.projeto)}${c.instituicao ? ' · ' + esc(c.instituicao) : ''}</span>`).join(' ') : '<span class="dica" style="margin:0">—</span>'}</td>
+        <td><span class="st ${o[0]}">${o[1]}</span>${x.diferencas.length ? ` <span class="st" style="background:#fff4e5;color:#8a5300" title="${esc(x.diferencas.map(f => f.rotulo).join(', '))}">dados diferentes</span>` : ''}</td>
+      </tr>`; }).join('')}</tbody></table></div>
+      <p class="dica">${lista.length} de ${d.lista.length} cadastro(s).</p>` : '<div class="vazio">Nenhum cadastro encontrado.</div>';
+    $('fornLista').querySelectorAll('[data-forn]').forEach(tr => {
+      const abrir = () => abrirFornDlg(d.lista.find(x => x.chave === tr.dataset.forn));
+      tr.addEventListener('click', abrir); tr.addEventListener('keydown', e => { if (e.key === 'Enter') abrir(); });
+    });
+  }
+  $('fornBusca').addEventListener('input', renderFornecedores);
+  $('fornFiltro').addEventListener('change', renderFornecedores);
+  $('navForn').addEventListener('click', () => abrirFornecedores());
+
+  function abrirFornDlg(x) {
+    fornEditando = x || null;
+    const campos = (fornDados && fornDados.campos) || [];
+    const dd = x ? x.dados : {};
+    $('tituloForn').textContent = x ? (x.dados.razao_social || 'Prestador') : 'Novo prestador';
+    $('fornCampos').innerHTML = campos.map(([k, rot]) => {
+      const largo = ['razao_social', 'endereco'].includes(k) ? ' class="largo"' : '';
+      const v = esc(dd[k] ?? '');
+      const campo = k === 'representante_genero'
+        ? `<select id="fd_${k}"><option value="">—</option>${['Feminino', 'Masculino'].map(g => `<option ${dd[k] === g ? 'selected' : ''}>${g}</option>`).join('')}</select>`
+        : `<input id="fd_${k}" value="${v}" ${k === 'cnpj_cpf' || k === 'razao_social' ? 'required' : ''}>`;
+      return `<div${largo}><label for="fd_${k}">${esc(rot)}${k === 'cnpj_cpf' || k === 'razao_social' ? ' *' : ''}</label>${campo}</div>`;
+    }).join('');
+    $('fd_cnpj_cpf').readOnly = !!(x && x.id_fornecedor);      // o CPF/CNPJ é a chave do cadastro
+    const info = [];
+    if (x) {
+      info.push(`<div class="info-grade" style="margin-bottom:12px">
+        <div><span>Origem</span>${ORIGEM_FORN[x.origem][1]}${x.linha_planilha ? ` (linha ${x.linha_planilha} da planilha)` : ''}</div>
+        <div><span>Contratos</span>${x.contratos.length ? x.contratos.map(c => `${esc(c.projeto)}${c.instituicao ? ' · ' + esc(c.instituicao) : ''} (${esc(c.id_contratacao)})`).join('<br>') : 'nenhum ainda'}</div></div>`);
+      if (x.diferencas.length) info.push(`<div class="aviso"><b>Dados diferentes entre o sistema e a planilha.</b> O formulário abaixo mostra o que está no sistema.
+        <div class="tabela-wrap" style="margin-top:8px;background:#fff"><table><thead><tr><th>Campo</th><th>No sistema</th><th>Na planilha</th><th></th></tr></thead><tbody>
+        ${x.diferencas.map(f => `<tr><td>${esc(f.rotulo)}</td><td>${esc(f.sistema)}</td><td>${esc(f.planilha)}</td>
+          <td><button type="button" class="btn-link" data-usarpl="${esc(f.campo)}" data-valor="${esc(f.planilha)}">usar da planilha</button></td></tr>`).join('')}
+        </tbody></table></div>Ao salvar, o que estiver no formulário vai para o sistema e para a planilha.</div>`);
+    } else info.push('<p class="dica" style="margin-top:0">O cadastro fica disponível para qualquer projeto e é gravado também numa linha nova da planilha do formulário.</p>');
+    $('fornInfo').innerHTML = info.join('');
+    $('fornInfo').querySelectorAll('[data-usarpl]').forEach(b => b.addEventListener('click', () => { $('fd_' + b.dataset.usarpl).value = b.dataset.valor; b.textContent = '✓ copiado'; }));
+    msg('msgFornDlg', '');
+    $('dlgForn').showModal();
+  }
+  $('btnFornNovo').addEventListener('click', () => abrirFornDlg(null));
+
+  $('formForn').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.submitter; btn.disabled = true; msg('msgFornDlg', 'Salvando no sistema e na planilha…', 'ok');
+    const dados = {};
+    (fornDados.campos || []).forEach(([k]) => { dados[k] = $('fd_' + k).value; });
+    try {
+      const r = await api('salvarFornecedorBase', dados);
+      $('dlgForn').close();
+      toast(r.planilha === 'criado' ? 'Salvo ✓ · linha nova na planilha do formulário' : r.planilha === 'atualizado' ? 'Salvo ✓ · planilha atualizada'
+        : String(r.planilha).indexOf('erro') === 0 ? 'Salvo no sistema · ⚠️ planilha: ' + r.planilha : 'Salvo ✓');
+      carregarFornecedores();
+    } catch (err) { msg('msgFornDlg', err.message); }
+    btn.disabled = false;
+  });
+
+  $('btnFornSync').addEventListener('click', async () => {
+    if (!fornDados || !fornDados.conectada) return msg('msgForn', 'Conecte a planilha do formulário primeiro.');
+    if (!confirm('Sincronizar o sistema com a planilha do formulário?\n\n• Quem está só na planilha passa a existir no sistema.\n' +
+      '• Campos vazios no sistema são completados com a planilha (o que já está preenchido no sistema não muda).\n' +
+      '• Quem está só no sistema ganha uma linha nova na planilha.\n\nNada é apagado.')) return;
+    const btn = $('btnFornSync'); btn.disabled = true; msg('msgForn', 'Sincronizando… (pode levar alguns minutos na primeira vez)', 'ok');
+    try {
+      const r = await api('sincronizarFornecedores', {});
+      msg('msgForn', `✓ ${r.novos_no_sistema} novo(s) no sistema · ${r.completados_no_sistema} completado(s) · ${r.enviados_para_planilha} enviado(s) para a planilha` +
+        (r.divergentes ? ` · ${r.divergentes} com dados diferentes (filtro “Com dados diferentes”)` : '') +
+        (r.sem_documento ? ` · ${r.sem_documento} linha(s) da planilha sem nome ou CPF/CNPJ válido ficaram de fora` : ''), 'ok');
+      carregarFornecedores();
+    } catch (err) { msg('msgForn', err.message); }
+    btn.disabled = false;
+  });
+
+  // Conexão com a planilha
+  $('btnFornCfg').addEventListener('click', async () => {
+    $('fcStatus').innerHTML = '<div class="vazio">Carregando…</div>'; msg('msgFc', ''); $('fcMapa').classList.add('oculto');
+    $('dlgFornCfg').showModal();
+    try { fcCfg = await lerAgora('obterConfigBaseForn', {}); renderFc(); } catch (err) { $('fcStatus').innerHTML = `<div class="aviso">${esc(err.message)}</div>`; }
+  });
+  function renderFc() {
+    const c = fcCfg;
+    $('fcStatus').innerHTML = c.conectada
+      ? (c.erro ? `<div class="aviso">⚠️ ${esc(c.erro)}</div>` : `<div class="sucesso">✓ Conectada: <a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.nome || 'planilha')}</a> · aba <b>${esc(c.aba)}</b></div>`)
+      : '<div class="aviso">Nenhuma planilha conectada ainda.</div>';
+    if (c.url && !$('fcLink').value) $('fcLink').value = c.url;
+    $('fcAba').innerHTML = '<option value="">(primeira aba)</option>' + (c.abas || []).map(a => `<option ${a === c.aba ? 'selected' : ''}>${esc(a)}</option>`).join('');
+    const cabs = c.cabecalhos || [];
+    $('fcMapa').classList.toggle('oculto', !cabs.length);
+    const opc = sel => '<option value="">—</option>' + cabs.map(h => `<option ${h === sel ? 'selected' : ''}>${esc(h)}</option>`).join('');
+    $('fcLinhas').innerHTML = (c.campos || []).map(([k, rot]) => { const m = (c.mapa || {})[k] || []; return `<tr>
+      <td>${esc(rot)}${k === 'cnpj_cpf' || k === 'razao_social' ? ' *' : ''}</td>
+      <td><select data-fc="${k}" data-pos="0">${opc(m[0])}</select></td><td><select data-fc="${k}" data-pos="1">${opc(m[1])}</select></td></tr>`; }).join('');
+  }
+  $('btnFcConectar').addEventListener('click', async () => {
+    const btn = $('btnFcConectar'); btn.disabled = true; msg('msgFc', 'Conectando…', 'ok');
+    try { fcCfg = await api('conectarBaseForn', { planilha: $('fcLink').value, aba: $('fcAba').value }); renderFc(); msg('msgFc', '✓ Planilha conectada. Confira as colunas abaixo e salve.', 'ok'); }
+    catch (err) { msg('msgFc', err.message); }
+    btn.disabled = false;
+  });
+  $('btnFcMapa').addEventListener('click', async () => {
+    const mapa = {};
+    $('fcLinhas').querySelectorAll('[data-fc]').forEach(s => { (mapa[s.dataset.fc] = mapa[s.dataset.fc] || [])[+s.dataset.pos] = s.value; });
+    Object.keys(mapa).forEach(k => { mapa[k] = mapa[k].filter(Boolean); });
+    const btn = $('btnFcMapa'); btn.disabled = true; msg('msgFcMapa', 'Salvando…', 'ok');
+    try { fcCfg = await api('salvarMapaForn', { mapa }); renderFc(); msg('msgFcMapa', '✓ Colunas salvas', 'ok'); carregarFornecedores(); }
+    catch (err) { msg('msgFcMapa', err.message); }
+    btn.disabled = false;
+  });
+
   // ---------- encerramento antecipado / substituição de prestador
   function abrirEncerrar() {
     const c = ctrAtual.contratacao, f = ctrAtual.fornecedor || {};
