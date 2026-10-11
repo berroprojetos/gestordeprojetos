@@ -589,7 +589,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.11-c</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.11-d</span></span></div>
   </div>
 </section>
 
@@ -797,6 +797,9 @@
         <div><label>Valor total</label><div class="total-preview" id="ex_total" style="margin:0;padding:10px 12px">R$ 0,00</div></div>
         <div class="largo"><label for="ex_desc">Descrição</label><input id="ex_desc" placeholder="ex.: palestra na Escola Municipal X – tema Y"></div>
         <div class="largo"><label for="ex_arq">Comprovante da execução (opcional: lista de presença, foto, declaração)</label><input id="ex_arq" type="file"></div>
+        <div class="largo" id="ex_fat_box"><label class="checkbox"><input type="checkbox" id="ex_fat" checked> Já gerar a solicitação de NF/pagamento desta palestra</label>
+          <div class="dica" style="margin:4px 0 0">Desmarque se a nota vai juntar várias palestras do mesmo prestador (aí use “Faturar” depois).</div></div>
+        <div id="ex_comp_box"><label for="ex_comp">Competência</label><input type="month" id="ex_comp"></div>
       </div>
     </div>
     <div class="modal-rodape">
@@ -845,12 +848,12 @@
         <div class="so-demanda oculto"><label for="c_unidade_execucao">Unidade</label><input id="c_unidade_execucao" placeholder="palestra"></div>
         <div class="so-demanda oculto"><label for="c_valor_unitario">Valor por unidade (R$) *</label><input id="c_valor_unitario" inputmode="decimal"></div>
         <div class="so-demanda oculto"><label for="c_quantidade_contratada">Quantidade contratada (opcional)</label><input id="c_quantidade_contratada" inputmode="numeric" placeholder="em branco = conforme a demanda"></div>
-        <div><label for="c_inicio_execucao">Início da execução *</label><input id="c_inicio_execucao" type="date" required></div>
-        <div><label for="c_fim_execucao">Fim da execução</label><input id="c_fim_execucao" type="date">
+        <div class="so-mensal"><label for="c_inicio_execucao">Início da execução *</label><input id="c_inicio_execucao" type="date" required></div>
+        <div class="so-mensal"><label for="c_fim_execucao">Fim da execução</label><input id="c_fim_execucao" type="date">
           <div class="dica" id="c_fim_dica" style="margin:4px 0 0"></div></div>
         <div class="so-mensal"><label for="c_num_parcelas">Nº de parcelas *</label><input id="c_num_parcelas" inputmode="numeric" required></div>
         <div class="so-mensal"><label for="c_valor_parcela">Valor da parcela (R$) *</label><input id="c_valor_parcela" inputmode="decimal" required></div>
-        <div><label for="c_carga_horaria_mensal">Carga horária mensal (h)</label><input id="c_carga_horaria_mensal" inputmode="numeric" placeholder="ex.: 60"></div>
+        <div class="so-mensal"><label for="c_carga_horaria_mensal">Carga horária mensal (h)</label><input id="c_carga_horaria_mensal" inputmode="numeric" placeholder="ex.: 60"></div>
         <div><label for="c_data_cotacao">Data da cotação</label><input id="c_data_cotacao" type="date"></div>
         <div><label for="c_data_assinatura_contrato">Assinatura do contrato</label><input id="c_data_assinatura_contrato" type="date">
           <div class="dica oculto" id="c_assin_dica" style="margin:4px 0 0">compra: igual à data da cotação</div></div>
@@ -1799,6 +1802,8 @@
     document.querySelectorAll('#formCtr .so-demanda').forEach(el => el.classList.toggle('oculto', !dem));
     document.querySelectorAll('#formCtr .so-mensal').forEach(el => el.classList.toggle('oculto', dem));
     $('c_num_parcelas').required = !dem; $('c_valor_parcela').required = !dem;
+    // por demanda: cada palestra tem a sua data (o campo de digitar a data é que leva o "obrigatório")
+    const iniTxt = $('c_inicio_execucao__txt') || $('c_inicio_execucao'); iniTxt.required = !dem;
     if (dem) $('c_fim_dica').textContent = '';
     atualizarTotalCtr();
   }
@@ -1811,7 +1816,8 @@
     if (ehDemandaForm()) {
       const vu = lerNumero($('c_valor_unitario').value) || 0, q = parseInt($('c_quantidade_contratada').value, 10) || 0, un = $('c_unidade_execucao').value || 'palestra';
       $('c_total').textContent = `${brl(vu)} por ${un}` + (q ? ` · contratado: ${q} × ${brl(vu)} = ${brl(q * vu)}` :
-        ' · quantidade conforme a demanda (o limite é a quantidade e o orçamento da rubrica, somando todos os prestadores)');
+        ' · quantidade conforme a demanda (o limite é a quantidade e o orçamento da rubrica, somando todos os prestadores)') +
+        '. A cotação e o contrato valem para todas as palestras deste prestador; cada palestra é registrada na aba Execuções.';
       return;
     }
     const n = parseInt($('c_num_parcelas').value, 10) || 0, v = lerNumero($('c_valor_parcela').value) || 0;
@@ -4302,6 +4308,8 @@
     $('ex_data').value = ex ? ex.data : ''; $('ex_qtd').value = ex ? String(ex.quantidade).replace('.', ',') : '1';
     $('ex_vu').value = ex ? num2(ex.valor_unitario) : ''; $('ex_desc').value = ex ? ex.descricao : ''; $('ex_arq').value = '';
     $('ex_ctr').disabled = !!ex;
+    $('ex_fat_box').classList.toggle('oculto', !!ex || !d.pode_faturar); $('ex_comp_box').classList.toggle('oculto', !!ex || !d.pode_faturar);
+    $('ex_fat').checked = !ex && d.pode_faturar; $('ex_comp').value = '';
     infoExec(); msg('msgExec', '');
     $('dlgExec').showModal();
   }
@@ -4314,6 +4322,8 @@
     $('ex_total').textContent = brl(t);
   }
   $('ex_ctr').addEventListener('change', () => { $('ex_vu').value = ''; infoExec(); });
+  $('ex_data').addEventListener('change', () => { if ($('ex_data').value) $('ex_comp').value = $('ex_data').value.slice(0, 7); });
+  $('ex_fat').addEventListener('change', () => $('ex_comp_box').classList.toggle('oculto', !$('ex_fat').checked));
   ['ex_qtd', 'ex_vu'].forEach(id => $(id).addEventListener('input', infoExec));
   $('btnNovaExec').addEventListener('click', () => abrirExec(null));
   $('fx_mes').addEventListener('change', renderExecucoes);
@@ -4326,8 +4336,10 @@
       if (f && f.size > LIMITE_MB * 1024 * 1024) throw new Error('Arquivo maior que ' + LIMITE_MB + ' MB.');
       const arquivo = f ? await lerArquivo(f) : null;
       execDados = await api('salvarExecucao', { id_execucao: execEditando ? execEditando.id_execucao : '', id_contratacao: $('ex_ctr').value,
-        data: $('ex_data').value, quantidade: $('ex_qtd').value, valor_unitario: $('ex_vu').value, descricao: $('ex_desc').value, arquivo });
-      $('dlgExec').close(); renderExecucoes(); toast('Execução registrada ✓');
+        data: $('ex_data').value, quantidade: $('ex_qtd').value, valor_unitario: $('ex_vu').value, descricao: $('ex_desc').value, arquivo,
+        faturar_competencia: !execEditando && $('ex_fat').checked ? ($('ex_comp').value || $('ex_data').value.slice(0, 7)) : '' });
+      $('dlgExec').close(); renderExecucoes();
+      toast(!execEditando && $('ex_fat').checked ? 'Palestra registrada ✓ · solicitação de NF criada (aparece em Pagamentos)' : 'Execução registrada ✓');
     } catch (err) { msg('msgExec', err.message); }
     btn.disabled = false;
   });
