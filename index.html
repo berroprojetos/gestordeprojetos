@@ -425,6 +425,7 @@
           <div class="acoes-lote">
             <button class="btn-sec oculto" id="btnImportar">📥 Importar lançamentos</button>
             <button class="btn-sec oculto" id="btnModeloEmail">⚙️ Modelo do e-mail</button>
+            <button class="btn-sec" id="btnPagFaturar" title="Rubricas por demanda (palestras): escolha projeto, rubrica e prestador e gere a solicitação">🧾 Faturar serviços por demanda</button>
             <button class="btn-sec" id="btnSolicitar">✉️ Pedir notas fiscais</button>
             <button class="btn-sec" id="btnLiberar">✓ Liberar selecionadas</button>
           </div>
@@ -515,6 +516,7 @@
         <button class="aba" role="tab" data-aba="orcamento" aria-selected="false">Orçamento (rubricas)</button>
         <button class="aba" role="tab" data-aba="cotacoes" aria-selected="false">Cotações</button>
         <button class="aba" role="tab" data-aba="contratacoes" aria-selected="false">Contratações</button>
+        <button class="aba" role="tab" data-aba="execucoes" aria-selected="false">Execuções (por demanda)</button>
       </div>
 
       <!-- Aba: dados gerais -->
@@ -568,9 +570,26 @@
         </div>
         <div class="tabela-wrap" id="tabelaCtr"></div>
       </section>
+
+      <!-- Aba: execuções por demanda (palestras…) -->
+      <section class="painel oculto" id="abaExecucoes" role="tabpanel">
+        <div class="titulo-linha">
+          <h2 style="font-size:16px">Execuções por demanda</h2>
+          <div class="acoes-lote">
+            <button class="btn-sec" id="btnFaturarExec">🧾 Faturar (pedir NF)</button>
+            <button class="btn" id="btnNovaExec">+ Registrar palestra</button>
+          </div>
+        </div>
+        <p class="dica" style="margin-top:0">Para rubricas executadas por vários prestadores (ex.: palestras). A quantidade e o orçamento são da rubrica, somando todos.
+          Cada prestador tem a sua contratação “Por demanda” (use <b>+ Prestador</b> na aba Orçamento). Registre cada palestra realizada e depois fature as de cada prestador:
+          a solicitação vira uma parcela que segue para Pagamentos (pedido de NF, comprovante, conferência e SIT).</p>
+        <div class="linha-form" style="margin-bottom:10px"><div><label for="fx_mes">Período (histórico)</label><input type="month" id="fx_mes"></div>
+          <div style="display:flex;align-items:end"><button type="button" class="btn-link" id="fx_limpar">ver tudo</button></div></div>
+        <div id="painelExec"><div class="vazio">Carregando…</div></div>
+      </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.11-b</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.11-c</span></span></div>
   </div>
 </section>
 
@@ -764,6 +783,54 @@
   </div>
 </dialog>
 
+<!-- MODAL: REGISTRAR EXECUÇÃO (PALESTRA) -->
+<dialog id="dlgExec">
+  <form id="formExec">
+    <div class="modal-cab"><h3 id="tituloExec">Registrar palestra</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+    <div class="modal-corpo">
+      <div class="form-grade">
+        <div class="largo"><label for="ex_ctr">Rubrica e prestador *</label><select id="ex_ctr" required></select>
+          <div class="dica" id="ex_info" style="margin:6px 0 0"></div></div>
+        <div><label for="ex_data">Data *</label><input id="ex_data" type="date" required></div>
+        <div><label for="ex_qtd">Quantidade *</label><input id="ex_qtd" inputmode="decimal" value="1" required></div>
+        <div><label for="ex_vu">Valor unitário (R$) *</label><input id="ex_vu" inputmode="decimal" required></div>
+        <div><label>Valor total</label><div class="total-preview" id="ex_total" style="margin:0;padding:10px 12px">R$ 0,00</div></div>
+        <div class="largo"><label for="ex_desc">Descrição</label><input id="ex_desc" placeholder="ex.: palestra na Escola Municipal X – tema Y"></div>
+        <div class="largo"><label for="ex_arq">Comprovante da execução (opcional: lista de presença, foto, declaração)</label><input id="ex_arq" type="file"></div>
+      </div>
+    </div>
+    <div class="modal-rodape">
+      <div class="msg" id="msgExec"></div>
+      <button type="button" class="btn-sec" data-fechar>Cancelar</button>
+      <button type="submit" class="btn">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- MODAL: FATURAR EXECUÇÕES (gera a solicitação de NF / pagamento) -->
+<dialog id="dlgFaturar" class="grande">
+  <div class="modal-cab"><h3>Faturar serviços por demanda</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+  <div class="modal-corpo">
+    <p class="dica" style="margin-top:0">Escolha o prestador e marque as palestras que entram nesta nota fiscal. Cada solicitação é de um prestador só;
+      se três profissionais deram palestras no mês, faça três solicitações. Uma palestra não pode entrar em duas solicitações.</p>
+    <div class="linha-form">
+      <div id="fa_proj_box"><label for="fa_proj">Projeto</label><select id="fa_proj"></select></div>
+      <div><label for="fa_rub">Rubrica</label><select id="fa_rub"></select></div>
+      <div style="grid-column:span 2"><label for="fa_ctr">Prestador</label><select id="fa_ctr"></select></div>
+    </div>
+    <div id="fa_lista" style="margin-top:10px"></div>
+    <div class="linha-form" style="margin-top:10px">
+      <div><label for="fa_comp">Competência (mês dos serviços)</label><input type="month" id="fa_comp"></div>
+      <div style="grid-column:span 2"><label>Total da solicitação</label><div class="total-preview" id="fa_total" style="margin:0;padding:10px 12px">—</div></div>
+    </div>
+  </div>
+  <div class="modal-rodape">
+    <div class="msg" id="msgFaturar"></div>
+    <button type="button" class="btn-sec" data-fechar>Fechar</button>
+    <button type="button" class="btn" id="btnFaturarOk">Gerar solicitação</button>
+  </div>
+</dialog>
+
 <!-- MODAL: FORMULÁRIO DE CONTRATAÇÃO -->
 <dialog id="dlgFormCtr" class="grande">
   <form id="formCtr">
@@ -773,11 +840,16 @@
         <div class="largo"><label for="c_id_rubrica">Rubrica *</label><select id="c_id_rubrica" required></select>
           <div class="dica" id="c_saldo" style="margin:6px 0 0"></div></div>
         <div class="largo"><label for="c_objeto">Objeto da contratação *</label><input id="c_objeto" required placeholder="Ex.: prestação de serviços de educador social"></div>
+        <div><label for="c_modalidade">Forma de execução</label><select id="c_modalidade">
+          <option value="Mensal">Mensal (parcelas fixas)</option><option value="Por demanda">Por demanda (palestras, oficinas…)</option></select></div>
+        <div class="so-demanda oculto"><label for="c_unidade_execucao">Unidade</label><input id="c_unidade_execucao" placeholder="palestra"></div>
+        <div class="so-demanda oculto"><label for="c_valor_unitario">Valor por unidade (R$) *</label><input id="c_valor_unitario" inputmode="decimal"></div>
+        <div class="so-demanda oculto"><label for="c_quantidade_contratada">Quantidade contratada (opcional)</label><input id="c_quantidade_contratada" inputmode="numeric" placeholder="em branco = conforme a demanda"></div>
         <div><label for="c_inicio_execucao">Início da execução *</label><input id="c_inicio_execucao" type="date" required></div>
         <div><label for="c_fim_execucao">Fim da execução</label><input id="c_fim_execucao" type="date">
           <div class="dica" id="c_fim_dica" style="margin:4px 0 0"></div></div>
-        <div><label for="c_num_parcelas">Nº de parcelas *</label><input id="c_num_parcelas" inputmode="numeric" required></div>
-        <div><label for="c_valor_parcela">Valor da parcela (R$) *</label><input id="c_valor_parcela" inputmode="decimal" required></div>
+        <div class="so-mensal"><label for="c_num_parcelas">Nº de parcelas *</label><input id="c_num_parcelas" inputmode="numeric" required></div>
+        <div class="so-mensal"><label for="c_valor_parcela">Valor da parcela (R$) *</label><input id="c_valor_parcela" inputmode="decimal" required></div>
         <div><label for="c_carga_horaria_mensal">Carga horária mensal (h)</label><input id="c_carga_horaria_mensal" inputmode="numeric" placeholder="ex.: 60"></div>
         <div><label for="c_data_cotacao">Data da cotação</label><input id="c_data_cotacao" type="date"></div>
         <div><label for="c_data_assinatura_contrato">Assinatura do contrato</label><input id="c_data_assinatura_contrato" type="date">
@@ -1389,6 +1461,7 @@
     document.querySelector('[data-aba="orcamento"]').classList.toggle('oculto', novo);
     document.querySelector('[data-aba="contratacoes"]').classList.toggle('oculto', novo);
     document.querySelector('[data-aba="cotacoes"]').classList.toggle('oculto', novo);
+    document.querySelector('[data-aba="execucoes"]').classList.toggle('oculto', novo);
     renderResumo(); renderFormProjeto(); renderRubricas(); renderContratacoes(); renderCotacoes();
   }
 
@@ -1482,6 +1555,8 @@
     $('abaOrcamento').classList.toggle('oculto', nome !== 'orcamento');
     $('abaContratacoes').classList.toggle('oculto', nome !== 'contratacoes');
     $('abaCotacoes').classList.toggle('oculto', nome !== 'cotacoes');
+    $('abaExecucoes').classList.toggle('oculto', nome !== 'execucoes');
+    if (nome === 'execucoes') carregarExecucoes();
     if (atual && atual.projeto && atual.projeto.id_projeto) gravarRota('projeto/' + atual.projeto.id_projeto + '/' + nome);
   }
   document.querySelectorAll('.aba').forEach(a => a.addEventListener('click', () => trocarAba(a.dataset.aba)));
@@ -1515,18 +1590,27 @@
             ? `<br><span style="color:var(--alerta);font-size:11px" title="Qtd × valor × meses dá ${brl(calcRubrica(r))}">⚠️ não bate com qtd × valor × meses</span>` : ''}</td>
           <td class="num">${brl(r.valor_contratado)}</td>
           ${edita ? `<td style="white-space:nowrap">
+            ${atual.podeContratar ? `<button class="btn-link" data-addprest="${esc(r.id_rubrica)}" title="Adicionar um prestador por demanda (ex.: palestrante) a esta rubrica">+ Prestador</button>` : ''}
             <button class="btn-link" data-editar="${esc(r.id_rubrica)}">Editar</button>
             <button class="btn-link perigo" data-excluir="${esc(r.id_rubrica)}">Excluir</button></td>` : ''}
         </tr>`).join('')}</tbody>
         <tfoot><tr><td colspan="8">Total</td><td class="num">${brl(total)}</td>
           <td class="num">${brl(rs.reduce((s, r) => s + Number(r.valor_contratado || 0), 0))}</td>${edita ? '<td></td>' : ''}</tr></tfoot>
       </table>`;
+    $('tabelaRubricas').querySelectorAll('[data-addprest]').forEach(b => b.addEventListener('click', () => {
+      const r = rs.find(x => x.id_rubrica === b.dataset.addprest);
+      trocarAba('contratacoes');
+      abrirFormCtr(null, { id_rubrica: r.id_rubrica, objeto: r.descricao, modalidade: 'Por demanda', unidade_execucao: r.unidade || 'palestra',
+        valor_unitario: r.valor_unitario_max || '', status: 'Em execução',
+        _aviso: `Novo prestador para a rubrica “${r.descricao}”. A quantidade (${numBr(calcQtdRubrica(r))}) e o orçamento são compartilhados entre todos os prestadores desta rubrica.` });
+    }));
     $('tabelaRubricas').querySelectorAll('[data-editar]').forEach(b =>
       b.addEventListener('click', () => abrirRubrica(rs.find(r => r.id_rubrica === b.dataset.editar))));
     $('tabelaRubricas').querySelectorAll('[data-excluir]').forEach(b =>
       b.addEventListener('click', () => excluirRubrica(rs.find(r => r.id_rubrica === b.dataset.excluir))));
   }
 
+  const calcQtdRubrica = r => Number(r.quantidade || 0) * (Number(r.meses) > 0 ? Number(r.meses) : 1);
   const calcRubrica = r => Number(r.quantidade || 0) * Number(r.valor_unitario_max || 0) * (Number(r.meses) > 0 ? Number(r.meses) : 1);
   const totalNaoBate = r => Math.abs(calcRubrica(r) - Number(r.valor_total_orcado || 0)) > 0.01;
 
@@ -1654,6 +1738,11 @@
     ['objeto', 'inicio_execucao', 'fim_execucao', 'data_cotacao', 'data_assinatura_contrato', 'observacoes', 'num_parcelas', 'carga_horaria_mensal', 'descricao_nf']
       .forEach(k => $('c_' + k).value = c[k] ?? '');
     $('c_valor_parcela').value = num2(c.valor_parcela ?? '');
+    $('c_modalidade').value = c.modalidade === 'Por demanda' ? 'Por demanda' : 'Mensal';
+    $('c_unidade_execucao').value = c.unidade_execucao || '';
+    $('c_valor_unitario').value = c.valor_unitario ? num2(c.valor_unitario) : '';
+    $('c_quantidade_contratada').value = c.quantidade_contratada || '';
+    aplicarModalidade();
     prepararContratado(det && det.fornecedor ? det.fornecedor : null);
     renderLancadasForm();
     $('c_fim_dica').textContent = '';
@@ -1704,7 +1793,27 @@
     $('c_saldo').innerHTML = `Orçado: <b>${brl(r.valor_total_orcado)}</b> · já contratado: <b>${brl(Number(r.valor_contratado || 0) - desta)}</b> · disponível: <b>${brl(disp)}</b>`;
   }
 
+  const ehDemandaForm = () => $('c_modalidade').value === 'Por demanda';
+  function aplicarModalidade() {
+    const dem = ehDemandaForm();
+    document.querySelectorAll('#formCtr .so-demanda').forEach(el => el.classList.toggle('oculto', !dem));
+    document.querySelectorAll('#formCtr .so-mensal').forEach(el => el.classList.toggle('oculto', dem));
+    $('c_num_parcelas').required = !dem; $('c_valor_parcela').required = !dem;
+    if (dem) $('c_fim_dica').textContent = '';
+    atualizarTotalCtr();
+  }
+  $('c_modalidade').addEventListener('change', () => {
+    if (ehDemandaForm() && !$('c_unidade_execucao').value) $('c_unidade_execucao').value = (rubricaSel() && rubricaSel().unidade) || 'palestra';
+    aplicarModalidade();
+  });
+  ['c_valor_unitario', 'c_quantidade_contratada', 'c_unidade_execucao'].forEach(id => $(id).addEventListener('input', atualizarTotalCtr));
   function atualizarTotalCtr() {
+    if (ehDemandaForm()) {
+      const vu = lerNumero($('c_valor_unitario').value) || 0, q = parseInt($('c_quantidade_contratada').value, 10) || 0, un = $('c_unidade_execucao').value || 'palestra';
+      $('c_total').textContent = `${brl(vu)} por ${un}` + (q ? ` · contratado: ${q} × ${brl(vu)} = ${brl(q * vu)}` :
+        ' · quantidade conforme a demanda (o limite é a quantidade e o orçamento da rubrica, somando todos os prestadores)');
+      return;
+    }
     const n = parseInt($('c_num_parcelas').value, 10) || 0, v = lerNumero($('c_valor_parcela').value) || 0;
     $('c_total').textContent = `Total do contrato: ${brl(n * v)}` + (n > 1 ? `  (${n} × ${brl(v)})` : '');
   }
@@ -1725,6 +1834,7 @@
 
   // Fim da execução calculado: início + nº de parcelas (meses) − 1 dia. Ex.: 01/03/2025 + 19 → 30/09/2026
   function calcularFimCtr() {
+    if (ehDemandaForm()) return;                       // por demanda: o fim é a vigência informada
     const ini = $('c_inicio_execucao').value, n = parseInt($('c_num_parcelas').value, 10);
     const dica = $('c_fim_dica');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ini) || !(n > 0)) { dica.textContent = ''; return; }
@@ -1807,7 +1917,8 @@
     const dados = { id_projeto: atual.projeto.id_projeto, id_contratacao: ctrEditando ? ctrEditando.id_contratacao : '',
                     id_processo_cotacao: ctrEditando ? '' : procParaContratar, fornecedor: {} };
     ['id_rubrica', 'objeto', 'inicio_execucao', 'fim_execucao', 'num_parcelas', 'valor_parcela', 'data_cotacao',
-     'data_assinatura_contrato', 'status', 'observacoes', 'carga_horaria_mensal', 'descricao_nf'].forEach(k => dados[k] = $('c_' + k).value);
+     'data_assinatura_contrato', 'status', 'observacoes', 'carga_horaria_mensal', 'descricao_nf',
+     'modalidade', 'unidade_execucao', 'valor_unitario', 'quantidade_contratada'].forEach(k => dados[k] = $('c_' + k).value);
     dados.fornecedor = dadosContratadoDoForm();
     if (!digitos(dados.fornecedor.cnpj) && !digitos(dados.fornecedor.cpf)) { btn.disabled = false; return msg('msgCtr', 'Informe o CNPJ ou o CPF do contratado.'); }
     try {
@@ -1868,7 +1979,9 @@
         <div><span>Rubrica</span>${esc(r && r.descricao)}</div>
         <div><span>Objeto</span>${esc(c.objeto)}</div>
         <div><span>Execução</span>${dataBr(c.inicio_execucao)} a ${dataBr(c.fim_execucao)}</div>
-        <div><span>Parcelas</span>${esc(c.num_parcelas)} × ${brl(c.valor_parcela)}</div>
+        ${c.modalidade === 'Por demanda'
+          ? `<div><span>Forma de execução</span>Por demanda · <b>${brl(c.valor_unitario)}</b> por ${esc(c.unidade_execucao || 'palestra')}${c.quantidade_contratada ? ` · até ${esc(c.quantidade_contratada)}` : ''}</div>`
+          : `<div><span>Parcelas</span>${esc(c.num_parcelas)} × ${brl(c.valor_parcela)}</div>`}
         <div><span>Total do contrato</span><b>${brl(c.valor_total_contratado)}</b></div>
         <div><span>Status</span><span class="st ${stClasse(c.status)}">${esc(c.status)}</span></div>
         <div><span>Data da cotação</span>${dataBr(c.data_cotacao)}</div>
@@ -1877,7 +1990,8 @@
       <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
         ${pode ? (ehCompra ? '<button class="btn-sec" id="btnEditarCompra">✏️ Editar compra</button>' : '<button class="btn-sec" id="btnEditarCtr">✏️ Editar dados</button>') : ''}
         ${ctrAtual.pasta_url ? `<a class="btn-sec" href="${esc(ctrAtual.pasta_url)}" target="_blank" rel="noopener" style="text-decoration:none">📁 Pasta no Drive</a>` : ''}
-        ${pode && !ehCompra && ['Encerrada', 'Cancelada'].indexOf(c.status) === -1 && Number(c.num_parcelas) > 1
+        ${c.modalidade === 'Por demanda' ? '<button class="btn-sec" id="btnIrExec">📋 Palestras e faturamento</button>' : ''}
+        ${pode && !ehCompra && c.modalidade !== 'Por demanda' && ['Encerrada', 'Cancelada'].indexOf(c.status) === -1 && Number(c.num_parcelas) > 1
           ? '<button class="btn-sec" id="btnEncerrarCtr" title="Prestador saiu antes do fim: mantém o que foi pago e libera o restante">⏹ Encerrar / substituir prestador</button>' : ''}
         ${usuario.perfil === 'ADMIN' ? '<button class="btn-link perigo" id="btnExcluirCtr">🗑 Excluir contratação</button>' : ''}
       </div>
@@ -1949,7 +2063,7 @@
       </div>
 
       <div class="secao">
-        <h4>${ehCompra ? 'Pagamento' : 'Parcelas previstas'}</h4>
+        <h4>${ehCompra ? 'Pagamento' : c.modalidade === 'Por demanda' ? 'Faturamentos (palestras já faturadas)' : 'Parcelas previstas'}</h4>
         <div class="tabela-wrap"><table>
           <thead><tr><th>Nº</th><th>Competência</th><th class="num">Valor</th><th>Status</th><th>NF</th><th>Pagamento / débito</th><th class="num">Valor pago</th><th></th></tr></thead>
           <tbody>${(ctrAtual.parcelas_det || parcelas).map(p => { const nf = p.nf || {}, pg = p.pagamento || {}; return `<tr>
@@ -1967,6 +2081,7 @@
     ligar('btnEditarCtr', () => abrirFormCtr(ctrAtual));
     ligar('btnExcluirCtr', excluirContratacaoAtual);
     ligar('btnEncerrarCtr', abrirEncerrar);
+    ligar('btnIrExec', () => { $('dlgCtr').close(); trocarAba('execucoes'); carregarExecucoes(); });
     ligar('btnEditarCompra', () => { $('dlgCtr').close(); abrirCompra(ctrAtual); });
     ligar('btnGerarContrato', gerarContrato);
     ligar('btnUpload', enviarDoc);
@@ -2548,7 +2663,7 @@
           <div><label for="nf_numero">Número</label><input id="nf_numero" value="${esc(nf.numero || '')}"></div>
           <div><label for="nf_data">Data de emissão</label><input id="nf_data" type="date" value="${esc(nf.data_emissao || '')}"></div>
           <div><label for="nf_valor">Valor da nota (R$)</label><input id="nf_valor" inputmode="decimal" value="${esc(num2(nf.valor || x.valor_previsto))}"></div>
-          <div class="largo"><label for="nf_descricao">Descrição da nota</label><input id="nf_descricao" value="${esc(nf.descricao || descricaoSugerida(x) + ' referente ao mês de ' + mesExt(x.competencia_mes))}"></div>
+          <div class="largo"><label for="nf_descricao">Descrição da nota</label><input id="nf_descricao" value="${esc(nf.descricao || descricaoSugerida(x) + (x.execucao_resumo ? ' – ' + x.execucao_resumo : ' referente ao mês de ' + mesExt(x.competencia_mes)))}"></div>
           <div><label for="nf_cnpj">CNPJ/CPF do emitente</label><input id="nf_cnpj" value="${esc(nf.cnpj_emitente || x.contratado_cnpj)}"></div>
           <div class="largo"><label for="nf_razao">Razão social</label><input id="nf_razao" value="${esc(nf.razao_social_emitente || x.contratado)}"></div>
         </div></fieldset>
@@ -4092,6 +4207,198 @@
     catch (err) { msg('msgFcMapa', err.message); }
     btn.disabled = false;
   });
+
+  // ---------- EXECUÇÕES POR DEMANDA (palestras): vários prestadores na mesma rubrica
+  let execDados = null, execEditando = null, faDados = null, faProjeto = '';
+  const unidadeTxt = (q, un) => `${numBr(q)} ${un || 'palestra'}${Number(q) === 1 ? '' : 's'}`;
+  async function carregarExecucoes() {
+    if (!atual || !atual.projeto || !atual.projeto.id_projeto) return;
+    const id = atual.projeto.id_projeto;
+    try {
+      await apiRapida('obterExecucoes', { id_projeto: id }, d => { if (atual && atual.projeto.id_projeto === id) { execDados = d; renderExecucoes(); } });
+    } catch (err) { $('painelExec').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
+  }
+  function renderExecucoes() {
+    const d = execDados; if (!d) return;
+    $('btnNovaExec').classList.toggle('oculto', !d.pode_registrar || !d.rubricas.length);
+    $('btnFaturarExec').classList.toggle('oculto', !d.pode_faturar || !d.rubricas.length);
+    if (!d.rubricas.length) {
+      $('painelExec').innerHTML = `<div class="vazio">Nenhuma rubrica com prestadores por demanda neste projeto.<br>
+        Na aba <b>Orçamento</b>, use <b>+ Prestador</b> na rubrica (ex.: Capacitador/Professor) para cadastrar cada profissional.</div>`;
+      return;
+    }
+    $('painelExec').innerHTML = d.rubricas.map(r => {
+      const pctQ = r.qtd_prevista ? Math.min(100, Math.round(r.qtd_executada / r.qtd_prevista * 100)) : 0;
+      return `<div class="secao" style="border:1px solid var(--borda);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+        <h4 style="margin-top:0">${esc(r.codigo ? r.codigo + ' – ' : '')}${esc(r.descricao)}</h4>
+        <div class="info-grade">
+          <div><span>Quantidade prevista</span><b>${r.qtd_prevista ? numBr(r.qtd_prevista) : '—'}</b> ${esc(r.unidade || '')}${r.qtd_prevista > 1 && r.unidade && !/s$/.test(r.unidade) ? 's' : ''}</div>
+          <div><span>Realizada (todos)</span><b>${numBr(r.qtd_executada)}</b>${r.qtd_prevista ? ` · ${pctQ}%` : ''}</div>
+          <div><span>Restante</span><b style="color:${r.qtd_restante !== '' && r.qtd_restante <= 0 ? 'var(--alerta)' : 'inherit'}">${r.qtd_restante === '' ? '—' : numBr(r.qtd_restante)}</b></div>
+          <div><span>Orçado</span><b>${brl(r.orcado)}</b></div>
+          <div><span>Contratado (com quantidade definida)</span>${brl(r.contratado)}</div>
+          <div><span>Executado</span>${brl(r.executado)}</div>
+          <div><span>Faturado (solicitações)</span>${brl(r.faturado)}</div>
+          <div><span>Notas fiscais</span>${brl(r.nf)}</div>
+          <div><span>Pago</span>${brl(r.pago)}</div>
+          <div><span>Saldo disponível</span><b style="color:${r.saldo < 0 ? 'var(--alerta)' : 'inherit'}">${brl(r.saldo)}</b></div>
+        </div>
+        ${r.contratos_fixos ? `<p class="dica">Esta rubrica também tem ${r.contratos_fixos} contratação(ões) mensal(is), já considerada(s) no saldo.</p>` : ''}
+        <div class="tabela-wrap" style="margin-top:10px"><table>
+          <thead><tr><th>Prestador</th><th class="num">Valor/un.</th><th class="num">Contratadas</th><th class="num">Realizadas</th><th class="num">Executado</th>
+            <th class="num">Faturado</th><th class="num">Pago</th><th></th></tr></thead>
+          <tbody>${r.prestadores.map(p => {
+            const livres = p.execucoes.filter(e => !e.id_parcela);
+            const per = $('fx_mes').value;
+            const exs = per ? p.execucoes.filter(e => String(e.data).slice(0, 7) === per) : p.execucoes;
+            const fats = per ? p.faturamentos.filter(f => f.competencia === per) : p.faturamentos;
+            return `<tr>
+              <td><b>${esc(p.prestador)}</b><div class="dica" style="margin:0">${esc(p.id_contratacao)} · ${esc(p.status)}</div></td>
+              <td class="num">${brl(p.valor_unitario)}</td><td class="num">${p.quantidade_contratada || '—'}</td>
+              <td class="num">${numBr(p.qtd_executada)}</td><td class="num">${brl(p.valor_executado)}</td>
+              <td class="num">${brl(p.faturado)}</td><td class="num">${brl(p.pago)}</td>
+              <td style="white-space:nowrap">${livres.length && d.pode_faturar ? `<button class="btn-sec" style="padding:5px 10px" data-fat="${esc(p.id_contratacao)}">🧾 Faturar ${livres.length}</button>` : ''}</td></tr>
+              <tr><td colspan="8" style="padding-top:0"><details><summary class="dica" style="margin:0;cursor:pointer">Histórico de ${esc(p.prestador)}${per ? ' em ' + mesAno(per + '-01') : ''}: ${exs.length} execução(ões) · ${numBr(exs.reduce((t, e) => t + e.quantidade, 0))} un. · ${brl(exs.reduce((t, e) => t + e.valor_total, 0))} · ${fats.length} solicitação(ões)</summary>
+                ${exs.length ? `<div class="tabela-wrap" style="margin-top:6px"><table>
+                  <thead><tr><th>Data</th><th class="num">Qtd</th><th class="num">Valor</th><th>Descrição</th><th>Situação</th><th></th></tr></thead>
+                  <tbody>${exs.map(e => `<tr><td>${dataBr(e.data)}</td><td class="num">${numBr(e.quantidade)}</td><td class="num">${brl(e.valor_total)}</td>
+                    <td>${esc(e.descricao)}${e.id_documento ? ' 📎' : ''}</td>
+                    <td>${e.parcela ? `<span class="st verde">faturada · parcela ${esc(e.parcela.num)} (${mesAno(e.parcela.competencia)}) · ${esc(e.parcela.status)}</span>` : '<span class="st">a faturar</span>'}</td>
+                    <td style="white-space:nowrap">${!e.id_parcela && d.pode_registrar ? `<button class="btn-link" data-exed="${esc(e.id_execucao)}">Editar</button> <button class="btn-link perigo" data-exdel="${esc(e.id_execucao)}">Excluir</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="dica">Nenhuma execução registrada.</p>'}
+                ${fats.length ? `<div class="tabela-wrap" style="margin-top:6px"><table>
+                  <thead><tr><th>Parcela</th><th>Competência</th><th class="num">Valor</th><th>Palestras</th><th>Status</th><th></th></tr></thead>
+                  <tbody>${fats.map(f => `<tr><td>${esc(f.num_parcela)}</td><td>${mesAno(f.competencia)}</td><td class="num">${brl(f.valor)}</td>
+                    <td>${esc(f.resumo)}</td><td><span class="st ${stClasse(f.status)}">${esc(f.status)}</span></td>
+                    <td>${!f.tem_nf && ['Prevista', 'NF solicitada'].includes(f.status) && d.pode_faturar ? `<button class="btn-link perigo" data-desfaz="${esc(f.id_parcela)}">Desfazer</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}
+              </details></td></tr>`;
+          }).join('')}</tbody></table></div></div>`;
+    }).join('');
+    const P = $('painelExec');
+    P.querySelectorAll('[data-fat]').forEach(b => b.addEventListener('click', () => abrirFaturar(atual.projeto.id_projeto, b.dataset.fat)));
+    P.querySelectorAll('[data-exed]').forEach(b => b.addEventListener('click', () => abrirExec(b.dataset.exed)));
+    P.querySelectorAll('[data-exdel]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('Excluir esta execução?')) return;
+      try { execDados = await api('excluirExecucao', { id_execucao: b.dataset.exdel }); renderExecucoes(); toast('Execução excluída'); } catch (err) { alert(err.message); }
+    }));
+    P.querySelectorAll('[data-desfaz]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('Desfazer esta solicitação? A parcela é apagada e as palestras voltam para “a faturar”.')) return;
+      try { execDados = await api('desfazerFaturamento', { id_parcela: b.dataset.desfaz }); renderExecucoes(); toast('Faturamento desfeito'); } catch (err) { alert(err.message); }
+    }));
+  }
+
+  // Registrar / editar execução
+  function prestadoresDe(d) {
+    const out = [];
+    (d.rubricas || []).forEach(r => r.prestadores.filter(p => p.status !== 'Cancelada').forEach(p => out.push({ r, p })));
+    return out;
+  }
+  function abrirExec(idExec) {
+    const d = execDados;
+    const ex = idExec ? prestadoresDe(d).flatMap(x => x.p.execucoes.map(e => Object.assign({ id_contratacao: x.p.id_contratacao }, e))).find(e => e.id_execucao === idExec) : null;
+    execEditando = ex;
+    $('tituloExec').textContent = ex ? 'Editar execução' : 'Registrar palestra';
+    $('ex_ctr').innerHTML = '<option value="">Selecione…</option>' + d.rubricas.map(r => `<optgroup label="${esc(r.descricao)}">${r.prestadores.map(p =>
+      `<option value="${esc(p.id_contratacao)}" ${ex && ex.id_contratacao === p.id_contratacao ? 'selected' : ''}>${esc(p.prestador)} · ${brl(p.valor_unitario)}/${esc(p.unidade)}</option>`).join('')}</optgroup>`).join('');
+    $('ex_data').value = ex ? ex.data : ''; $('ex_qtd').value = ex ? String(ex.quantidade).replace('.', ',') : '1';
+    $('ex_vu').value = ex ? num2(ex.valor_unitario) : ''; $('ex_desc').value = ex ? ex.descricao : ''; $('ex_arq').value = '';
+    $('ex_ctr').disabled = !!ex;
+    infoExec(); msg('msgExec', '');
+    $('dlgExec').showModal();
+  }
+  function infoExec() {
+    const x = prestadoresDe(execDados).find(y => y.p.id_contratacao === $('ex_ctr').value);
+    if (x && !$('ex_vu').value) $('ex_vu').value = num2(x.p.valor_unitario);
+    $('ex_info').innerHTML = x ? `Rubrica: previstas <b>${x.r.qtd_prevista || '—'}</b> · realizadas <b>${numBr(x.r.qtd_executada)}</b> (todos os prestadores) · restam <b>${x.r.qtd_restante === '' ? '—' : numBr(x.r.qtd_restante)}</b> · saldo ${brl(x.r.saldo)}` +
+      (x.p.quantidade_contratada ? ` · este prestador: ${numBr(x.p.qtd_executada)} de ${x.p.quantidade_contratada}` : '') : '';
+    const t = (Number(String($('ex_qtd').value).replace(',', '.')) || 0) * (lerNumero($('ex_vu').value) || 0);
+    $('ex_total').textContent = brl(t);
+  }
+  $('ex_ctr').addEventListener('change', () => { $('ex_vu').value = ''; infoExec(); });
+  ['ex_qtd', 'ex_vu'].forEach(id => $(id).addEventListener('input', infoExec));
+  $('btnNovaExec').addEventListener('click', () => abrirExec(null));
+  $('fx_mes').addEventListener('change', renderExecucoes);
+  $('fx_limpar').addEventListener('click', () => { $('fx_mes').value = ''; renderExecucoes(); });
+  $('formExec').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.submitter; btn.disabled = true; msg('msgExec', 'Salvando…', 'ok');
+    try {
+      const f = $('ex_arq').files[0];
+      if (f && f.size > LIMITE_MB * 1024 * 1024) throw new Error('Arquivo maior que ' + LIMITE_MB + ' MB.');
+      const arquivo = f ? await lerArquivo(f) : null;
+      execDados = await api('salvarExecucao', { id_execucao: execEditando ? execEditando.id_execucao : '', id_contratacao: $('ex_ctr').value,
+        data: $('ex_data').value, quantidade: $('ex_qtd').value, valor_unitario: $('ex_vu').value, descricao: $('ex_desc').value, arquivo });
+      $('dlgExec').close(); renderExecucoes(); toast('Execução registrada ✓');
+    } catch (err) { msg('msgExec', err.message); }
+    btn.disabled = false;
+  });
+
+  // Faturar: projeto → rubrica → prestador → palestras
+  async function abrirFaturar(idProjeto, idContratacao, escolherProjeto) {
+    faProjeto = idProjeto || '';
+    $('fa_proj_box').classList.toggle('oculto', !escolherProjeto);
+    msg('msgFaturar', ''); $('fa_lista').innerHTML = ''; $('fa_total').textContent = '—';
+    $('dlgFaturar').showModal();
+    try {
+      const projs = await lerAgora('listarProjetos', {});
+      $('fa_proj').innerHTML = '<option value="">Selecione…</option>' + projs.map(p => `<option value="${esc(p.id_projeto)}" ${p.id_projeto === faProjeto ? 'selected' : ''}>${esc(p.sigla || p.nome_projeto)}</option>`).join('');
+    } catch (e) { $('fa_proj').innerHTML = faProjeto ? `<option value="${esc(faProjeto)}" selected>${esc(faProjeto)}</option>` : ''; }
+    await carregarFaturar(idContratacao);
+  }
+  async function carregarFaturar(idContratacao) {
+    faProjeto = $('fa_proj').value || faProjeto;
+    if (!faProjeto) { $('fa_rub').innerHTML = ''; $('fa_ctr').innerHTML = ''; return; }
+    $('fa_lista').innerHTML = '<div class="vazio">Carregando…</div>';
+    try { faDados = await lerAgora('obterExecucoes', { id_projeto: faProjeto }); }
+    catch (err) { $('fa_lista').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; return; }
+    const alvo = idContratacao && prestadoresDe(faDados).find(x => x.p.id_contratacao === idContratacao);
+    $('fa_rub').innerHTML = faDados.rubricas.length ? faDados.rubricas.map(r => `<option value="${esc(r.id_rubrica)}" ${alvo && alvo.r.id_rubrica === r.id_rubrica ? 'selected' : ''}>${esc(r.descricao)}</option>`).join('')
+      : '<option value="">(nenhuma rubrica por demanda neste projeto)</option>';
+    preencherPrestFaturar(idContratacao);
+  }
+  function preencherPrestFaturar(idContratacao) {
+    const r = (faDados.rubricas || []).find(x => x.id_rubrica === $('fa_rub').value);
+    const ps = r ? r.prestadores : [];
+    $('fa_ctr').innerHTML = ps.length ? ps.map(p => { const n = p.execucoes.filter(e => !e.id_parcela).length;
+      return `<option value="${esc(p.id_contratacao)}" ${p.id_contratacao === idContratacao ? 'selected' : ''}>${esc(p.prestador)} — ${n} a faturar</option>`; }).join('') : '';
+    listarFaturar();
+  }
+  function listarFaturar() {
+    const x = prestadoresDe(faDados || {}).find(y => y.p.id_contratacao === $('fa_ctr').value);
+    const livres = x ? x.p.execucoes.filter(e => !e.id_parcela) : [];
+    $('fa_lista').innerHTML = !x ? '' : livres.length ? `<div class="tabela-wrap"><table>
+      <thead><tr><th><input type="checkbox" id="fa_todas" checked></th><th>Data</th><th class="num">Qtd</th><th class="num">Valor</th><th>Descrição</th></tr></thead>
+      <tbody>${livres.map(e => `<tr><td><input type="checkbox" data-faex="${esc(e.id_execucao)}" data-valor="${e.valor_total}" data-data="${esc(e.data)}" checked></td>
+        <td>${dataBr(e.data)}</td><td class="num">${numBr(e.quantidade)}</td><td class="num">${brl(e.valor_total)}</td><td>${esc(e.descricao)}</td></tr>`).join('')}</tbody></table></div>`
+      : '<div class="vazio">Nenhuma palestra a faturar para este prestador.<br>Registre as palestras realizadas na aba “Execuções” do projeto.</div>';
+    const t = $('fa_todas'); if (t) t.addEventListener('change', () => { $('fa_lista').querySelectorAll('[data-faex]').forEach(c => { c.checked = t.checked; }); totalFaturar(); });
+    $('fa_lista').querySelectorAll('[data-faex]').forEach(c => c.addEventListener('change', totalFaturar));
+    totalFaturar(true);
+  }
+  function totalFaturar(sugerirMes) {
+    const marc = [...$('fa_lista').querySelectorAll('[data-faex]:checked')];
+    const tot = marc.reduce((s, c) => s + Number(c.dataset.valor || 0), 0);
+    $('fa_total').textContent = marc.length ? `${marc.length} execução(ões) · ${brl(tot)}` : '—';
+    if (sugerirMes && marc.length) $('fa_comp').value = marc.map(c => c.dataset.data).sort().pop().slice(0, 7);
+    $('btnFaturarOk').disabled = !marc.length;
+  }
+  $('fa_proj').addEventListener('change', () => carregarFaturar());
+  $('fa_rub').addEventListener('change', () => preencherPrestFaturar());
+  $('fa_ctr').addEventListener('change', listarFaturar);
+  $('btnFaturarOk').addEventListener('click', async () => {
+    const ids = [...$('fa_lista').querySelectorAll('[data-faex]:checked')].map(c => c.dataset.faex);
+    const btn = $('btnFaturarOk'); btn.disabled = true; msg('msgFaturar', 'Gerando a solicitação…', 'ok');
+    try {
+      faDados = await api('faturarExecucoes', { id_contratacao: $('fa_ctr').value, ids, competencia: $('fa_comp').value });
+      const comp = $('fa_comp').value;
+      msg('msgFaturar', `✓ Solicitação criada (serviços de ${mesAno(comp + '-01')}). Ela aparece em Pagamentos no mês seguinte, para pedir a NF.`, 'ok');
+      if (atual && atual.projeto && atual.projeto.id_projeto === faProjeto) { execDados = faDados; renderExecucoes(); }
+      preencherPrestFaturar($('fa_ctr').value);
+      if (!$('viewPag').classList.contains('oculto')) carregarPag().catch(() => {});
+    } catch (err) { msg('msgFaturar', err.message); }
+    btn.disabled = false;
+  });
+  $('btnFaturarExec').addEventListener('click', () => abrirFaturar(atual.projeto.id_projeto));
+  $('btnPagFaturar').addEventListener('click', () => abrirFaturar(pagFiltro || '', '', true));
 
   // ---------- encerramento antecipado / substituição de prestador
   function abrirEncerrar() {
