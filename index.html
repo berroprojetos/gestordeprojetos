@@ -479,12 +479,13 @@
         <div>
           <p class="sobretitulo">Administração</p>
           <h1>Configurações</h1>
-          <p class="subtitulo">Usuários e alçadas, projetos por instituição e exclusões.</p>
+          <p class="subtitulo">Usuários e alçadas, projetos por instituição, exclusões e listas usadas nos cadastros.</p>
         </div>
       </div>
       <div class="abas" role="tablist">
         <button class="aba" data-cfg="usuarios" aria-selected="true">Usuários e alçadas</button>
         <button class="aba" data-cfg="projetos" aria-selected="false">Projetos por instituição</button>
+        <button class="aba" data-cfg="listas" aria-selected="false">Listas (tipos e classificações)</button>
       </div>
       <section class="painel" id="cfgUsuarios">
         <div class="titulo-linha"><h2 style="font-size:16px">Usuários</h2><button class="btn" id="btnNovoUsuario">+ Novo usuário</button></div>
@@ -493,6 +494,16 @@
       </section>
       <section class="painel oculto" id="cfgProjetos">
         <div id="cfgListaProjetos"><div class="vazio">Carregando…</div></div>
+      </section>
+      <section class="painel oculto" id="cfgListas">
+        <p class="dica" style="margin-top:0">Um item por linha. Estas listas aparecem para escolher no cadastro das rubricas (aba Orçamento).
+          Remover um item da lista não muda as rubricas que já usam esse valor.</p>
+        <div class="form-grade">
+          <div class="largo"><label for="lsTipos">Tipos de despesa</label><textarea id="lsTipos" rows="6" style="width:100%"></textarea></div>
+          <div class="largo"><label for="lsClassif">Classificações contábeis (SIT)</label>
+            <textarea id="lsClassif" rows="10" style="width:100%" placeholder="ex.: 3.3.90.36 – Outros serviços de terceiros – pessoa física"></textarea></div>
+        </div>
+        <div class="form-acoes"><div class="msg" id="msgListas"></div><button class="btn" id="btnSalvarListas">Salvar listas</button></div>
       </section>
     </div>
 
@@ -589,7 +600,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.11-d</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.14-a</span></span></div>
   </div>
 </section>
 
@@ -602,8 +613,9 @@
         <div><label for="r_codigo">Item</label><input id="r_codigo"></div>
         <div class="largo"><label for="r_descricao">Descrição rubrica *</label><input id="r_descricao" required></div>
         <div><label for="r_tipo_despesa">Tipo de despesa</label>
-          <select id="r_tipo_despesa"><option value="">—</option><option>Prestação de serviço</option><option>Compra de bens</option><option>Ativo imobilizado</option></select></div>
-        <div><label for="r_classificacao_contabil">Classificação contábil (SIT)</label><input id="r_classificacao_contabil"></div>
+          <select id="r_tipo_despesa"><option value="">—</option></select></div>
+        <div><label for="r_classificacao_contabil">Classificação contábil (SIT)</label><select id="r_classificacao_contabil"><option value="">—</option></select>
+          <div class="dica oculto" id="r_classif_dica" style="margin:4px 0 0">Cadastre as classificações em Configurações → Listas.</div></div>
         <div><label for="r_unidade">Unidade</label><input id="r_unidade" placeholder="un, mês, pacote…"></div>
         <div><label for="r_quantidade">Quantidade *</label><input id="r_quantidade" inputmode="decimal" required></div>
         <div><label for="r_valor_unitario_max">Valor unitário máximo (R$) *</label><input id="r_valor_unitario_max" inputmode="decimal" required></div>
@@ -1062,7 +1074,15 @@
 
   const PERFIS_EDICAO = ['ADMIN', 'PRESTACAO_CONTAS', 'GERENTE_PROJETO'];
   const STATUS_PROJETO = ['Em implantação', 'Em execução', 'Encerrado', 'Suspenso'];
-  const TIPOS = ['Prestação de serviço', 'Compra de bens', 'Ativo imobilizado'];
+  let TIPOS = ['Prestação de serviço', 'Compra de bens', 'Compra de consumo', 'Ativo imobilizado'];
+  let CLASSIFICACOES = [];
+  function aplicarListas(l) {
+    if (!l) return;
+    if (Array.isArray(l.tipo_despesa) && l.tipo_despesa.length) TIPOS = l.tipo_despesa.slice();
+    if (Array.isArray(l.classificacao_contabil)) CLASSIFICACOES = l.classificacao_contabil.slice();
+  }
+  // Compra (bens, consumo…) × prestação de serviço
+  const ehCompraC = c => !!c && (c.eh_compra === true || String(c.eh_compra).toUpperCase() === 'TRUE' || /^compra/i.test(String(c.tipo_despesa || '')));
 
   const CAMPOS_PROJETO = [
     ['id_instituicao', 'Instituição *', 'inst', 'largo'],
@@ -1452,6 +1472,7 @@
   }
 
   function renderDetalhe() {
+    if (atual && atual.listas) aplicarListas(atual.listas);
     const p = atual.projeto, novo = !!atual.novo;
     $('detSigla').textContent = novo ? 'NOVO' : (p.sigla || p.id_projeto);
     $('detNome').textContent = novo ? 'Novo projeto' : p.nome_projeto;
@@ -1578,7 +1599,7 @@
         <thead><tr>
           <th>Item</th><th>Descrição rubrica</th><th>Tipo</th><th>Classificação contábil (SIT)</th>
           <th class="num">Qtd</th><th>Unid.</th><th class="num">Valor unit. máx.</th><th class="num">Meses</th>
-          <th class="num">Total orçado</th><th class="num">Contratado</th>${edita ? '<th></th>' : ''}
+          <th class="num">Total orçado</th><th class="num">Contratado</th><th class="num">Realizado (pago)</th><th class="num">Saldo</th>${edita ? '<th></th>' : ''}
         </tr></thead>
         <tbody>${rs.map(r => `<tr>
           <td>${esc(r.codigo)}</td>
@@ -1592,14 +1613,19 @@
           <td class="num"><b>${brl(r.valor_total_orcado)}</b>${totalNaoBate(r)
             ? `<br><span style="color:var(--alerta);font-size:11px" title="Qtd × valor × meses dá ${brl(calcRubrica(r))}">⚠️ não bate com qtd × valor × meses</span>` : ''}</td>
           <td class="num">${brl(r.valor_contratado)}</td>
+          <td class="num">${brl(r.valor_realizado || 0)}</td>
+          <td class="num" style="${Number(r.valor_total_orcado || 0) - Number(r.valor_realizado || 0) < -0.005 ? 'color:var(--alerta);font-weight:600' : ''}">${brl(Number(r.valor_total_orcado || 0) - Number(r.valor_realizado || 0))}</td>
           ${edita ? `<td style="white-space:nowrap">
             ${atual.podeContratar ? `<button class="btn-link" data-addprest="${esc(r.id_rubrica)}" title="Adicionar um prestador por demanda (ex.: palestrante) a esta rubrica">+ Prestador</button>` : ''}
             <button class="btn-link" data-editar="${esc(r.id_rubrica)}">Editar</button>
             <button class="btn-link perigo" data-excluir="${esc(r.id_rubrica)}">Excluir</button></td>` : ''}
         </tr>`).join('')}</tbody>
         <tfoot><tr><td colspan="8">Total</td><td class="num">${brl(total)}</td>
-          <td class="num">${brl(rs.reduce((s, r) => s + Number(r.valor_contratado || 0), 0))}</td>${edita ? '<td></td>' : ''}</tr></tfoot>
-      </table>`;
+          <td class="num">${brl(rs.reduce((s, r) => s + Number(r.valor_contratado || 0), 0))}</td>
+          <td class="num">${brl(rs.reduce((s, r) => s + Number(r.valor_realizado || 0), 0))}</td>
+          <td class="num">${brl(total - rs.reduce((s, r) => s + Number(r.valor_realizado || 0), 0))}</td>${edita ? '<td></td>' : ''}</tr></tfoot>
+      </table>
+      ${resumoPorTipo(rs, total)}`;
     $('tabelaRubricas').querySelectorAll('[data-addprest]').forEach(b => b.addEventListener('click', () => {
       const r = rs.find(x => x.id_rubrica === b.dataset.addprest);
       trocarAba('contratacoes');
@@ -1613,6 +1639,27 @@
       b.addEventListener('click', () => excluirRubrica(rs.find(r => r.id_rubrica === b.dataset.excluir))));
   }
 
+  // Resumo do orçamento por tipo de despesa (prestação de serviço, compra de bens, compra de consumo…)
+  function resumoPorTipo(rs, total) {
+    const g = {};
+    rs.forEach(r => {
+      const t = r.tipo_despesa || 'Sem tipo definido';
+      const o = g[t] = g[t] || { n: 0, orcado: 0, contratado: 0, realizado: 0 };
+      o.n++; o.orcado += Number(r.valor_total_orcado || 0); o.contratado += Number(r.valor_contratado || 0); o.realizado += Number(r.valor_realizado || 0);
+    });
+    const ordem = TIPOS.filter(t => g[t]).concat(Object.keys(g).filter(t => !TIPOS.includes(t)));
+    return `<h4 style="margin:22px 0 8px">Resumo por tipo de despesa</h4>
+      <table>
+        <thead><tr><th>Tipo</th><th class="num">Rubricas</th><th class="num">Total orçado</th><th class="num">% do orçamento</th>
+          <th class="num">Contratado</th><th class="num">Realizado (pago)</th><th class="num">Saldo</th></tr></thead>
+        <tbody>${ordem.map(t => { const o = g[t]; return `<tr><td>${t === 'Sem tipo definido' ? `<span style="color:var(--alerta)">⚠️ ${t}</span>` : `<span class="tag">${esc(t)}</span>`}</td>
+          <td class="num">${o.n}</td><td class="num"><b>${brl(o.orcado)}</b></td><td class="num">${total ? (o.orcado / total * 100).toFixed(1).replace('.', ',') + '%' : '—'}</td>
+          <td class="num">${brl(o.contratado)}</td><td class="num">${brl(o.realizado)}</td><td class="num">${brl(o.orcado - o.realizado)}</td></tr>`; }).join('')}</tbody>
+        <tfoot><tr><td>Total</td><td class="num">${rs.length}</td><td class="num">${brl(total)}</td><td class="num">100%</td>
+          <td class="num">${brl(Object.values(g).reduce((a, o) => a + o.contratado, 0))}</td><td class="num">${brl(Object.values(g).reduce((a, o) => a + o.realizado, 0))}</td>
+          <td class="num">${brl(total - Object.values(g).reduce((a, o) => a + o.realizado, 0))}</td></tr></tfoot>
+      </table>`;
+  }
   const calcQtdRubrica = r => Number(r.quantidade || 0) * (Number(r.meses) > 0 ? Number(r.meses) : 1);
   const calcRubrica = r => Number(r.quantidade || 0) * Number(r.valor_unitario_max || 0) * (Number(r.meses) > 0 ? Number(r.meses) : 1);
   const totalNaoBate = r => Math.abs(calcRubrica(r) - Number(r.valor_total_orcado || 0)) > 0.01;
@@ -1623,6 +1670,12 @@
   function abrirRubrica(r) {
     rubricaEditando = r || null;
     $('tituloRubrica').textContent = r ? 'Editar rubrica' : 'Nova rubrica';
+    // listas de Configurações (mantém o valor atual mesmo se ele saiu da lista)
+    const opcoes = (lista, atualV) => '<option value="">—</option>' + lista.concat(atualV && !lista.includes(atualV) ? [atualV] : [])
+      .map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+    $('r_tipo_despesa').innerHTML = opcoes(TIPOS, r && r.tipo_despesa);
+    $('r_classificacao_contabil').innerHTML = opcoes(CLASSIFICACOES, r && r.classificacao_contabil);
+    $('r_classif_dica').classList.toggle('oculto', CLASSIFICACOES.length > 0);
     CAMPOS_RUB.forEach(c => {
       let v = r ? (r[c] ?? '') : '';
       if (c === 'valor_unitario_max') v = num2(v);
@@ -1707,13 +1760,13 @@
           <th class="num">Parcelas</th><th class="num">Total</th><th>Status</th><th>Contrato</th><th class="num">Docs</th></tr></thead>
         <tbody>${cs.map(c => `<tr class="clicavel" data-ctr="${esc(c.id_contratacao)}" tabindex="0">
           <td style="white-space:nowrap">${esc(c.id_contratacao)}</td>
-          <td><b>${esc(c.fornecedor_nome)}</b>${c.tipo_despesa === 'Compra de bens' ? ' <span class="tag">🛒 compra</span>' : ''}<br><span style="color:var(--suave)">${esc(c.objeto)}</span></td>
+          <td><b>${esc(c.fornecedor_nome)}</b>${ehCompraC(c) ? ' <span class="tag">🛒 compra</span>' : ''}<br><span style="color:var(--suave)">${esc(c.objeto)}</span></td>
           <td>${esc(c.rubrica_descricao)}</td>
           <td style="white-space:nowrap">${dataBr(c.inicio_execucao)}<br>${c.fim_execucao ? 'a ' + dataBr(c.fim_execucao) : ''}</td>
           <td class="num">${esc(c.num_parcelas)} × ${brl(c.valor_parcela)}</td>
           <td class="num"><b>${brl(c.valor_total_contratado)}</b></td>
           <td><span class="st ${stClasse(c.status)}">${esc(c.status)}</span></td>
-          <td>${c.tipo_despesa === 'Compra de bens' ? '<span style="color:var(--suave)">—</span>' : c.tem_contrato ? '<span class="st verde">✓ anexado</span>' : '<span class="st amarelo">pendente</span>'}</td>
+          <td>${ehCompraC(c) ? '<span style="color:var(--suave)">—</span>' : c.tem_contrato ? '<span class="st verde">✓ anexado</span>' : '<span class="st amarelo">pendente</span>'}</td>
           <td class="num">${c.qtd_documentos}</td></tr>`).join('')}</tbody>
       </table>`;
     $('tabelaCtr').querySelectorAll('[data-ctr]').forEach(tr => {
@@ -1965,7 +2018,7 @@
     const modelos = (atual.modelos || []).filter(m => m.tipo_modelo !== 'Cotação');
     const gerado = ctrAtual.contrato_gerado;
 
-    const ehCompra = c.tipo_despesa === 'Compra de bens';
+    const ehCompra = c.eh_compra === true || String(c.eh_compra).toUpperCase() === 'TRUE' || c.tipo_despesa === 'Compra de bens';
     const itens = ctrAtual.itens || [];
     $('tituloCtr').textContent = `${c.id_contratacao} · ${f ? f.razao_social : ''}${ehCompra ? ' · compra' : ''}`;
     const blocoItens = ehCompra ? `
@@ -2344,9 +2397,9 @@
     const c = det ? det.contratacao : {}, f = det && det.fornecedor ? det.fornecedor : {};
     compraEditando = det ? c : null;
     $('tituloCompra').textContent = det ? `Editar compra ${c.id_contratacao}` : 'Nova compra';
-    const rubs = atual.rubricas.slice().sort((a, b) => (b.tipo_despesa === 'Compra de bens') - (a.tipo_despesa === 'Compra de bens'));
+    const rubs = atual.rubricas.slice().sort((a, b) => ehCompraC(b) - ehCompraC(a));
     $('cp_rubrica').innerHTML = '<option value="">Selecione…</option>' + rubs.map(r =>
-      `<option value="${esc(r.id_rubrica)}" ${r.id_rubrica === c.id_rubrica ? 'selected' : ''}>${esc(r.codigo ? r.codigo + ' – ' : '')}${esc(r.descricao)}${r.tipo_despesa && r.tipo_despesa !== 'Compra de bens' ? ' (' + esc(r.tipo_despesa) + ')' : ''}</option>`).join('');
+      `<option value="${esc(r.id_rubrica)}" ${r.id_rubrica === c.id_rubrica ? 'selected' : ''}>${esc(r.codigo ? r.codigo + ' – ' : '')}${esc(r.descricao)}${r.tipo_despesa && !/^compra/i.test(r.tipo_despesa) ? ' (' + esc(r.tipo_despesa) + ')' : ''}</option>`).join('');
     $('cp_lista_forn').innerHTML = (atual.fornecedores || []).map(x => `<option value="${esc(x.razao_social)}">${esc(x.cnpj_cpf || '')}</option>`).join('');
     $('cp_data').value = c.inicio_execucao || '';
     $('cp_cotacao').value = c.data_cotacao || '';
@@ -2918,11 +2971,11 @@
         if (ctr) {
           const lista = imp.parcelas.filter(p => p.id_contratacao === ctr.id_contratacao).sort((a, b) => a.num_parcela - b.num_parcela);
           // compra: a parcela é do próprio mês do pagamento; serviço: do mês anterior
-          const comp = ctr.tipo_despesa === 'Compra de bens' ? l.data_pagamento.slice(0, 7) : competenciaAnterior(l.data_pagamento);
+          const comp = ehCompraC(ctr) ? l.data_pagamento.slice(0, 7) : competenciaAnterior(l.data_pagamento);
           parc = lista.find(p => p.competencia_mes === comp && !usadasParc.has(p.id_parcela));
           if (!parc) {
             parc = lista.find(p => !p.tem_pagamento && !usadasParc.has(p.id_parcela));
-            if (parc && ctr.tipo_despesa !== 'Compra de bens') avisos.push('competência ajustada para a próxima parcela em aberto');
+            if (parc && !ehCompraC(ctr)) avisos.push('competência ajustada para a próxima parcela em aberto');
           }
           if (!parc) avisos.push('nenhuma parcela livre nesta contratação');
         }
@@ -3252,7 +3305,7 @@
       return `<tr>
         <td>${ed && conf ? `<input type="checkbox" data-sitsel value="${esc(x.id_parcela)}" aria-label="Selecionar">` : ''}</td>
         <td><b>${cp(nf.razao_social_emitente || x.contratado)}</b><br><small>${cp(nf.cnpj_emitente || x.contratado_cnpj)}</small><br><small>${esc(x.rubrica)}</small>
-          <br><small>parcela ${esc(x.num_parcela)}${x.total_parcelas ? '/' + esc(x.total_parcelas) : ''} · ${x.tipo_despesa === 'Compra de bens' ? 'compra de' : 'serviço de'} ${mesExt(x.competencia_mes)}</small>
+          <br><small>parcela ${esc(x.num_parcela)}${x.total_parcelas ? '/' + esc(x.total_parcelas) : ''} · ${ehCompraC(x) ? 'compra de' : 'serviço de'} ${mesExt(x.competencia_mes)}</small>
           ${x.primeiro_pagamento === true ? '<br><span class="tag">1º pagamento</span>' : ''}</td>
         <td>${esc(nf.tipo_documento || 'Nota fiscal')} nº ${cp(nf.numero)}<br><small>emissão</small> ${cp(dataBr(nf.data_emissao))}</td>
         <td style="max-width:240px">${cp(nf.descricao)}</td>
@@ -3596,7 +3649,7 @@
     ],
     preparar: b => {
       if (!b.descricao && !b.valor_total && !b.valor_unitario_max) return { vazia: true };
-      const tipo = TIPOS.find(t => normTxt(t) === normTxt(b.tipo_despesa)) || (normTxt(b.tipo_despesa).includes('servic') ? 'Prestação de serviço' : /bem|material|compra|aquisic/.test(normTxt(b.tipo_despesa)) ? 'Compra de bens' : /ativo|imobiliz|equipament|permanente/.test(normTxt(b.tipo_despesa)) ? 'Ativo imobilizado' : '');
+      const tipo = TIPOS.find(t => normTxt(t) === normTxt(b.tipo_despesa)) || (normTxt(b.tipo_despesa).includes('servic') ? 'Prestação de serviço' : /consumo/.test(normTxt(b.tipo_despesa)) && TIPOS.includes('Compra de consumo') ? 'Compra de consumo' : /bem|material|compra|aquisic/.test(normTxt(b.tipo_despesa)) ? 'Compra de bens' : /ativo|imobiliz|equipament|permanente/.test(normTxt(b.tipo_despesa)) ? 'Ativo imobilizado' : '');
       let qtd = lerNumero(b.quantidade), vu = lerNumero(b.valor_unitario_max), meses = b.meses ? lerNumero(b.meses) : '', tot = lerNumero(b.valor_total);
       const avisos = [], erros = [];
       if (!(vu > 0) && tot > 0) { vu = tot / ((qtd > 0 ? qtd : 1) * (meses > 0 ? meses : 1)); if (!(qtd > 0)) qtd = 1; avisos.push('valor unitário calculado pelo total'); }
@@ -3883,16 +3936,37 @@
   function abrirConfig(aba) {
     navAtivo('navConfig', 'Configurações');
     mostrarView('viewConfig');
-    trocarAbaCfg(aba === 'projetos' ? 'projetos' : 'usuarios');
+    trocarAbaCfg(['projetos', 'listas'].includes(aba) ? aba : 'usuarios');
   }
   function trocarAbaCfg(aba) {
     document.querySelectorAll('[data-cfg]').forEach(b => b.setAttribute('aria-selected', b.dataset.cfg === aba));
     $('cfgUsuarios').classList.toggle('oculto', aba !== 'usuarios');
     $('cfgProjetos').classList.toggle('oculto', aba !== 'projetos');
+    $('cfgListas').classList.toggle('oculto', aba !== 'listas');
     gravarRota('config/' + aba);
-    aba === 'usuarios' ? carregarUsuarios() : carregarProjetosAdmin();
+    aba === 'usuarios' ? carregarUsuarios() : aba === 'listas' ? carregarListas() : carregarProjetosAdmin();
   }
   document.querySelectorAll('[data-cfg]').forEach(b => b.addEventListener('click', () => trocarAbaCfg(b.dataset.cfg)));
+  async function carregarListas() {
+    msg('msgListas', 'Carregando…', 'ok');
+    try {
+      const l = await lerAgora('obterListas', {});
+      aplicarListas(l);
+      $('lsTipos').value = l.tipo_despesa.join('\n'); $('lsClassif').value = l.classificacao_contabil.join('\n');
+      msg('msgListas', '');
+    } catch (err) { msg('msgListas', err.message); }
+  }
+  $('btnSalvarListas').addEventListener('click', async () => {
+    const linhas = id => $(id).value.split('\n').map(x => x.trim()).filter(Boolean);
+    const btn = $('btnSalvarListas'); btn.disabled = true; msg('msgListas', 'Salvando…', 'ok');
+    try {
+      const l = await api('salvarListas', { tipo_despesa: linhas('lsTipos'), classificacao_contabil: linhas('lsClassif') });
+      aplicarListas(l);
+      $('lsTipos').value = l.tipo_despesa.join('\n'); $('lsClassif').value = l.classificacao_contabil.join('\n');
+      msg('msgListas', `✓ Salvo: ${l.tipo_despesa.length} tipo(s) e ${l.classificacao_contabil.length} classificação(ões).`, 'ok');
+    } catch (err) { msg('msgListas', err.message); }
+    btn.disabled = false;
+  });
   $('navConfig').addEventListener('click', () => abrirConfig());
 
   async function carregarUsuarios() {
