@@ -600,7 +600,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.14-a</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.15-a</span></span></div>
   </div>
 </section>
 
@@ -843,6 +843,25 @@
     <div class="msg" id="msgFaturar"></div>
     <button type="button" class="btn-sec" data-fechar>Fechar</button>
     <button type="button" class="btn" id="btnFaturarOk">Gerar solicitação</button>
+  </div>
+</dialog>
+
+<!-- MODAL: REPROGRAMAR PARCELA -->
+<dialog id="dlgRepro">
+  <div class="modal-cab"><h3 id="tituloRepro">Reprogramar parcela</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+  <div class="modal-corpo">
+    <p class="dica" style="margin-top:0" id="rpInfo"></p>
+    <label class="checkbox" style="margin:8px 0"><input type="radio" name="rpModo" value="mes" checked> Mover para o mês
+      <input type="month" id="rpMes" style="margin-left:8px;width:auto"></label>
+    <div class="dica" style="margin:0 0 10px 26px">As parcelas em aberto desse mês em diante andam um mês para frente.</div>
+    <label class="checkbox" style="margin:8px 0"><input type="radio" name="rpModo" value="fim"> Mover para depois da última parcela</label>
+    <div class="dica" style="margin:0 0 10px 26px">As outras parcelas não mudam.</div>
+    <div id="rpPrevia" style="margin-top:12px"></div>
+  </div>
+  <div class="modal-rodape">
+    <div class="msg" id="msgRepro"></div>
+    <button type="button" class="btn-sec" data-fechar>Cancelar</button>
+    <button type="button" class="btn" id="btnReproOk">Reprogramar</button>
   </div>
 </dialog>
 
@@ -2132,7 +2151,8 @@
             <td>${nf.numero ? (nf.url ? `<a href="${esc(nf.url)}" target="_blank" rel="noopener">nº ${esc(nf.numero)}</a>` : 'nº ' + esc(nf.numero)) : '—'}</td>
             <td>${pg.data_pagamento ? dataBr(pg.data_pagamento) + (pg.data_debito_conta && pg.data_debito_conta !== pg.data_pagamento ? ' / ' + dataBr(pg.data_debito_conta) : '') : '—'}</td>
             <td class="num">${pg.valor ? brl(pg.valor) : '—'}</td>
-            <td>${ctrAtual.parcelas_det ? `<button class="btn-sec" style="padding:5px 10px" data-ctrparc="${esc(p.id_parcela)}">Abrir</button>` : ''}</td></tr>`; }).join('')}</tbody>
+            <td style="white-space:nowrap">${ctrAtual.parcelas_det ? `<button class="btn-sec" style="padding:5px 10px" data-ctrparc="${esc(p.id_parcela)}">Abrir</button>` : ''}
+              ${ctrAtual.pode_reprogramar && c.modalidade !== 'Por demanda' && !ehCompra && parcelaLivre(p) ? `<button class="btn-link" data-repro="${esc(p.id_parcela)}" title="Mudar a competência desta parcela (ex.: mês de férias)">↪ Reprogramar</button>` : ''}</td></tr>`; }).join('')}</tbody>
         </table></div>
       </div>`;
 
@@ -2148,6 +2168,7 @@
     $('corpoCtr').querySelectorAll('[data-exdoc]').forEach(b => b.addEventListener('click', () => excluirDoc(b.dataset.exdoc)));
     $('corpoCtr').querySelectorAll('[data-excot]').forEach(b => b.addEventListener('click', () => excluirCot(b.dataset.excot)));
     $('corpoCtr').querySelectorAll('[data-ctrparc]').forEach(b => b.addEventListener('click', () => abrirParcela(b.dataset.ctrparc, ctxCtr)));
+    $('corpoCtr').querySelectorAll('[data-repro]').forEach(b => b.addEventListener('click', () => abrirReprogramar(b.dataset.repro)));
   }
 
   async function gerarContrato(e) {
@@ -4485,6 +4506,62 @@
   });
   $('btnFaturarExec').addEventListener('click', () => abrirFaturar(atual.projeto.id_projeto));
   $('btnPagFaturar').addEventListener('click', () => abrirFaturar(pagFiltro || '', '', true));
+
+  // ---------- reprogramar parcela (ex.: mês de férias: a parcela vai para outro mês ou para o fim)
+  const parcelaLivre = p => p.status === 'Prevista' && !(p.nf && p.nf.numero) && !p.pagamento;
+  let rpParc = null;
+  const ymNum = s => { const m = String(s || '').match(/^(\d{4})-(\d{2})/); return m ? +m[1] * 12 + +m[2] - 1 : null; };
+  const numYm = n => `${Math.floor(n / 12)}-${String(n % 12 + 1).padStart(2, '0')}`;
+  function abrirReprogramar(id) {
+    const lista = ctrAtual.parcelas_det || [];
+    rpParc = lista.find(p => p.id_parcela === id);
+    if (!rpParc) return;
+    $('tituloRepro').textContent = `Reprogramar parcela ${rpParc.num_parcela} · ${mesAno(rpParc.competencia)}`;
+    $('rpInfo').innerHTML = `Use quando o serviço daquele mês não aconteceu (férias, recesso…) e o pagamento passa para outro mês. Só parcelas previstas, sem nota nem pagamento, mudam de lugar.`;
+    // sugere o primeiro mês possível: depois da competência atual e da última parcela já lançada
+    const ultTrav = lista.filter(p => !parcelaLivre(p)).reduce((m, p) => Math.max(m, ymNum(p.competencia) || 0), 0);
+    $('rpMes').value = numYm(Math.max(ymNum(rpParc.competencia) + 1, ultTrav + 1));
+    document.querySelector('input[name="rpModo"][value="mes"]').checked = true;
+    msg('msgRepro', ''); previaRepro();
+    $('dlgRepro').showModal();
+  }
+  function calcRepro() {
+    const lista = ctrAtual.parcelas_det || [], modo = document.querySelector('input[name="rpModo"]:checked').value;
+    const atualN = ymNum(rpParc.competencia), novas = {};
+    if (modo === 'fim') novas[rpParc.id_parcela] = lista.filter(p => p.id_parcela !== rpParc.id_parcela).reduce((m, p) => Math.max(m, ymNum(p.competencia) || 0), atualN) + 1;
+    else {
+      const dest = ymNum($('rpMes').value);
+      if (dest === null) return { erro: 'Escolha o mês.' };
+      if (dest <= atualN) return { erro: 'Escolha um mês depois de ' + mesAno(rpParc.competencia) + '.' };
+      const frente = lista.filter(p => p.id_parcela !== rpParc.id_parcela && ymNum(p.competencia) >= dest);
+      const trav = frente.find(p => !parcelaLivre(p));
+      if (trav) return { erro: `A parcela ${trav.num_parcela} (${mesAno(trav.competencia)}) já tem lançamento e não pode andar. Escolha um mês depois dela ou "depois da última parcela".` };
+      novas[rpParc.id_parcela] = dest;
+      frente.forEach(p => { novas[p.id_parcela] = ymNum(p.competencia) + 1; });
+    }
+    return { novas, lista };
+  }
+  function previaRepro() {
+    const r = calcRepro();
+    $('btnReproOk').disabled = !!r.erro;
+    if (r.erro) { $('rpPrevia').innerHTML = `<div class="aviso">${esc(r.erro)}</div>`; return; }
+    const linhas = r.lista.map(p => ({ p, de: ymNum(p.competencia), para: r.novas[p.id_parcela] !== undefined ? r.novas[p.id_parcela] : ymNum(p.competencia) }))
+      .sort((a, b) => a.para - b.para || a.p.num_parcela - b.p.num_parcela);
+    $('rpPrevia').innerHTML = `<div class="tabela-wrap"><table><thead><tr><th>Parcela</th><th>Hoje</th><th>Depois</th><th>Status</th></tr></thead><tbody>
+      ${linhas.map(l => `<tr style="${l.de !== l.para ? 'background:#fff7e6' : ''}"><td>${esc(l.p.num_parcela)}</td><td>${mesAno(numYm(l.de))}</td>
+        <td>${l.de !== l.para ? '<b>' + mesAno(numYm(l.para)) + '</b>' : mesAno(numYm(l.para))}</td><td>${esc(l.p.status)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  $('rpMes').addEventListener('change', () => { document.querySelector('input[name="rpModo"][value="mes"]').checked = true; previaRepro(); });
+  document.querySelectorAll('input[name="rpModo"]').forEach(r => r.addEventListener('change', previaRepro));
+  $('btnReproOk').addEventListener('click', async () => {
+    const modo = document.querySelector('input[name="rpModo"]:checked').value;
+    const btn = $('btnReproOk'); btn.disabled = true; msg('msgRepro', 'Reprogramando…', 'ok');
+    try {
+      ctrAtual = await api('reprogramarParcela', { id_parcela: rpParc.id_parcela, modo, mes: $('rpMes').value });
+      $('dlgRepro').close(); ctrMudou = true; renderCtr(); toast('Parcela reprogramada ✓');
+    } catch (err) { msg('msgRepro', err.message); }
+    btn.disabled = false;
+  });
 
   // ---------- encerramento antecipado / substituição de prestador
   function abrirEncerrar() {
