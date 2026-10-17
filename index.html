@@ -238,6 +238,13 @@
   /* Pagamentos */
   .pag-filtros { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
   .pag-filtros > div { min-width: 180px; }
+  .filtro-etapa { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: -8px 0 16px; }
+  .filtro-etapa > span { font-size: 13px; color: var(--suave); font-weight: 600; margin-right: 4px; }
+  .filtro-etapa .chip { cursor: pointer; padding: 5px 12px; }
+  .filtro-etapa .chip small { color: var(--suave); margin-left: 4px; }
+  .filtro-etapa .chip[aria-pressed="true"] { background: var(--azul); border-color: var(--azul); color: #fff; }
+  .filtro-etapa .chip[aria-pressed="true"] small { color: rgba(255,255,255,.8); }
+  .filtro-etapa .chip:disabled { opacity: .45; cursor: default; }
   .etapas { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 22px; }
   .etapa { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); padding: 14px 16px; box-shadow: var(--sombra); position: relative; }
   .etapa .num { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; background: #eeeae4; color: var(--suave); margin-bottom: 10px; }
@@ -416,9 +423,11 @@
         <div class="pag-filtros">
           <div><label for="pagMes">Mês de pagamento</label><input type="month" id="pagMes"></div>
           <div><label for="pagProjeto">Projeto</label><select id="pagProjeto"></select></div>
+          <div><label for="pagInst">Instituição</label><select id="pagInst"><option value="">Todas as instituições</option></select></div>
         </div>
       </div>
       <div class="etapas" id="pagEtapas"></div>
+      <div class="filtro-etapa" id="pagFiltroEtapa" role="group" aria-label="Filtrar por etapa"></div>
       <section class="painel">
         <div class="titulo-linha">
           <h2 style="font-size:16px">Parcelas do mês</h2>
@@ -602,7 +611,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.17-a</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.17-b</span></span></div>
   </div>
 </section>
 
@@ -2517,7 +2526,12 @@
   const hojeYM = () => new Date().toLocaleDateString('sv-SE').slice(0, 7);
   let pag = null, parcAtual = null;
 
-  let pagFiltro = '';
+  let pagFiltro = '', pagInst = '';
+  const pagEtapasSel = new Set();
+  const instDe = x => x.instituicao_sigla || x.instituicao_nome || '';
+  const passaInst = x => !pagInst || instDe(x) === pagInst;
+  const passaEtapa = x => !pagEtapasSel.size || pagEtapasSel.has(x.status);
+  const filtrarPag = lista => (lista || []).filter(x => passaInst(x) && passaEtapa(x));
   async function abrirPagamentos(mes, projeto) {
     navAtivo('navPagamentos', 'Pagamentos');
     if (projeto !== undefined) pagFiltro = projeto || '';
@@ -2538,8 +2552,28 @@
     } catch (err) { erroComRepetir($('pagTabela'), err, carregarPag); }
   }
 
+  function resumoPag(lista) {
+    const conta = min => lista.filter(x => idxSt(x.status) >= idxSt(min)).length;
+    return { total: lista.length, valor_total: lista.reduce((s, x) => s + Number(x.valor_previsto || 0), 0),
+      solicitadas: conta('NF solicitada'), recebidas: conta('NF recebida'), liberadas: conta('Liberada para pagamento'),
+      pagas: conta('Paga'), conferidas: conta('Conferida'),
+      valor_pago: lista.filter(x => x.pagamento).reduce((s, x) => s + Number(x.pagamento.valor || x.valor_previsto || 0), 0) };
+  }
+
   function renderPag() {
-    const r = pag.resumo, sel = pagFiltro;
+    // Instituições presentes nas parcelas carregadas
+    const insts = [...new Set([].concat(pag.parcelas, pag.atrasadas, pag.pausadas || []).map(instDe).filter(Boolean))].sort();
+    if (pagInst && !insts.includes(pagInst)) insts.push(pagInst);
+    $('pagInst').innerHTML = '<option value="">Todas as instituições</option>' +
+      insts.map(i => `<option value="${esc(i)}" ${i === pagInst ? 'selected' : ''}>${esc(i)}</option>`).join('');
+    const doMesInst = pag.parcelas.filter(passaInst), atrasInst = pag.atrasadas.filter(passaInst);
+    const r = pagInst ? resumoPag(doMesInst) : pag.resumo, sel = pagFiltro;
+    // Filtro por etapa (status) – contagem do mês + pendentes anteriores
+    const cont = {}; doMesInst.concat(atrasInst).forEach(x => { cont[x.status] = (cont[x.status] || 0) + 1; });
+    $('pagFiltroEtapa').innerHTML = '<span>Etapa:</span>' +
+      `<button type="button" class="chip" data-etapa="" aria-pressed="${!pagEtapasSel.size}">Todas<small>${doMesInst.length + atrasInst.length}</small></button>` +
+      ORDEM_ST.map(st => `<button type="button" class="chip" data-etapa="${esc(st)}" aria-pressed="${pagEtapasSel.has(st)}" ${cont[st] || pagEtapasSel.has(st) ? '' : 'disabled'}>${esc(st)}<small>${cont[st] || 0}</small></button>`).join('');
+    const filtrando = pagInst || pagEtapasSel.size;
     $('pagSub').innerHTML = `Pagamento de <b>${esc(pag.mes_extenso)}</b> · serviços prestados em <b>${esc(pag.competencia_extenso)}</b> · ${r.total} parcela(s), ${brl(r.valor_total)}` +
       (pag.vencimento ? ` · vencimento <b>${dataBr(pag.vencimento)}</b> (5º dia útil)` : '');
     $('btnPausar').classList.toggle('oculto', !pag.pode_pausar);
@@ -2563,11 +2597,14 @@
         <div class="barra"><i style="width:${r.total ? Math.round(n / r.total * 100) : 0}%"></i></div></div>`;
     }).join('');
 
-    $('pagTabela').innerHTML = tabelaParcelas(pag.parcelas, 'mes') ||
-      `<div class="vazio">Nenhuma parcela com serviços de ${esc(pag.competencia_extenso)}.</div>`;
-    $('pagAtrasadas').innerHTML = pag.atrasadas.length
-      ? `<div class="secao"><h4>⚠️ Pendentes de meses anteriores (${pag.atrasadas.length})</h4>${tabelaParcelas(pag.atrasadas, 'atras')}</div>` : '';
-    const pz = pag.pausadas || [];
+    const vMes = filtrarPag(pag.parcelas), vAtras = filtrarPag(pag.atrasadas);
+    $('pagTabela').innerHTML = tabelaParcelas(vMes, 'mes') ||
+      (filtrando && pag.parcelas.length
+        ? `<div class="vazio">Nenhuma parcela do mês com esse filtro. <button class="btn-link" data-limpafiltro>Limpar filtros</button></div>`
+        : `<div class="vazio">Nenhuma parcela com serviços de ${esc(pag.competencia_extenso)}.</div>`);
+    $('pagAtrasadas').innerHTML = vAtras.length
+      ? `<div class="secao"><h4>⚠️ Pendentes de meses anteriores (${vAtras.length})</h4>${tabelaParcelas(vAtras, 'atras')}</div>` : '';
+    const pz = filtrarPag(pag.pausadas);
     $('pagPausadas').innerHTML = pz.length ? `<div class="secao"><details><summary><b>⏸ Parcelas pausadas (${pz.length})</b>
         <span class="dica" style="margin:0"> — não contam como pendência e não recebem pedido de NF até serem retomadas</span></summary>
       <div class="tabela-wrap" style="margin-top:8px"><table><thead><tr><th>Projeto</th><th>Contratado</th><th>Parcela</th><th>Serviço de</th><th class="num">Valor</th><th>Motivo</th><th></th></tr></thead>
@@ -2605,7 +2642,16 @@
       document.querySelectorAll(`[data-sel="${cb.dataset.todos}"]`).forEach(x => x.checked = cb.checked)));
     document.querySelectorAll('[data-parc]').forEach(b => b.addEventListener('click', () => abrirParcela(b.dataset.parc)));
     document.querySelectorAll('[data-retomar]').forEach(b => b.addEventListener('click', () => pausarParcelas([b.dataset.retomar], false)));
+    document.querySelectorAll('[data-limpafiltro]').forEach(b => b.addEventListener('click', () => { pagInst = ''; pagEtapasSel.clear(); renderPag(); }));
   }
+  $('pagFiltroEtapa').addEventListener('click', e => {
+    const b = e.target.closest('[data-etapa]'); if (!b || b.disabled || !pag) return;
+    const st = b.dataset.etapa;
+    if (!st) pagEtapasSel.clear();
+    else if (pagEtapasSel.has(st)) pagEtapasSel.delete(st); else pagEtapasSel.add(st);
+    renderPag();
+  });
+  $('pagInst').addEventListener('change', () => { pagInst = $('pagInst').value; if (pag) renderPag(); });
 
   const todasParcelas = () => (pag ? pag.parcelas.concat(pag.atrasadas) : []);
   const selecionadas = () => [...document.querySelectorAll('[data-sel]:checked')].map(x => x.value);
@@ -2657,7 +2703,7 @@
 
   // --- pedir NFs
   $('btnSolicitar').addEventListener('click', () => {
-    const lista = todasParcelas().filter(x => idxSt(x.status) < idxSt('NF recebida'));
+    const lista = todasParcelas().filter(x => passaInst(x) && idxSt(x.status) < idxSt('NF recebida'));
     $('corpoSolic').innerHTML = lista.length ? `
       <p class="dica">Um e-mail para cada contratado, pedindo a nota do mês de serviço. Desmarque quem não deve receber.</p>
       <div class="tabela-wrap"><table><thead><tr><th></th><th>Contratado</th><th>E-mail</th><th>Serviço de</th><th class="num">Valor</th><th>Situação</th></tr></thead>
