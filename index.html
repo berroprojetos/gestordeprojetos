@@ -428,10 +428,12 @@
             <button class="btn-sec" id="btnPagFaturar" title="Rubricas por demanda (palestras): escolha projeto, rubrica e prestador e gere a solicitação">🧾 Faturar serviços por demanda</button>
             <button class="btn-sec" id="btnSolicitar">✉️ Pedir notas fiscais</button>
             <button class="btn-sec" id="btnLiberar">✓ Liberar selecionadas</button>
+            <button class="btn-sec oculto" id="btnPausar" title="Tira das pendências (ex.: parcela que não será paga até uma alteração ser aprovada)">⏸ Pausar selecionadas</button>
           </div>
         </div>
         <div id="pagTabela"></div>
         <div id="pagAtrasadas"></div>
+        <div id="pagPausadas"></div>
       </section>
     </div>
 
@@ -600,7 +602,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.15-a</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.17-a</span></span></div>
   </div>
 </section>
 
@@ -2069,6 +2071,8 @@
         ${pode ? (ehCompra ? '<button class="btn-sec" id="btnEditarCompra">✏️ Editar compra</button>' : '<button class="btn-sec" id="btnEditarCtr">✏️ Editar dados</button>') : ''}
         ${ctrAtual.pasta_url ? `<a class="btn-sec" href="${esc(ctrAtual.pasta_url)}" target="_blank" rel="noopener" style="text-decoration:none">📁 Pasta no Drive</a>` : ''}
         ${c.modalidade === 'Por demanda' ? '<button class="btn-sec" id="btnIrExec">📋 Palestras e faturamento</button>' : ''}
+        ${ctrAtual.pode_reprogramar && (ctrAtual.parcelas_det || []).some(p => parcelaLivre(p))
+          ? `<button class="btn-sec" id="btnPausarCtr" title="Pausa (ou retoma) todas as parcelas em aberto desta contratação">${(ctrAtual.parcelas_det || []).filter(p => parcelaLivre(p)).some(p => !p.pausada) ? '⏸ Pausar parcelas em aberto' : '▶ Retomar parcelas pausadas'}</button>` : ''}
         ${pode && !ehCompra && c.modalidade !== 'Por demanda' && ['Encerrada', 'Cancelada'].indexOf(c.status) === -1 && Number(c.num_parcelas) > 1
           ? '<button class="btn-sec" id="btnEncerrarCtr" title="Prestador saiu antes do fim: mantém o que foi pago e libera o restante">⏹ Encerrar / substituir prestador</button>' : ''}
         ${usuario.perfil === 'ADMIN' ? '<button class="btn-link perigo" id="btnExcluirCtr">🗑 Excluir contratação</button>' : ''}
@@ -2143,16 +2147,19 @@
       <div class="secao">
         <h4>${ehCompra ? 'Pagamento' : c.modalidade === 'Por demanda' ? 'Faturamentos (palestras já faturadas)' : 'Parcelas previstas'}</h4>
         <div class="tabela-wrap"><table>
-          <thead><tr><th>Nº</th><th>Competência</th><th class="num">Valor</th><th>Status</th><th>NF</th><th>Pagamento / débito</th><th class="num">Valor pago</th><th></th></tr></thead>
+          <thead><tr><th>Nº</th><th>Competência</th><th class="num">Valor</th><th>Vencimento</th><th>Status</th><th>NF</th><th>Pagamento / débito</th><th class="num">Valor pago</th><th></th></tr></thead>
           <tbody>${(ctrAtual.parcelas_det || parcelas).map(p => { const nf = p.nf || {}, pg = p.pagamento || {}; return `<tr>
             <td>${esc(p.num_parcela)}${p.primeiro_pagamento === true ? ' <span class="tag" title="No SIT, o 1º pagamento leva cotações + NF + comprovante">1º pagamento</span>' : ''}</td>
             <td>${mesAno(p.competencia)}</td><td class="num">${brl(p.valor_previsto)}</td>
-            <td><span class="st ${stClasse(p.status)}">${esc(p.status)}</span></td>
+            <td style="white-space:nowrap">${p.vencimento ? dataBr(p.vencimento) : '—'}</td>
+            <td><span class="st ${stClasse(p.status)}">${esc(p.status)}</span>${p.pausada ? ` <span class="st amarelo" title="${esc(p.pausa_motivo || 'pausada')}">⏸ pausada</span>` : ''}</td>
             <td>${nf.numero ? (nf.url ? `<a href="${esc(nf.url)}" target="_blank" rel="noopener">nº ${esc(nf.numero)}</a>` : 'nº ' + esc(nf.numero)) : '—'}</td>
             <td>${pg.data_pagamento ? dataBr(pg.data_pagamento) + (pg.data_debito_conta && pg.data_debito_conta !== pg.data_pagamento ? ' / ' + dataBr(pg.data_debito_conta) : '') : '—'}</td>
             <td class="num">${pg.valor ? brl(pg.valor) : '—'}</td>
             <td style="white-space:nowrap">${ctrAtual.parcelas_det ? `<button class="btn-sec" style="padding:5px 10px" data-ctrparc="${esc(p.id_parcela)}">Abrir</button>` : ''}
-              ${ctrAtual.pode_reprogramar && c.modalidade !== 'Por demanda' && !ehCompra && parcelaLivre(p) ? `<button class="btn-link" data-repro="${esc(p.id_parcela)}" title="Mudar a competência desta parcela (ex.: mês de férias)">↪ Reprogramar</button>` : ''}</td></tr>`; }).join('')}</tbody>
+              ${ctrAtual.pode_reprogramar && c.modalidade !== 'Por demanda' && !ehCompra && parcelaLivre(p) ? `<button class="btn-link" data-repro="${esc(p.id_parcela)}" title="Mudar a competência desta parcela (ex.: mês de férias)">↪ Reprogramar</button>` : ''}
+              ${ctrAtual.pode_reprogramar && parcelaLivre(p) ? (p.pausada ? `<button class="btn-link" data-ppausa="${esc(p.id_parcela)}" data-acao="retomar">▶ Retomar</button>`
+                : `<button class="btn-link" data-ppausa="${esc(p.id_parcela)}" data-acao="pausar" title="Tirar das pendências de Pagamentos">⏸ Pausar</button>`) : ''}</td></tr>`; }).join('')}</tbody>
         </table></div>
       </div>`;
 
@@ -2169,6 +2176,14 @@
     $('corpoCtr').querySelectorAll('[data-excot]').forEach(b => b.addEventListener('click', () => excluirCot(b.dataset.excot)));
     $('corpoCtr').querySelectorAll('[data-ctrparc]').forEach(b => b.addEventListener('click', () => abrirParcela(b.dataset.ctrparc, ctxCtr)));
     $('corpoCtr').querySelectorAll('[data-repro]').forEach(b => b.addEventListener('click', () => abrirReprogramar(b.dataset.repro)));
+    const recarregarCtr = async () => { ctrAtual = await lerAgora('obterContratacao', { id_contratacao: c.id_contratacao }); ctrMudou = true; renderCtr(); };
+    $('corpoCtr').querySelectorAll('[data-ppausa]').forEach(b => b.addEventListener('click', () => pausarParcelas([b.dataset.ppausa], b.dataset.acao === 'pausar', recarregarCtr)));
+    const livres = (ctrAtual.parcelas_det || []).filter(p => parcelaLivre(p));
+    const bP = $('btnPausarCtr');
+    if (bP) bP.addEventListener('click', () => {
+      const pausar = livres.some(p => !p.pausada);
+      pausarParcelas(livres.filter(p => pausar ? !p.pausada : p.pausada).map(p => p.id_parcela), pausar, recarregarCtr);
+    });
   }
 
   async function gerarContrato(e) {
@@ -2525,7 +2540,9 @@
 
   function renderPag() {
     const r = pag.resumo, sel = pagFiltro;
-    $('pagSub').innerHTML = `Pagamento de <b>${esc(pag.mes_extenso)}</b> · serviços prestados em <b>${esc(pag.competencia_extenso)}</b> · ${r.total} parcela(s), ${brl(r.valor_total)}`;
+    $('pagSub').innerHTML = `Pagamento de <b>${esc(pag.mes_extenso)}</b> · serviços prestados em <b>${esc(pag.competencia_extenso)}</b> · ${r.total} parcela(s), ${brl(r.valor_total)}` +
+      (pag.vencimento ? ` · vencimento <b>${dataBr(pag.vencimento)}</b> (5º dia útil)` : '');
+    $('btnPausar').classList.toggle('oculto', !pag.pode_pausar);
     $('pagProjeto').innerHTML = '<option value="">Todos os projetos</option>' + pag.projetos.map(p =>
       `<option value="${esc(p.id_projeto)}" ${p.id_projeto === sel ? 'selected' : ''}>${esc(p.sigla || p.nome_projeto)}</option>`).join('');
     $('btnModeloEmail').classList.toggle('oculto', !pag.pode_editar_modelo);
@@ -2550,6 +2567,13 @@
       `<div class="vazio">Nenhuma parcela com serviços de ${esc(pag.competencia_extenso)}.</div>`;
     $('pagAtrasadas').innerHTML = pag.atrasadas.length
       ? `<div class="secao"><h4>⚠️ Pendentes de meses anteriores (${pag.atrasadas.length})</h4>${tabelaParcelas(pag.atrasadas, 'atras')}</div>` : '';
+    const pz = pag.pausadas || [];
+    $('pagPausadas').innerHTML = pz.length ? `<div class="secao"><details><summary><b>⏸ Parcelas pausadas (${pz.length})</b>
+        <span class="dica" style="margin:0"> — não contam como pendência e não recebem pedido de NF até serem retomadas</span></summary>
+      <div class="tabela-wrap" style="margin-top:8px"><table><thead><tr><th>Projeto</th><th>Contratado</th><th>Parcela</th><th>Serviço de</th><th class="num">Valor</th><th>Motivo</th><th></th></tr></thead>
+      <tbody>${pz.map(x => `<tr><td><span class="sigla">${esc(x.projeto_sigla)}</span></td><td><b>${esc(x.contratado)}</b><br><span style="color:var(--suave)">${esc(x.rubrica)}</span></td>
+        <td>${esc(x.num_parcela)}${x.total_parcelas ? '/' + esc(x.total_parcelas) : ''}</td><td>${mesExt(x.competencia_mes)}</td><td class="num">${brl(x.valor_previsto)}</td>
+        <td>${esc(x.pausa_motivo || '—')}</td><td>${pag.pode_pausar ? `<button class="btn-sec" style="padding:5px 10px" data-retomar="${esc(x.id_parcela)}">▶ Retomar</button>` : ''}</td></tr>`).join('')}</tbody></table></div></details></div>` : '';
     ligarTabelaPag();
   }
 
@@ -2557,7 +2581,7 @@
     if (!lista.length) return '';
     return `<div class="tabela-wrap"><table>
       <thead><tr><th><input type="checkbox" data-todos="${grupo}" aria-label="Selecionar todas"></th>
-        <th>Projeto</th><th>Contratado</th><th>Parcela</th><th>Serviço de</th><th class="num">Valor</th><th>Etapa</th><th>NF</th><th>Comprovante</th><th>Dados SIT</th><th></th></tr></thead>
+        <th>Projeto</th><th>Contratado</th><th>Parcela</th><th>Serviço de</th><th class="num">Valor</th><th>Vencimento</th><th>Etapa</th><th>NF</th><th>Comprovante</th><th>Dados SIT</th><th></th></tr></thead>
       <tbody>${lista.map(x => `<tr>
         <td><input type="checkbox" data-sel="${grupo}" value="${esc(x.id_parcela)}" aria-label="Selecionar"></td>
         <td><span class="sigla">${esc(x.projeto_sigla)}</span></td>
@@ -2567,6 +2591,7 @@
           ${x.primeiro_pagamento === true ? '<br><span class="tag" title="No SIT, o 1º pagamento vai com cotações + NF + comprovante">1º pagamento</span>' : ''}</td>
         <td>${mesExt(x.competencia_mes)}</td>
         <td class="num"><b>${brl(x.valor_previsto)}</b></td>
+        <td style="white-space:nowrap">${x.vencimento ? dataBr(x.vencimento) : '—'}</td>
         <td><span class="st ${stClasse(x.status)}">${esc(x.status)}</span></td>
         <td>${x.nf && x.nf.url ? `<a href="${esc(x.nf.url)}" target="_blank" rel="noopener">📄 ${x.nf.numero ? 'nº ' + esc(x.nf.numero) : 'abrir'}</a>${x.nf.divergencias ? ' <span title="' + esc(x.nf.divergencias) + '">⚠️</span>' : ''}` : '—'}</td>
         <td>${x.pagamento && x.pagamento.url ? `<a href="${esc(x.pagamento.url)}" target="_blank" rel="noopener">🧾 ${x.pagamento.data_pagamento ? dataBr(x.pagamento.data_pagamento) : 'abrir'}</a>` : '—'}</td>
@@ -2579,6 +2604,7 @@
     document.querySelectorAll('[data-todos]').forEach(cb => cb.addEventListener('change', () =>
       document.querySelectorAll(`[data-sel="${cb.dataset.todos}"]`).forEach(x => x.checked = cb.checked)));
     document.querySelectorAll('[data-parc]').forEach(b => b.addEventListener('click', () => abrirParcela(b.dataset.parc)));
+    document.querySelectorAll('[data-retomar]').forEach(b => b.addEventListener('click', () => pausarParcelas([b.dataset.retomar], false)));
   }
 
   const todasParcelas = () => (pag ? pag.parcelas.concat(pag.atrasadas) : []);
@@ -2609,6 +2635,22 @@
   }
 
   $('btnLiberar').addEventListener('click', () => acaoLote('liberarParcelas', selecionadas(), 'liberada(s) para pagamento'));
+  // Pausar / retomar parcelas (Pagamentos e contratação)
+  async function pausarParcelas(ids, pausar, depois) {
+    if (!ids.length) return alert('Selecione as parcelas.');
+    let motivo = '';
+    if (pausar) {
+      motivo = prompt('Pausar ' + ids.length + ' parcela(s)?\n\nElas saem das pendências de Pagamentos e não recebem pedido de NF até serem retomadas.\nSó parcelas sem nota e sem pagamento podem ser pausadas.\n\nMotivo (opcional):', '');
+      if (motivo === null) return;
+    }
+    try {
+      const r = await api('pausarParcelas', { ids, pausar, motivo });
+      toast((pausar ? '⏸ ' + r.feitas.length + ' parcela(s) pausada(s)' : '▶ ' + r.feitas.length + ' parcela(s) retomada(s)') +
+        (r.ignoradas.length ? ' · ' + r.ignoradas.length + ' já tinham nota ou pagamento e ficaram como estavam' : ''));
+      if (depois) await depois(); else await carregarPag();
+    } catch (err) { alert(err.message); }
+  }
+  $('btnPausar').addEventListener('click', () => pausarParcelas(selecionadas(), true));
   $('pagMes').addEventListener('change', carregarPag);
   $('pagProjeto').addEventListener('change', () => { pagFiltro = $('pagProjeto').value; carregarPag(); });
   $('navPagamentos').addEventListener('click', () => abrirPagamentos());
@@ -2766,6 +2808,7 @@
         <div><span>Rubrica</span>${esc(x.rubrica)}</div>
         <div><span>Serviço de</span>${mesExt(x.competencia_mes)}</div>
         <div><span>Valor previsto</span><b>${brl(x.valor_previsto)}</b></div>
+        <div><span>Vencimento</span>${x.vencimento ? dataBr(x.vencimento) + ' (5º dia útil)' : '—'}${x.pausada ? ' · <span class="st amarelo">⏸ pausada</span>' : ''}</div>
         <div><span>CPF/CNPJ do contratado</span>${esc(x.contratado_cnpj)}</div>
         <div><span>E-mail</span>${esc(x.contratado_email || '—')}</div>
       </div>
