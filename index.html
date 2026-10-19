@@ -238,6 +238,24 @@
   /* Pagamentos */
   .pag-filtros { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
   .pag-filtros > div { min-width: 180px; }
+  .rotulo-per { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .periodo { display: flex; gap: 10px; flex-wrap: wrap; }
+  .periodo .seg, .periodo .navper { display: flex; align-items: center; background: #fff; border: 1px solid var(--borda); border-radius: 12px; padding: 4px; height: 44px; box-sizing: border-box; }
+  .periodo .seg button { border: 0; background: none; padding: 6px 12px; border-radius: 8px; font-size: 14px; font-weight: 500; color: var(--suave); cursor: pointer; }
+  .periodo .seg button[aria-pressed="true"] { background: var(--texto, #1f2a33); color: #fff; font-weight: 600; }
+  .periodo .navper { position: relative; gap: 2px; }
+  .periodo .navper.oculto { display: none; }
+  .periodo .seta { border: 0; background: none; width: 32px; height: 32px; border-radius: 8px; font-size: 20px; line-height: 1; color: var(--azul); cursor: pointer; }
+  .periodo .seta:hover, .periodo .rot:hover { background: var(--azul-fundo); }
+  .periodo .rot { border: 0; background: none; min-width: 130px; padding: 6px 8px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; text-transform: capitalize; }
+  .pop-mes { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 30; background: #fff; border: 1px solid var(--borda); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.12); padding: 10px; width: 250px; }
+  .pop-ano { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .pop-grade { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .pop-grade button { border: 1px solid transparent; background: none; padding: 8px 0; border-radius: 8px; font-size: 13px; cursor: pointer; text-transform: capitalize; }
+  .pop-grade button:hover { background: var(--azul-fundo); }
+  .pop-grade button.atual { border-color: var(--azul-claro); }
+  .pop-grade button[aria-current="true"] { background: var(--azul); color: #fff; font-weight: 600; }
+  .pop-rodape { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--borda); }
   .filtro-etapa { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: -8px 0 16px; }
   .filtro-etapa > span { font-size: 13px; color: var(--suave); font-weight: 600; margin-right: 4px; }
   .filtro-etapa .chip { cursor: pointer; padding: 5px 12px; }
@@ -421,7 +439,24 @@
           <p class="subtitulo" id="pagSub"></p>
         </div>
         <div class="pag-filtros">
-          <div><label for="pagMes">Mês de pagamento</label><input type="month" id="pagMes"></div>
+          <div class="per-campo"><span class="rotulo-per" id="pagPerRot">Mês de pagamento</span>
+            <input type="hidden" id="pagMes">
+            <div class="periodo">
+              <div class="seg" role="group" aria-label="Período">
+                <button type="button" data-per="mes" aria-pressed="true">Mês</button><button type="button" data-per="ano" aria-pressed="false">Ano</button><button type="button" data-per="todos" aria-pressed="false">Todos</button>
+              </div>
+              <div class="navper" id="pagNav">
+                <button type="button" class="seta" id="pagAnt" aria-label="Anterior">‹</button>
+                <button type="button" class="rot" id="pagRotulo" aria-haspopup="true" aria-expanded="false" title="Escolher o mês">Outubro 2026</button>
+                <button type="button" class="seta" id="pagProx" aria-label="Próximo">›</button>
+                <div class="pop-mes oculto" id="pagPop" role="dialog" aria-label="Escolher mês de pagamento">
+                  <div class="pop-ano"><button type="button" class="seta" id="popAnoAnt" aria-label="Ano anterior">‹</button><b id="popAno">2026</b><button type="button" class="seta" id="popAnoProx" aria-label="Próximo ano">›</button></div>
+                  <div class="pop-grade" id="popGrade"></div>
+                  <div class="pop-rodape"><button type="button" class="btn-link" id="popAnoTodo">Ver o ano todo</button><button type="button" class="btn-link" id="popHoje">Este mês</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
           <div><label for="pagProjeto">Projeto</label><select id="pagProjeto"></select></div>
           <div><label for="pagInst">Instituição</label><select id="pagInst"><option value="">Todas as instituições</option></select></div>
         </div>
@@ -430,7 +465,7 @@
       <div class="filtro-etapa" id="pagFiltroEtapa" role="group" aria-label="Filtrar por etapa"></div>
       <section class="painel">
         <div class="titulo-linha">
-          <h2 style="font-size:16px">Parcelas do mês</h2>
+          <h2 style="font-size:16px" id="pagTitTabela">Parcelas do mês</h2>
           <div class="acoes-lote">
             <button class="btn-sec oculto" id="btnImportar">📥 Importar lançamentos</button>
             <button class="btn-sec oculto" id="btnModeloEmail">⚙️ Modelo do e-mail</button>
@@ -611,7 +646,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.17-b</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.10.19-a</span></span></div>
   </div>
 </section>
 
@@ -2526,7 +2561,7 @@
   const hojeYM = () => new Date().toLocaleDateString('sv-SE').slice(0, 7);
   let pag = null, parcAtual = null;
 
-  let pagFiltro = '', pagInst = '';
+  let pagFiltro = '', pagInst = '', pagPeriodo = 'mes';
   const pagEtapasSel = new Set();
   const instDe = x => x.instituicao_sigla || x.instituicao_nome || '';
   const passaInst = x => !pagInst || instDe(x) === pagInst;
@@ -2536,13 +2571,62 @@
     navAtivo('navPagamentos', 'Pagamentos');
     if (projeto !== undefined) pagFiltro = projeto || '';
     mostrarView('viewPag');
-    $('pagMes').value = /^\d{4}-\d{2}$/.test(mes || '') ? mes : ($('pagMes').value || hojeYM());
+    if (/^ano-\d{4}$/.test(mes || '')) { pagPeriodo = 'ano'; $('pagMes').value = mes.slice(4) + (($('pagMes').value || hojeYM()).slice(4)); }
+    else if (mes === 'todos') { pagPeriodo = 'todos'; $('pagMes').value = $('pagMes').value || hojeYM(); }
+    else { if (/^\d{4}-\d{2}$/.test(mes || '')) { pagPeriodo = 'mes'; $('pagMes').value = mes; } else $('pagMes').value = $('pagMes').value || hojeYM(); }
     await carregarPag();
   }
 
+  // --- seletor de período (Mês | Ano | Todos + setas)
+  const dadosPag = () => ({ mes: $('pagMes').value, periodo: pagPeriodo, id_projeto: pagFiltro });
+  const rotaPeriodo = () => pagPeriodo === 'todos' ? 'todos' : pagPeriodo === 'ano' ? 'ano-' + $('pagMes').value.slice(0, 4) : $('pagMes').value;
+  const somaYM = (ym, n) => { const [a, m] = ym.split('-').map(Number); const d = new Date(a, m - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+  function desenharPeriodo() {
+    const ym = $('pagMes').value || hojeYM(), [a, m] = ym.split('-');
+    document.querySelectorAll('[data-per]').forEach(b => b.setAttribute('aria-pressed', b.dataset.per === pagPeriodo));
+    $('pagNav').classList.toggle('oculto', pagPeriodo === 'todos');
+    $('pagRotulo').textContent = pagPeriodo === 'ano' ? a : MESES_NOME[Number(m) - 1] + ' ' + a;
+    $('pagRotulo').title = pagPeriodo === 'ano' ? 'Escolher o ano' : 'Escolher o mês';
+    $('pagPerRot').textContent = pagPeriodo === 'mes' ? 'Mês de pagamento' : pagPeriodo === 'ano' ? 'Ano de pagamento' : 'Período';
+  }
+  function mudarPeriodo(per, ym) {
+    pagPeriodo = per; if (ym) $('pagMes').value = ym;
+    fecharPopMes(); desenharPeriodo(); carregarPag();
+  }
+  let popAno = 0;
+  function desenharPopMes() {
+    const ym = $('pagMes').value || hojeYM();
+    $('popAno').textContent = popAno;
+    $('popGrade').innerHTML = MESES_NOME.map((n, i) => { const v = popAno + '-' + String(i + 1).padStart(2, '0');
+      return `<button type="button" data-ym="${v}" class="${v === hojeYM() ? 'atual' : ''}" aria-current="${pagPeriodo === 'mes' && v === ym}">${esc(String(n).slice(0, 3))}</button>`; }).join('');
+    $('popAnoTodo').textContent = 'Ver ' + popAno + ' inteiro';
+  }
+  function fecharPopMes() { $('pagPop').classList.add('oculto'); $('pagRotulo').setAttribute('aria-expanded', 'false'); }
+  document.querySelectorAll('[data-per]').forEach(b => b.addEventListener('click', () => { if (b.dataset.per !== pagPeriodo) mudarPeriodo(b.dataset.per); }));
+  $('pagAnt').addEventListener('click', () => mudarPeriodo(pagPeriodo, somaYM($('pagMes').value || hojeYM(), pagPeriodo === 'ano' ? -12 : -1)));
+  $('pagProx').addEventListener('click', () => mudarPeriodo(pagPeriodo, somaYM($('pagMes').value || hojeYM(), pagPeriodo === 'ano' ? 12 : 1)));
+  $('pagRotulo').addEventListener('click', e => {
+    e.stopPropagation();
+    if (!$('pagPop').classList.contains('oculto')) return fecharPopMes();
+    popAno = Number(($('pagMes').value || hojeYM()).slice(0, 4)); desenharPopMes();
+    $('pagPop').classList.remove('oculto'); $('pagRotulo').setAttribute('aria-expanded', 'true');
+  });
+  $('pagPop').addEventListener('click', e => {
+    e.stopPropagation();
+    const b = e.target.closest('[data-ym]');
+    if (b) return mudarPeriodo('mes', b.dataset.ym);
+    if (e.target.id === 'popAnoAnt') { popAno--; desenharPopMes(); }
+    if (e.target.id === 'popAnoProx') { popAno++; desenharPopMes(); }
+    if (e.target.id === 'popAnoTodo') mudarPeriodo('ano', popAno + (($('pagMes').value || hojeYM()).slice(4)));
+    if (e.target.id === 'popHoje') mudarPeriodo('mes', hojeYM());
+  });
+  document.addEventListener('click', () => fecharPopMes());
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharPopMes(); });
+
   async function carregarPag() {
-    gravarRota('pagamentos/' + $('pagMes').value + (pagFiltro ? '/' + pagFiltro : ''));
-    const dados = { mes: $('pagMes').value, id_projeto: pagFiltro };
+    desenharPeriodo();
+    gravarRota('pagamentos/' + rotaPeriodo() + (pagFiltro ? '/' + pagFiltro : ''));
+    const dados = dadosPag();
     if (!lerCache('listarMesPagamentos|' + JSON.stringify(dados))) { $('pagTabela').innerHTML = '<div class="vazio">Carregando…</div>'; $('pagAtrasadas').innerHTML = ''; }
     try {
       await apiRapida('listarMesPagamentos', dados, (d, _c, atualizacao) => {
@@ -2574,8 +2658,13 @@
       `<button type="button" class="chip" data-etapa="" aria-pressed="${!pagEtapasSel.size}">Todas<small>${doMesInst.length + atrasInst.length}</small></button>` +
       ORDEM_ST.map(st => `<button type="button" class="chip" data-etapa="${esc(st)}" aria-pressed="${pagEtapasSel.has(st)}" ${cont[st] || pagEtapasSel.has(st) ? '' : 'disabled'}>${esc(st)}<small>${cont[st] || 0}</small></button>`).join('');
     const filtrando = pagInst || pagEtapasSel.size;
-    $('pagSub').innerHTML = `Pagamento de <b>${esc(pag.mes_extenso)}</b> · serviços prestados em <b>${esc(pag.competencia_extenso)}</b> · ${r.total} parcela(s), ${brl(r.valor_total)}` +
-      (pag.vencimento ? ` · vencimento <b>${dataBr(pag.vencimento)}</b> (5º dia útil)` : '');
+    const per = pag.periodo || 'mes';
+    $('pagSub').innerHTML = (per === 'ano' ? `Pagamentos de <b>${esc(pag.ano)}</b> · serviços de <b>${mesExt(somaYM(pag.ano + '-01', -1))}</b> a <b>${mesExt(somaYM(pag.ano + '-12', -1))}</b>`
+        : per === 'todos' ? `<b>Todos os meses</b>`
+        : `Pagamento de <b>${esc(pag.mes_extenso)}</b> · serviços prestados em <b>${esc(pag.competencia_extenso)}</b>`) +
+      ` · ${r.total} parcela(s), ${brl(r.valor_total)}` +
+      (per === 'mes' && pag.vencimento ? ` · vencimento <b>${dataBr(pag.vencimento)}</b> (5º dia útil)` : per !== 'mes' ? ' · vencimento no 5º dia útil de cada mês' : '');
+    $('pagTitTabela').textContent = per === 'ano' ? 'Parcelas do ano' : per === 'todos' ? 'Todas as parcelas' : 'Parcelas do mês';
     $('btnPausar').classList.toggle('oculto', !pag.pode_pausar);
     $('pagProjeto').innerHTML = '<option value="">Todos os projetos</option>' + pag.projetos.map(p =>
       `<option value="${esc(p.id_projeto)}" ${p.id_projeto === sel ? 'selected' : ''}>${esc(p.sigla || p.nome_projeto)}</option>`).join('');
@@ -2583,7 +2672,7 @@
     $('btnImportar').classList.toggle('oculto', !pag.pode_lancar_direto);
 
     const etapas = [
-      ['Pedir notas fiscais', r.solicitadas, 'prazo: ' + pag.prazo_nf],
+      ['Pedir notas fiscais', r.solicitadas, per === 'mes' ? 'prazo: ' + pag.prazo_nf : 'até o prazo de cada mês'],
       ['Anexar as notas', r.recebidas, 'na pasta do mês'],
       ['Liberar o lote', r.liberadas, 'com as NFs recebidas'],
       ['Pagar e anexar comprovante', r.pagas, brl(r.valor_pago) + ' pagos'],
@@ -2600,10 +2689,10 @@
     const vMes = filtrarPag(pag.parcelas), vAtras = filtrarPag(pag.atrasadas);
     $('pagTabela').innerHTML = tabelaParcelas(vMes, 'mes') ||
       (filtrando && pag.parcelas.length
-        ? `<div class="vazio">Nenhuma parcela do mês com esse filtro. <button class="btn-link" data-limpafiltro>Limpar filtros</button></div>`
-        : `<div class="vazio">Nenhuma parcela com serviços de ${esc(pag.competencia_extenso)}.</div>`);
+        ? `<div class="vazio">Nenhuma parcela com esse filtro. <button class="btn-link" data-limpafiltro>Limpar filtros</button></div>`
+        : `<div class="vazio">${per === 'ano' ? 'Nenhuma parcela com pagamento em ' + esc(pag.ano) + '.' : per === 'todos' ? 'Nenhuma parcela.' : 'Nenhuma parcela com serviços de ' + esc(pag.competencia_extenso) + '.'}</div>`);
     $('pagAtrasadas').innerHTML = vAtras.length
-      ? `<div class="secao"><h4>⚠️ Pendentes de meses anteriores (${vAtras.length})</h4>${tabelaParcelas(vAtras, 'atras')}</div>` : '';
+      ? `<div class="secao"><h4>⚠️ Pendentes de ${per === 'ano' ? 'anos' : 'meses'} anteriores (${vAtras.length})</h4>${tabelaParcelas(vAtras, 'atras')}</div>` : '';
     const pz = filtrarPag(pag.pausadas);
     $('pagPausadas').innerHTML = pz.length ? `<div class="secao"><details><summary><b>⏸ Parcelas pausadas (${pz.length})</b>
         <span class="dica" style="margin:0"> — não contam como pendência e não recebem pedido de NF até serem retomadas</span></summary>
@@ -2697,7 +2786,6 @@
     } catch (err) { alert(err.message); }
   }
   $('btnPausar').addEventListener('click', () => pausarParcelas(selecionadas(), true));
-  $('pagMes').addEventListener('change', carregarPag);
   $('pagProjeto').addEventListener('change', () => { pagFiltro = $('pagProjeto').value; carregarPag(); });
   $('navPagamentos').addEventListener('click', () => abrirPagamentos());
 
@@ -2729,7 +2817,7 @@
     if (!confirm(`Enviar ${ids.length} e-mail(s) agora?`)) return;
     const btn = $('btnEnviarSolic'); btn.disabled = true; msg('msgSolic', 'Enviando…', 'ok');
     try {
-      const r = await api('solicitarNFs', { ids, mes: $('pagMes').value, id_projeto: pagFiltro });
+      const r = await api('solicitarNFs', Object.assign(dadosPag(), { ids }));
       pag = r.mes; renderPag();
       msg('msgSolic', `${r.enviados.length} e-mail(s) enviado(s).` + (r.falhas.length ? ` ${r.falhas.length} falha(s): ` +
         r.falhas.map(f => `${f.nome || f.id} (${f.motivo})`).join('; ') : '') + ` · Cota restante hoje: ${r.cota_restante}`, r.falhas.length ? 'erro' : 'ok');
@@ -2773,7 +2861,7 @@
   const ctxPag = {
     lista: () => todasParcelas(),
     recarregar: () => carregarPag(),
-    leitura: () => ['listarMesPagamentos', { mes: $('pagMes').value, id_projeto: pagFiltro }],
+    leitura: () => ['listarMesPagamentos', dadosPag()],
     get pode_conferir() { return pag && pag.pode_conferir; },
     get pode_lancar_direto() { return pag && pag.pode_lancar_direto; }
   };
