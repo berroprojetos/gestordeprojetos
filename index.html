@@ -244,8 +244,6 @@
   @media (max-width: 640px) { .doc-linha { grid-template-columns: 24px 1fr; } .doc-linha .st, .doc-linha .btn-sec { grid-column: 2; justify-self: start; } }
   .imp-form { border: 1px dashed var(--borda-forte); border-radius: var(--raio); padding: 14px 16px; background: var(--azul-fundo); }
   .imp-form .dica { margin: 8px 0 0; }
-  .envio { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px; margin-top: 8px; background: #fff; border: 1px solid var(--borda); border-radius: var(--raio-p); font-size: 13px; }
-  .envio small { color: var(--suave); }
   .chip { border: 1px solid var(--borda); border-radius: 20px; padding: 6px 14px; background: #fff; font-size: 13px; font-weight: 500; }
   .chip:hover { border-color: var(--azul-claro); background: var(--azul-fundo); }
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--azul-escuro); color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
@@ -3433,22 +3431,32 @@
   }
 
   // ---------- importar do formulário de Cadastro Institucional
-  async function mostrarEnviosForm() {
-    const box = $('listaEnviosForm');
-    box.innerHTML = '<p class="dica">Carregando envios do formulário…</p>';
+  async function carregarEnviosForm() {
+    const sel = $('i_envio'), dica = $('i_envio_dica');
     try {
       if (!enviosForm) enviosForm = await api('listarEnviosFormInst');
+      if (!$('i_envio')) return;                       // janela fechada enquanto carregava
       const cnpjAtual = digitos($('i_cnpj').value);
-      const lista = enviosForm.slice().sort((a, b) => (digitos(b.cnpj) === cnpjAtual) - (digitos(a.cnpj) === cnpjAtual));
-      if (!lista.length) { box.innerHTML = '<p class="dica">Nenhum envio no formulário ainda.</p>'; return; }
-      box.innerHTML = lista.map((e, k) => `<div class="envio">
-          <div><b>${esc(e.sigla || '—')}</b> – ${esc(e.razao_social)}<br>
-            <small>CNPJ ${esc(e.cnpj || '—')} · enviado em ${esc(e.enviado_em || '—')}</small>
-            ${cnpjAtual && digitos(e.cnpj) === cnpjAtual ? ' <span class="tag">mesmo CNPJ</span>' : ''}
-            ${e.ja_cadastrada && !(instEditando && instEditando.id_instituicao === e.ja_cadastrada) ? ` <span class="tag">já cadastrada (${esc(e.ja_cadastrada)})</span>` : ''}</div>
-          <button type="button" class="btn-sec" data-usarenvio="${k}">Usar estes dados</button></div>`).join('');
-      box.querySelectorAll('[data-usarenvio]').forEach(b => b.addEventListener('click', () => usarEnvio(lista[b.dataset.usarenvio])));
-    } catch (err) { box.innerHTML = `<div class="aviso">${esc(err.message)}</div>`; }
+      const mesmo = e => cnpjAtual && digitos(e.cnpj) === cnpjAtual;
+      const lista = enviosForm.map((e, k) => Object.assign({ k }, e))
+        .sort((a, b) => mesmo(b) - mesmo(a));
+      sel.innerHTML = `<option value="">${lista.length ? 'Escolha um cadastro…' : 'Nenhum envio no formulário ainda'}</option>` +
+        lista.map(e => `<option value="${e.k}">${esc(e.sigla || '—')} – ${esc(e.razao_social)} · CNPJ ${esc(e.cnpj || '—')} · ${esc(String(e.enviado_em || '').slice(0, 10))}${
+          e.ja_cadastrada && !(instEditando && instEditando.id_instituicao === e.ja_cadastrada) ? ' (já cadastrada)' : ''}</option>`).join('');
+      // Editando: já deixa escolhido o envio mais recente do mesmo CNPJ
+      const sugerido = lista.find(mesmo);
+      if (sugerido) sel.value = String(sugerido.k);
+    } catch (err) {
+      if (!$('i_envio')) return;
+      sel.innerHTML = '<option value="">Não foi possível carregar</option>';
+      dica.innerHTML = `<span class="aviso" style="display:block;margin:0">${esc(err.message)}</span>`;
+    }
+  }
+
+  function puxarEnvioForm() {
+    const v = $('i_envio').value;
+    if (v === '' || !enviosForm) { msg('msgInst', 'Escolha um cadastro do formulário na lista.'); $('i_envio').focus(); return; }
+    usarEnvio(enviosForm[Number(v)]);
   }
 
   function usarEnvio(e) {
@@ -3463,7 +3471,6 @@
     let n = 0;
     Object.entries(e.campos).forEach(([k, v]) => { const el = $('i_' + k); if (el && v) { el.value = v; n++; } });
     instFormPasta = e.pasta_id || '';
-    $('listaEnviosForm').innerHTML = '';
     msg('msgInst', `${n} campos preenchidos com o envio de ${e.enviado_em || 'formulário'}. Revise e complete gênero, cargo, nacionalidade e estado civil antes de salvar.`, 'ok');
   }
 
@@ -3472,16 +3479,19 @@
     $('tituloInst').textContent = i ? `Editar ${i.sigla || i.id_instituicao}` : 'Nova instituição';
     instFormPasta = ''; enviosForm = null;
     $('camposInst').innerHTML = (podeCadInst() ? `<div class="imp-form">
-        <button type="button" class="btn-sec" id="btnImpForm">📥 Importar do formulário</button>
-        <p class="dica">Puxa os dados que a instituição enviou pelo formulário de Cadastro Institucional. Você revisa antes de salvar.</p>
-        <div id="listaEnviosForm"></div></div>` : '') + SECOES_INST.map(([tit, campos]) => `<fieldset><legend>${tit}</legend><div class="form-grade">${
+        <div class="linha-form">
+          <div style="grid-column:span 3"><label for="i_envio">Cadastro do formulário</label><select id="i_envio"><option value="">Carregando…</option></select></div>
+          <div style="display:flex;align-items:end"><button type="button" class="btn-sec" id="btnImpForm" style="width:100%">⬇ Puxar dados</button></div>
+        </div>
+        <p class="dica" id="i_envio_dica">Escolha o envio do formulário de Cadastro Institucional e clique em Puxar dados. Você revisa antes de salvar.</p></div>` : '') + SECOES_INST.map(([tit, campos]) => `<fieldset><legend>${tit}</legend><div class="form-grade">${
       campos.map(([k, rot, larg, tipo]) => `<div class="${larg || ''}"><label for="i_${k}">${rot}</label>
         ${tipo === 'genero'
           ? `<select id="i_${k}"><option value="">—</option>${['Feminino', 'Masculino'].map(g => `<option ${i && i[k] === g ? 'selected' : ''}>${g}</option>`).join('')}</select>`
           : `<input id="i_${k}" type="${tipo || 'text'}" value="${esc(i ? i[k] ?? '' : '')}"${k === 'uf' ? ' maxlength="2"' : ''}>`}</div>`).join('')
     }</div></fieldset>`).join('');
     msg('msgInst', ''); if (!$('dlgInst').open) $('dlgInst').showModal();
-    const bImp = $('btnImpForm'); if (bImp) bImp.addEventListener('click', mostrarEnviosForm);
+    const bImp = $('btnImpForm');
+    if (bImp) { bImp.addEventListener('click', puxarEnvioForm); carregarEnviosForm(); }
   }
 
   $('formInst').addEventListener('submit', async e => {
