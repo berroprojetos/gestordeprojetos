@@ -231,6 +231,21 @@
   .copiar:hover { color: var(--azul); background: var(--azul-fundo); }
   .inst-rodape { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 14px 22px; border-top: 1px solid var(--borda); }
   .inst-rodape b { font-size: 11px; letter-spacing: .1em; color: var(--suave); margin-right: 4px; }
+  .inst-docs { padding: 14px 22px 18px; border-top: 1px solid var(--borda); }
+  .inst-docs-cab { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+  .inst-docs-cab h5 { margin: 0; font-size: 11px; letter-spacing: .1em; color: var(--suave); text-transform: uppercase; font-weight: 800; }
+  .inst-docs-cab a { font-size: 13px; font-weight: 600; color: var(--azul); text-decoration: none; }
+  .doc-linha { display: grid; grid-template-columns: 24px 1fr auto auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--borda); font-size: 13px; }
+  .doc-linha:last-child { border-bottom: 0; }
+  .doc-linha .num { color: var(--azul); font-weight: 700; }
+  .doc-linha .st { justify-self: end; }
+  .doc-linha .st a { color: inherit; text-decoration: underline; }
+  .doc-linha .btn-sec { padding: 5px 12px; font-size: 12px; }
+  @media (max-width: 640px) { .doc-linha { grid-template-columns: 24px 1fr; } .doc-linha .st, .doc-linha .btn-sec { grid-column: 2; justify-self: start; } }
+  .imp-form { border: 1px dashed var(--borda-forte); border-radius: var(--raio); padding: 14px 16px; background: var(--azul-fundo); }
+  .imp-form .dica { margin: 8px 0 0; }
+  .envio { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px; margin-top: 8px; background: #fff; border: 1px solid var(--borda); border-radius: var(--raio-p); font-size: 13px; }
+  .envio small { color: var(--suave); }
   .chip { border: 1px solid var(--borda); border-radius: 20px; padding: 6px 14px; background: #fff; font-size: 13px; font-weight: 500; }
   .chip:hover { border-color: var(--azul-claro); background: var(--azul-fundo); }
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--azul-escuro); color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
@@ -3268,18 +3283,22 @@
     ['Representante legal (dirigente)', [
       ['representante_nome', 'Nome', 'largo'], ['representante_genero', 'Gênero (para a concordância no contrato)', '', 'genero'],
       ['representante_cargo', 'Cargo (ex.: Presidente)'], ['representante_cpf', 'CPF'],
-      ['representante_rg', 'RG'], ['representante_profissao', 'Profissão'], ['representante_nacionalidade', 'Nacionalidade'],
+      ['representante_rg', 'RG ou CNH'], ['representante_profissao', 'Profissão'], ['representante_nacionalidade', 'Nacionalidade'],
       ['representante_estado_civil', 'Estado civil'], ['representante_email', 'E-mail'], ['representante_telefone', 'Telefone'],
+      ['representante_vigencia_de', 'Vigência do Presidente – De', '', 'date'], ['representante_vigencia_ate', 'Vigência do Presidente – Até', '', 'date'],
       ['representante_endereco', 'Endereço completo', 'largo']]],
     ['Contador', [
-      ['contador_nome', 'Nome', 'largo'], ['contador_cpf', 'CPF'], ['contador_rg', 'RG'], ['contador_profissao', 'Profissão'],
+      ['contador_nome', 'Nome', 'largo'], ['contador_cpf', 'CPF'], ['contador_rg', 'RG ou CNH'], ['contador_profissao', 'Profissão'],
       ['contador_crc', 'CRC'], ['contador_email', 'E-mail'], ['contador_telefone', 'Telefone'], ['contador_endereco', 'Endereço completo', 'largo']]],
     ['Testemunhas dos contratos', [
       ['testemunha1_nome', 'Testemunha 1 – nome', 'largo'], ['testemunha1_cpf', 'Testemunha 1 – CPF'],
       ['testemunha2_nome', 'Testemunha 2 – nome', 'largo'], ['testemunha2_cpf', 'Testemunha 2 – CPF']]]
   ];
   const PERFIS_CAD_INST = ['ADMIN', 'PRESTACAO_CONTAS'];
-  let listaInst = [], instEditando = null;
+  let listaInst = [], instEditando = null, instFormPasta = '', enviosForm = null, docsInst = null;
+  const CAMPOS_DATA_INST = SECOES_INST.flatMap(([, cs]) => cs).filter(c => c[3] === 'date').map(c => c[0]);
+  const vigencia = i => i.representante_vigencia_de || i.representante_vigencia_ate
+    ? `${i.representante_vigencia_de ? dataBr(i.representante_vigencia_de) : '…'} a ${i.representante_vigencia_ate ? dataBr(i.representante_vigencia_ate) : '…'}` : '';
   const podeCadInst = () => usuario && PERFIS_CAD_INST.includes(usuario.perfil) && ehGlobal();
 
   function endInst(i) {
@@ -3327,10 +3346,10 @@
           ['Telefone', i.telefone], ['Endereço', endInst(i)], ['Data de inscrição', i.data_inscricao ? dataBr(i.data_inscricao) : ''],
           ['Foro', i.foro_cidade_uf]]],
         ['Representante legal', [['Nome', i.representante_nome], ['Gênero', i.representante_genero], ['Cargo', i.representante_cargo], ['CPF', i.representante_cpf],
-          ['RG', i.representante_rg], ['Profissão', i.representante_profissao], ['Nacionalidade', i.representante_nacionalidade],
+          ['RG ou CNH', i.representante_rg], ['Profissão', i.representante_profissao], ['Nacionalidade', i.representante_nacionalidade],
           ['Estado civil', i.representante_estado_civil], ['Endereço', i.representante_endereco],
-          ['E-mail', i.representante_email], ['Telefone', i.representante_telefone]]],
-        ['Contador', [['Nome', i.contador_nome], ['CPF', i.contador_cpf], ['RG', i.contador_rg], ['Profissão', i.contador_profissao],
+          ['E-mail', i.representante_email], ['Telefone', i.representante_telefone], ['Vigência', vigencia(i)]]],
+        ['Contador', [['Nome', i.contador_nome], ['CPF', i.contador_cpf], ['RG ou CNH', i.contador_rg], ['Profissão', i.contador_profissao],
           ['CRC', i.contador_crc], ['E-mail', i.contador_email], ['Telefone', i.contador_telefone], ['Endereço', i.contador_endereco]]],
         ['Testemunhas dos contratos', [['Testemunha 1', i.testemunha1_nome], ['CPF', i.testemunha1_cpf],
           ['Testemunha 2', i.testemunha2_nome], ['CPF', i.testemunha2_cpf]]]
@@ -3345,6 +3364,7 @@
         </div>
         <div class="inst-colunas">${colunas.map(([tit, ls]) =>
           `<div class="inst-col"><h5>${tit}</h5>${ls.map(([r, v]) => linha(r, v)).join('')}</div>`).join('')}</div>
+        <div class="inst-docs" data-docsinst="${esc(i.id_instituicao)}"><div class="inst-docs-cab"><h5>Documentos</h5></div><span class="dica" style="margin:0">Carregando documentos…</span></div>
         <div class="inst-rodape"><b>PROJETOS</b>
           ${(i.projetos || []).map(p => `<button class="chip" data-abrirproj="${esc(p.id_projeto)}">${esc(p.sigla || p.nome_projeto)}${p.termo_fomento_cit ? ' (' + esc(p.termo_fomento_cit) + ')' : ''}</button>`).join('') || '<span class="dica" style="margin:0">nenhum projeto ainda</span>'}
         </div>
@@ -3357,22 +3377,111 @@
     $('listaInst').querySelectorAll('[data-copiartudo]').forEach(b => b.addEventListener('click', () => {
       const i = listaInst[b.dataset.copiartudo];
       copiar(SECOES_INST.map(([tit, campos]) => tit.toUpperCase() + '\n' + campos.map(([k, rot]) => {
-        const v = k === 'data_inscricao' && i[k] ? dataBr(i[k]) : i[k];
+        const v = CAMPOS_DATA_INST.includes(k) && i[k] ? dataBr(i[k]) : i[k];
         return v ? `${rot.replace(' *', '')}: ${v}` : '';
       }).filter(Boolean).join('\n')).join('\n\n'));
     }));
+    if (docsInst) renderDocsInst(); else carregarDocsInst();
+  }
+
+  // ---------- documentos da instituição (mesma pasta do formulário de Cadastro Institucional)
+  async function carregarDocsInst() {
+    try { await apiRapida('listarDocsInstituicoes', {}, d => { docsInst = d; renderDocsInst(); }); }
+    catch (err) {
+      document.querySelectorAll('[data-docsinst]').forEach(el =>
+        el.querySelector('.dica').textContent = 'Não foi possível carregar os documentos: ' + err.message);
+    }
+  }
+
+  function renderDocsInst() {
+    document.querySelectorAll('[data-docsinst]').forEach(el => {
+      const id = el.dataset.docsinst, d = docsInst && docsInst[id];
+      if (!d) return;
+      const pode = podeCadInst();
+      el.innerHTML = `<div class="inst-docs-cab"><h5>Documentos</h5>
+          ${d.pasta_url ? `<a href="${esc(d.pasta_url)}" target="_blank" rel="noopener">📁 Abrir pasta no Drive</a>` : '<span class="dica" style="margin:0">Pasta criada no primeiro envio</span>'}</div>
+        ${d.erro ? `<div class="aviso" style="margin:0 0 8px">${esc(d.erro)}</div>` : ''}
+        ${d.lista.map((x, k) => {
+          const a = d.docs[x.campo];
+          return `<div class="doc-linha"><span class="num">${k + 1}.</span><span>${esc(x.titulo)}</span>
+            <span class="st ${a ? 'verde' : ''}">${a ? `<a href="${esc(a.url)}" target="_blank" rel="noopener" title="${esc(a.nome)}">Abrir</a> · ${esc(a.atualizado_em)}` : 'não enviado'}</span>
+            ${pode ? `<button type="button" class="btn-sec" data-docenviar="${esc(x.campo)}">${a ? 'Substituir' : 'Enviar'}</button>` : '<span></span>'}</div>`;
+        }).join('')}`;
+      el.querySelectorAll('[data-docenviar]').forEach(b => b.addEventListener('click', () => escolherDocInst(id, b)));
+    });
+  }
+
+  function escolherDocInst(idInst, botao) {
+    const d = docsInst[idInst], campo = botao.dataset.docenviar;
+    const titulo = (d.lista.find(x => x.campo === campo) || {}).titulo || '';
+    if (d.docs[campo] && !confirm(`Substituir "${titulo}"?\n\nO arquivo atual vai para a lixeira do Drive (dá para recuperar por 30 dias).`)) return;
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
+    inp.addEventListener('change', async () => {
+      const original = botao.textContent;
+      botao.disabled = true; botao.textContent = 'Enviando…';
+      try {
+        const arquivo = await lerArquivo(inp.files[0]);
+        docsInst[idInst] = await api('enviarDocInstituicao', { id_instituicao: idInst, campo, arquivo });
+        renderDocsInst(); toast('Documento salvo ✓');
+      } catch (err) {
+        botao.disabled = false; botao.textContent = original;
+        toastAcao(err.message, 'Tentar de novo', () => escolherDocInst(idInst, botao));
+      }
+    });
+    inp.click();
+  }
+
+  // ---------- importar do formulário de Cadastro Institucional
+  async function mostrarEnviosForm() {
+    const box = $('listaEnviosForm');
+    box.innerHTML = '<p class="dica">Carregando envios do formulário…</p>';
+    try {
+      if (!enviosForm) enviosForm = await api('listarEnviosFormInst');
+      const cnpjAtual = digitos($('i_cnpj').value);
+      const lista = enviosForm.slice().sort((a, b) => (digitos(b.cnpj) === cnpjAtual) - (digitos(a.cnpj) === cnpjAtual));
+      if (!lista.length) { box.innerHTML = '<p class="dica">Nenhum envio no formulário ainda.</p>'; return; }
+      box.innerHTML = lista.map((e, k) => `<div class="envio">
+          <div><b>${esc(e.sigla || '—')}</b> – ${esc(e.razao_social)}<br>
+            <small>CNPJ ${esc(e.cnpj || '—')} · enviado em ${esc(e.enviado_em || '—')}</small>
+            ${cnpjAtual && digitos(e.cnpj) === cnpjAtual ? ' <span class="tag">mesmo CNPJ</span>' : ''}
+            ${e.ja_cadastrada && !(instEditando && instEditando.id_instituicao === e.ja_cadastrada) ? ` <span class="tag">já cadastrada (${esc(e.ja_cadastrada)})</span>` : ''}</div>
+          <button type="button" class="btn-sec" data-usarenvio="${k}">Usar estes dados</button></div>`).join('');
+      box.querySelectorAll('[data-usarenvio]').forEach(b => b.addEventListener('click', () => usarEnvio(lista[b.dataset.usarenvio])));
+    } catch (err) { box.innerHTML = `<div class="aviso">${esc(err.message)}</div>`; }
+  }
+
+  function usarEnvio(e) {
+    // Envio de uma instituição que já existe: abre o cadastro dela (evita CNPJ em dobro)
+    if (!instEditando && e.ja_cadastrada) {
+      const existente = listaInst.find(i => i.id_instituicao === e.ja_cadastrada);
+      if (existente) { abrirFormInst(existente); toast(`${e.sigla} já está cadastrada: abri o cadastro dela`); }
+    }
+    const cnpjAtual = digitos($('i_cnpj').value);
+    if (instEditando && cnpjAtual && digitos(e.cnpj) !== cnpjAtual &&
+        !confirm(`Este envio é de outro CNPJ (${e.cnpj}). Usar os dados mesmo assim?`)) return;
+    let n = 0;
+    Object.entries(e.campos).forEach(([k, v]) => { const el = $('i_' + k); if (el && v) { el.value = v; n++; } });
+    instFormPasta = e.pasta_id || '';
+    $('listaEnviosForm').innerHTML = '';
+    msg('msgInst', `${n} campos preenchidos com o envio de ${e.enviado_em || 'formulário'}. Revise e complete gênero, cargo, nacionalidade e estado civil antes de salvar.`, 'ok');
   }
 
   function abrirFormInst(i) {
     instEditando = i || null;
     $('tituloInst').textContent = i ? `Editar ${i.sigla || i.id_instituicao}` : 'Nova instituição';
-    $('camposInst').innerHTML = SECOES_INST.map(([tit, campos]) => `<fieldset><legend>${tit}</legend><div class="form-grade">${
+    instFormPasta = ''; enviosForm = null;
+    $('camposInst').innerHTML = (podeCadInst() ? `<div class="imp-form">
+        <button type="button" class="btn-sec" id="btnImpForm">📥 Importar do formulário</button>
+        <p class="dica">Puxa os dados que a instituição enviou pelo formulário de Cadastro Institucional. Você revisa antes de salvar.</p>
+        <div id="listaEnviosForm"></div></div>` : '') + SECOES_INST.map(([tit, campos]) => `<fieldset><legend>${tit}</legend><div class="form-grade">${
       campos.map(([k, rot, larg, tipo]) => `<div class="${larg || ''}"><label for="i_${k}">${rot}</label>
         ${tipo === 'genero'
           ? `<select id="i_${k}"><option value="">—</option>${['Feminino', 'Masculino'].map(g => `<option ${i && i[k] === g ? 'selected' : ''}>${g}</option>`).join('')}</select>`
           : `<input id="i_${k}" type="${tipo || 'text'}" value="${esc(i ? i[k] ?? '' : '')}"${k === 'uf' ? ' maxlength="2"' : ''}>`}</div>`).join('')
     }</div></fieldset>`).join('');
-    msg('msgInst', ''); $('dlgInst').showModal();
+    msg('msgInst', ''); if (!$('dlgInst').open) $('dlgInst').showModal();
+    const bImp = $('btnImpForm'); if (bImp) bImp.addEventListener('click', mostrarEnviosForm);
   }
 
   $('formInst').addEventListener('submit', async e => {
@@ -3380,10 +3489,11 @@
     const btn = e.submitter; btn.disabled = true; msg('msgInst', 'Salvando…', 'ok');
     const dados = { id_instituicao: instEditando ? instEditando.id_instituicao : '' };
     SECOES_INST.forEach(([, campos]) => campos.forEach(([k]) => dados[k] = $('i_' + k).value));
+    if (instFormPasta) dados.pasta_documentos_id = instFormPasta;
     try {
       listaInst = await api('salvarInstituicao', dados);
       instituicoes = await api('listarInstituicoes');
-      $('dlgInst').close(); renderInstituicoes(); toast('Instituição salva ✓');
+      $('dlgInst').close(); docsInst = null; renderInstituicoes(); toast('Instituição salva ✓');
     } catch (err) { msg('msgInst', err.message); }
     btn.disabled = false;
   });
