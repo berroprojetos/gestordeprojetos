@@ -646,7 +646,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.03-b</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.03-c</span></span></div>
   </div>
 </section>
 
@@ -2364,6 +2364,12 @@
       ? modelos.map(m => `<option value="${esc(m.id_modelo)}">${esc(m.nome)}</option>`).join('')
       : '<option value="">Nenhum modelo cadastrado – anexe as cotações prontas</option>';
     $('blocosCot').innerHTML = [1, 2, 3].map(n => `<fieldset data-bloco="${n}"><legend>Cotação ${n}</legend>
+      <div class="linha-form puxar-cot" style="margin-bottom:10px">
+        <div><label for="b${n}_busca">Buscar no menu Fornecedores</label><input id="b${n}_busca" placeholder="nome, CNPJ ou CPF" autocomplete="off"></div>
+        <div style="grid-column:span 2"><label for="b${n}_escolha">Cadastro da planilha</label><select id="b${n}_escolha"></select></div>
+        <div style="display:flex;align-items:end"><button type="button" class="btn-sec" id="b${n}_puxar" style="width:100%">⬇ Puxar dados</button></div>
+      </div>
+      <div class="dica" id="b${n}_puxou" style="margin:-4px 0 10px">Opcional: puxe do cadastro ou preencha à mão. Os valores (hora/mensal) são sempre digitados.</div>
       <div class="form-grade">${CAMPOS_BLOCO.map(([k, rot, larg]) =>
         `<div class="${larg || ''}"><label for="b${n}_${k}">${rot}</label><input id="b${n}_${k}"${k.startsWith('valor') ? ' inputmode="decimal"' : ''}></div>`).join('')}
         <div class="largo"><label for="b${n}_arquivo">Já tenho esta cotação pronta (anexar em vez de gerar)</label><input id="b${n}_arquivo" type="file"></div>
@@ -2371,7 +2377,52 @@
       <div class="total-preview" id="b${n}_prev">Preencha o valor da hora ou o valor mensal</div></fieldset>`).join('');
     [1, 2, 3].forEach(n => ['valor_hora', 'valor_unitario_mensal'].forEach(k => $(`b${n}_${k}`).addEventListener('input', atualizarPrevCot)));
     ['pc_horas_mensais', 'pc_meses'].forEach(id => $(id).oninput = atualizarPrevCot);
+    [1, 2, 3].forEach(n => {
+      $(`b${n}_busca`).addEventListener('input', () => opcoesFornCot(n));
+      $(`b${n}_puxar`).addEventListener('click', () => puxarFornCot(n));
+    });
+    const todasOpc = () => [1, 2, 3].forEach(opcoesFornCot);
+    todasOpc();
+    apiRapida('listarFornecedoresBase', { para_contratacao: true }, d => { fBase = d; todasOpc(); }, true)
+      .catch(() => { fBase = fBase || { lista: [], conectada: false }; todasOpc(); });
     msg('msgProc', ''); $('dlgProc').showModal();
+  }
+
+  // Puxar dados do menu Fornecedores (planilha) para um prestador da cotação – só identificação e contato
+  function opcoesFornCot(n) {
+    const sel = $(`b${n}_escolha`); if (!sel) return;
+    const lista = (fBase && fBase.lista) || [];
+    const q = semAcento($(`b${n}_busca`).value).trim(), qd = digitos($(`b${n}_busca`).value);
+    const passa = x => !q || semAcento(nomeForn(x.dados) + ' ' + (x.dados.nome_completo || '')).includes(q) ||
+      (qd && digitos((x.dados.cnpj || '') + ' ' + (x.dados.cpf || '')).includes(qd));
+    const atualSel = sel.value;
+    sel.innerHTML = `<option value="">${fBase ? (fBase.conectada === false ? 'Planilha de fornecedores não conectada' : 'Escolha um cadastro…') : 'Carregando…'}</option>` +
+      lista.filter(passa).map(x => `<option value="${esc(x.chave)}" ${x.chave === atualSel ? 'selected' : ''}>${esc(nomeForn(x.dados))}${x.doc_contrato ? ' · ' + esc(x.doc_contrato) : ''}</option>`).join('');
+  }
+  function enderecoCompletoForn(d) {
+    const rua = [d.endereco, d.numero].filter(Boolean).join(', ') + (d.complemento ? ' – ' + d.complemento : '');
+    const cid = [d.cidade, d.uf].filter(Boolean).join('/');
+    return [rua, d.bairro, cid, d.cep ? 'CEP ' + d.cep : ''].map(x => String(x || '').trim()).filter(Boolean).join(' – ');
+  }
+  function puxarFornCot(n) {
+    const x = ((fBase && fBase.lista) || []).find(y => y.chave === $(`b${n}_escolha`).value);
+    if (!x) return msg('msgProc', `Cotação ${n}: escolha um cadastro do menu Fornecedores para puxar.`);
+    const d = visaoLocal(x.dados);
+    const ehPJ = digitos(d.cnpj).length === 14;
+    const novos = {
+      resp_nome: d.nome_completo || d.representante_nome || (ehPJ ? '' : d.razao_social) || '',
+      resp_cpf: d.cpf || '',
+      razao_social: ehPJ || (d.razao_social && d.razao_social !== d.nome_completo) ? (d.razao_social || '') : '',
+      cnpj: d.cnpj || '',
+      resp_endereco: enderecoCompletoForn(d),
+      resp_telefone: d.telefone || '',
+      resp_email: d.email || ''
+    };
+    const temDados = Object.keys(novos).some(k => $(`b${n}_${k}`).value.trim());
+    if (temDados && !confirm(`Substituir os dados da Cotação ${n} pelos do cadastro de ${nomeForn(x.dados)}?\n(Os valores da hora/mensal não mudam.)`)) return;
+    Object.keys(novos).forEach(k => { $(`b${n}_${k}`).value = novos[k]; });
+    $(`b${n}_puxou`).innerHTML = `✓ Dados de <b>${esc(nomeForn(x.dados))}</b> puxados do menu Fornecedores. Confira e preencha o valor da hora ou o valor mensal.`;
+    msg('msgProc', '');
   }
 
   function atualizarPrevCot() {
