@@ -646,7 +646,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.03-a</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.03-b</span></span></div>
   </div>
 </section>
 
@@ -847,17 +847,20 @@
     <div class="modal-cab"><h3 id="tituloExec">Registrar palestra</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
     <div class="modal-corpo">
       <div class="form-grade">
-        <div class="largo"><label for="ex_ctr">Rubrica e prestador *</label><select id="ex_ctr" required></select>
-          <div class="dica" id="ex_info" style="margin:6px 0 0"></div></div>
-        <div><label for="ex_data">Data *</label><input id="ex_data" type="date" required></div>
+        <div><label for="ex_rub">Rubrica *</label><select id="ex_rub" required></select></div>
+        <div><label for="ex_ctr">Prestador *</label><select id="ex_ctr" required></select></div>
+        <div class="largo dica" id="ex_info" style="margin:-4px 0 0"></div>
+        <div><label for="ex_comp">Competência *</label><select id="ex_comp" required></select></div>
         <div><label for="ex_qtd">Quantidade *</label><input id="ex_qtd" inputmode="decimal" value="1" required></div>
         <div><label for="ex_vu">Valor unitário (R$) *</label><input id="ex_vu" inputmode="decimal" required></div>
         <div><label>Valor total</label><div class="total-preview" id="ex_total" style="margin:0;padding:10px 12px">R$ 0,00</div></div>
-        <div class="largo"><label for="ex_desc">Descrição</label><input id="ex_desc" placeholder="ex.: palestra na Escola Municipal X – tema Y"></div>
+        <div class="largo"><label for="ex_desc">Descrição do serviço *</label><input id="ex_desc" required placeholder="ex.: palestra sobre educação financeira na Escola Municipal X">
+          <div class="dica" style="margin:4px 0 0">Vai para o e-mail de pedido da NF: “Descrição: prestação de serviço de <b id="ex_desc_prev">…</b>”.</div></div>
         <div class="largo"><label for="ex_arq">Comprovante da execução (opcional: lista de presença, foto, declaração)</label><input id="ex_arq" type="file"></div>
         <div class="largo" id="ex_fat_box"><label class="checkbox"><input type="checkbox" id="ex_fat" checked> Já gerar a solicitação de NF/pagamento desta palestra</label>
-          <div class="dica" style="margin:4px 0 0">Desmarque se a nota vai juntar várias palestras do mesmo prestador (aí use “Faturar” depois).</div></div>
-        <div id="ex_comp_box"><label for="ex_comp">Competência</label><input type="month" id="ex_comp"></div>
+          <div class="dica" style="margin:4px 0 0">Desmarque se a nota vai juntar várias palestras do mesmo prestador (aí use “Faturar” depois).</div>
+          <div id="ex_email_box" style="margin-top:8px"><label class="checkbox"><input type="checkbox" id="ex_email"> Enviar agora o e-mail pedindo a NF ao prestador</label>
+          <div class="dica" style="margin:4px 0 0">Usa o mesmo modelo do “Pedir notas fiscais” de Pagamentos. Se deixar desmarcado, peça depois por lá.</div></div></div>
       </div>
     </div>
     <div class="modal-rodape">
@@ -884,6 +887,8 @@
       <div><label for="fa_comp">Competência (mês dos serviços)</label><input type="month" id="fa_comp"></div>
       <div style="grid-column:span 2"><label>Total da solicitação</label><div class="total-preview" id="fa_total" style="margin:0;padding:10px 12px">—</div></div>
     </div>
+    <label class="checkbox" style="margin-top:10px"><input type="checkbox" id="fa_email"> Enviar agora o e-mail pedindo a NF ao prestador</label>
+    <div class="dica" style="margin:4px 0 0">Mesmo modelo do “Pedir notas fiscais” de Pagamentos; a descrição da nota junta as descrições das palestras marcadas.</div>
   </div>
   <div class="modal-rodape">
     <div class="msg" id="msgFaturar"></div>
@@ -4529,7 +4534,7 @@
           <tbody>${r.prestadores.map(p => {
             const livres = p.execucoes.filter(e => !e.id_parcela);
             const per = $('fx_mes').value;
-            const exs = per ? p.execucoes.filter(e => String(e.data).slice(0, 7) === per) : p.execucoes;
+            const exs = per ? p.execucoes.filter(e => (e.competencia || String(e.data).slice(0, 7)) === per) : p.execucoes;
             const fats = per ? p.faturamentos.filter(f => f.competencia === per) : p.faturamentos;
             return `<tr>
               <td><b>${esc(p.prestador)}</b><div class="dica" style="margin:0">${esc(p.id_contratacao)} · ${esc(p.status)}</div></td>
@@ -4539,8 +4544,8 @@
               <td style="white-space:nowrap">${livres.length && d.pode_faturar ? `<button class="btn-sec" style="padding:5px 10px" data-fat="${esc(p.id_contratacao)}">🧾 Faturar ${livres.length}</button>` : ''}</td></tr>
               <tr><td colspan="8" style="padding-top:0"><details><summary class="dica" style="margin:0;cursor:pointer">Histórico de ${esc(p.prestador)}${per ? ' em ' + mesAno(per + '-01') : ''}: ${exs.length} execução(ões) · ${numBr(exs.reduce((t, e) => t + e.quantidade, 0))} un. · ${brl(exs.reduce((t, e) => t + e.valor_total, 0))} · ${fats.length} solicitação(ões)</summary>
                 ${exs.length ? `<div class="tabela-wrap" style="margin-top:6px"><table>
-                  <thead><tr><th>Data</th><th class="num">Qtd</th><th class="num">Valor</th><th>Descrição</th><th>Situação</th><th></th></tr></thead>
-                  <tbody>${exs.map(e => `<tr><td>${dataBr(e.data)}</td><td class="num">${numBr(e.quantidade)}</td><td class="num">${brl(e.valor_total)}</td>
+                  <thead><tr><th>Competência</th><th class="num">Qtd</th><th class="num">Valor</th><th>Descrição</th><th>Situação</th><th></th></tr></thead>
+                  <tbody>${exs.map(e => `<tr><td>${mesTitulo(e.competencia || String(e.data).slice(0, 7))}</td><td class="num">${numBr(e.quantidade)}</td><td class="num">${brl(e.valor_total)}</td>
                     <td>${esc(e.descricao)}${e.id_documento ? ' 📎' : ''}</td>
                     <td>${e.parcela ? `<span class="st verde">faturada · parcela ${esc(e.parcela.num)} (${mesAno(e.parcela.competencia)}) · ${esc(e.parcela.status)}</span>` : '<span class="st">a faturar</span>'}</td>
                     <td style="white-space:nowrap">${!e.id_parcela && d.pode_registrar ? `<button class="btn-link" data-exed="${esc(e.id_execucao)}">Editar</button> <button class="btn-link perigo" data-exdel="${esc(e.id_execucao)}">Excluir</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="dica">Nenhuma execução registrada.</p>'}
@@ -4576,15 +4581,38 @@
     const ex = idExec ? prestadoresDe(d).flatMap(x => x.p.execucoes.map(e => Object.assign({ id_contratacao: x.p.id_contratacao }, e))).find(e => e.id_execucao === idExec) : null;
     execEditando = ex;
     $('tituloExec').textContent = ex ? 'Editar execução' : 'Registrar palestra';
-    $('ex_ctr').innerHTML = '<option value="">Selecione…</option>' + d.rubricas.map(r => `<optgroup label="${esc(r.descricao)}">${r.prestadores.map(p =>
-      `<option value="${esc(p.id_contratacao)}" ${ex && ex.id_contratacao === p.id_contratacao ? 'selected' : ''}>${esc(p.prestador)} · ${brl(p.valor_unitario)}/${esc(p.unidade)}</option>`).join('')}</optgroup>`).join('');
-    $('ex_data').value = ex ? ex.data : ''; $('ex_qtd').value = ex ? String(ex.quantidade).replace('.', ',') : '1';
+    const rubDoEx = ex ? (prestadoresDe(d).find(x => x.p.id_contratacao === ex.id_contratacao) || {}).r : null;
+    const rubs = d.rubricas.filter(r => r.prestadores.some(p => p.status !== 'Cancelada') || (rubDoEx && rubDoEx.id_rubrica === r.id_rubrica));
+    $('ex_rub').innerHTML = (rubs.length === 1 ? '' : '<option value="">Selecione…</option>') + rubs.map(r =>
+      `<option value="${esc(r.id_rubrica)}" ${rubDoEx && rubDoEx.id_rubrica === r.id_rubrica ? 'selected' : ''}>${esc(r.codigo ? r.codigo + ' – ' : '')}${esc(r.descricao)}</option>`).join('');
+    preencherPrestExec(ex ? ex.id_contratacao : '');
+    preencherCompetencias(ex ? (ex.competencia || String(ex.data).slice(0, 7)) : hojeYM());
+    $('ex_qtd').value = ex ? String(ex.quantidade).replace('.', ',') : '1';
     $('ex_vu').value = ex ? num2(ex.valor_unitario) : ''; $('ex_desc').value = ex ? ex.descricao : ''; $('ex_arq').value = '';
-    $('ex_ctr').disabled = !!ex;
-    $('ex_fat_box').classList.toggle('oculto', !!ex || !d.pode_faturar); $('ex_comp_box').classList.toggle('oculto', !!ex || !d.pode_faturar);
-    $('ex_fat').checked = !ex && d.pode_faturar; $('ex_comp').value = '';
+    $('ex_rub').disabled = !!ex; $('ex_ctr').disabled = !!ex;
+    $('ex_fat_box').classList.toggle('oculto', !!ex || !d.pode_faturar);
+    $('ex_fat').checked = !ex && d.pode_faturar; $('ex_email').checked = false; $('ex_email_box').classList.remove('oculto');
     infoExec(); msg('msgExec', '');
     $('dlgExec').showModal();
+  }
+  function preencherPrestExec(sel) {
+    const r = (execDados.rubricas || []).find(x => x.id_rubrica === $('ex_rub').value);
+    const ps = r ? r.prestadores.filter(p => p.status !== 'Cancelada' || p.id_contratacao === sel) : [];
+    $('ex_ctr').innerHTML = !r ? '<option value="">Escolha a rubrica primeiro</option>'
+      : (ps.length === 1 ? '' : '<option value="">Selecione…</option>') + ps.map(p =>
+        `<option value="${esc(p.id_contratacao)}" ${p.id_contratacao === sel ? 'selected' : ''}>${esc(p.prestador)} · ${brl(p.valor_unitario)}/${esc(p.unidade)}</option>`).join('');
+  }
+  // Competência: lista de meses (vigência do projeto, ou 2 anos para trás e 1 para frente) no formato Novembro/2026
+  const mesTitulo = ym => { const m = String(ym || '').match(/^(\d{4})-(\d{2})/); if (!m) return '—'; const n = MESES_NOME[+m[2] - 1]; return n.charAt(0).toUpperCase() + n.slice(1) + '/' + m[1]; };
+  function preencherCompetencias(sel) {
+    const pj = (atual && atual.projeto) || {}, hoje = hojeYM();
+    let ini = String(pj.inicio_vigencia || '').slice(0, 7), fim = String(pj.fim_vigencia || '').slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(ini)) ini = somaYM(hoje, -24);
+    if (!/^\d{4}-\d{2}$/.test(fim)) fim = somaYM(hoje, 12);
+    if (sel && sel < ini) ini = sel; if (sel && sel > fim) fim = sel;
+    const lista = []; for (let m = ini; m <= fim && lista.length < 120; m = somaYM(m, 1)) lista.push(m);
+    if (sel && !lista.includes(sel)) sel = '';
+    $('ex_comp').innerHTML = (sel ? '' : '<option value="">Selecione…</option>') + lista.map(m => `<option value="${m}" ${m === sel ? 'selected' : ''}>${mesTitulo(m)}</option>`).join('');
   }
   function infoExec() {
     const x = prestadoresDe(execDados).find(y => y.p.id_contratacao === $('ex_ctr').value);
@@ -4593,11 +4621,12 @@
       (x.p.quantidade_contratada ? ` · este prestador: ${numBr(x.p.qtd_executada)} de ${x.p.quantidade_contratada}` : '') : '';
     const t = (Number(String($('ex_qtd').value).replace(',', '.')) || 0) * (lerNumero($('ex_vu').value) || 0);
     $('ex_total').textContent = brl(t);
+    $('ex_desc_prev').textContent = $('ex_desc').value.trim() || '…';
   }
+  $('ex_rub').addEventListener('change', () => { preencherPrestExec(''); $('ex_vu').value = ''; infoExec(); });
   $('ex_ctr').addEventListener('change', () => { $('ex_vu').value = ''; infoExec(); });
-  $('ex_data').addEventListener('change', () => { if ($('ex_data').value) $('ex_comp').value = $('ex_data').value.slice(0, 7); });
-  $('ex_fat').addEventListener('change', () => $('ex_comp_box').classList.toggle('oculto', !$('ex_fat').checked));
-  ['ex_qtd', 'ex_vu'].forEach(id => $(id).addEventListener('input', infoExec));
+  $('ex_fat').addEventListener('change', () => { $('ex_email_box').classList.toggle('oculto', !$('ex_fat').checked); if (!$('ex_fat').checked) $('ex_email').checked = false; });
+  ['ex_qtd', 'ex_vu', 'ex_desc'].forEach(id => $(id).addEventListener('input', infoExec));
   $('btnNovaExec').addEventListener('click', () => abrirExec(null));
   $('fx_mes').addEventListener('change', renderExecucoes);
   $('fx_limpar').addEventListener('click', () => { $('fx_mes').value = ''; renderExecucoes(); });
@@ -4609,19 +4638,26 @@
       if (f && f.size > LIMITE_MB * 1024 * 1024) throw new Error('Arquivo maior que ' + LIMITE_MB + ' MB.');
       const arquivo = f ? await lerArquivo(f) : null;
       execDados = await api('salvarExecucao', { id_execucao: execEditando ? execEditando.id_execucao : '', id_contratacao: $('ex_ctr').value,
-        data: $('ex_data').value, quantidade: $('ex_qtd').value, valor_unitario: $('ex_vu').value, descricao: $('ex_desc').value, arquivo,
-        faturar_competencia: !execEditando && $('ex_fat').checked ? ($('ex_comp').value || $('ex_data').value.slice(0, 7)) : '' });
+        competencia: $('ex_comp').value, quantidade: $('ex_qtd').value, valor_unitario: $('ex_vu').value, descricao: $('ex_desc').value.trim(), arquivo,
+        faturar: !execEditando && $('ex_fat').checked, enviar_email: !execEditando && $('ex_fat').checked && $('ex_email').checked });
       $('dlgExec').close(); renderExecucoes();
-      toast(!execEditando && $('ex_fat').checked ? 'Palestra registrada ✓ · solicitação de NF criada (aparece em Pagamentos)' : 'Execução registrada ✓');
+      toast(!execEditando && $('ex_fat').checked ? 'Palestra registrada ✓ · solicitação de NF criada (aparece em Pagamentos)' + resultadoEmailExec(execDados.email) : 'Execução registrada ✓');
     } catch (err) { msg('msgExec', err.message); }
     btn.disabled = false;
   });
+
+  function resultadoEmailExec(em) {
+    if (!em) return '';
+    if (em.enviados) return ' · e-mail pedindo a NF enviado ✉️';
+    const f = (em.falhas || [])[0];
+    return ' · e-mail NÃO enviado' + (f ? ' (' + f.motivo + ')' : '') + ' – use “Pedir notas fiscais” em Pagamentos';
+  }
 
   // Faturar: projeto → rubrica → prestador → palestras
   async function abrirFaturar(idProjeto, idContratacao, escolherProjeto) {
     faProjeto = idProjeto || '';
     $('fa_proj_box').classList.toggle('oculto', !escolherProjeto);
-    msg('msgFaturar', ''); $('fa_lista').innerHTML = ''; $('fa_total').textContent = '—';
+    msg('msgFaturar', ''); $('fa_email').checked = false; $('fa_lista').innerHTML = ''; $('fa_total').textContent = '—';
     $('dlgFaturar').showModal();
     try {
       const projs = await lerAgora('listarProjetos', {});
@@ -4651,9 +4687,9 @@
     const x = prestadoresDe(faDados || {}).find(y => y.p.id_contratacao === $('fa_ctr').value);
     const livres = x ? x.p.execucoes.filter(e => !e.id_parcela) : [];
     $('fa_lista').innerHTML = !x ? '' : livres.length ? `<div class="tabela-wrap"><table>
-      <thead><tr><th><input type="checkbox" id="fa_todas" checked></th><th>Data</th><th class="num">Qtd</th><th class="num">Valor</th><th>Descrição</th></tr></thead>
-      <tbody>${livres.map(e => `<tr><td><input type="checkbox" data-faex="${esc(e.id_execucao)}" data-valor="${e.valor_total}" data-data="${esc(e.data)}" checked></td>
-        <td>${dataBr(e.data)}</td><td class="num">${numBr(e.quantidade)}</td><td class="num">${brl(e.valor_total)}</td><td>${esc(e.descricao)}</td></tr>`).join('')}</tbody></table></div>`
+      <thead><tr><th><input type="checkbox" id="fa_todas" checked></th><th>Competência</th><th class="num">Qtd</th><th class="num">Valor</th><th>Descrição</th></tr></thead>
+      <tbody>${livres.map(e => `<tr><td><input type="checkbox" data-faex="${esc(e.id_execucao)}" data-valor="${e.valor_total}" data-data="${esc(e.competencia || String(e.data).slice(0, 7))}" checked></td>
+        <td>${mesTitulo(e.competencia || String(e.data).slice(0, 7))}</td><td class="num">${numBr(e.quantidade)}</td><td class="num">${brl(e.valor_total)}</td><td>${esc(e.descricao)}</td></tr>`).join('')}</tbody></table></div>`
       : '<div class="vazio">Nenhuma palestra a faturar para este prestador.<br>Registre as palestras realizadas na aba “Execuções” do projeto.</div>';
     const t = $('fa_todas'); if (t) t.addEventListener('change', () => { $('fa_lista').querySelectorAll('[data-faex]').forEach(c => { c.checked = t.checked; }); totalFaturar(); });
     $('fa_lista').querySelectorAll('[data-faex]').forEach(c => c.addEventListener('change', totalFaturar));
@@ -4673,9 +4709,10 @@
     const ids = [...$('fa_lista').querySelectorAll('[data-faex]:checked')].map(c => c.dataset.faex);
     const btn = $('btnFaturarOk'); btn.disabled = true; msg('msgFaturar', 'Gerando a solicitação…', 'ok');
     try {
-      faDados = await api('faturarExecucoes', { id_contratacao: $('fa_ctr').value, ids, competencia: $('fa_comp').value });
+      faDados = await api('faturarExecucoes', { id_contratacao: $('fa_ctr').value, ids, competencia: $('fa_comp').value, enviar_email: $('fa_email').checked });
       const comp = $('fa_comp').value;
-      msg('msgFaturar', `✓ Solicitação criada (serviços de ${mesAno(comp + '-01')}). Ela aparece em Pagamentos no mês seguinte, para pedir a NF.`, 'ok');
+      msg('msgFaturar', `✓ Solicitação criada (serviços de ${mesAno(comp + '-01')}). Ela aparece em Pagamentos no mês seguinte` +
+        (faDados.email ? resultadoEmailExec(faDados.email) + '.' : ', para pedir a NF.'), faDados.email && !faDados.email.enviados ? 'erro' : 'ok');
       if (atual && atual.projeto && atual.projeto.id_projeto === faProjeto) { execDados = faDados; renderExecucoes(); }
       preencherPrestFaturar($('fa_ctr').value);
       if (!$('viewPag').classList.contains('oculto')) carregarPag().catch(() => {});
