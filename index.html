@@ -646,7 +646,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.03-c</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.03-d</span></span></div>
   </div>
 </section>
 
@@ -2305,7 +2305,7 @@
           </div>
         </div>
         <div class="tabela-wrap" style="padding:6px 12px 0"><table>
-          <thead><tr><th>Responsável / empresa</th><th>CNPJ</th><th class="num">Valor mensal</th><th class="num">Total</th><th>Situação</th><th>Documentos</th>${pode ? '<th></th>' : ''}</tr></thead>
+          <thead><tr><th>Responsável / empresa</th><th>CNPJ</th><th class="num">Valor mensal</th><th class="num">Total</th><th>Situação</th><th>Versão final (PDF)</th><th>Rascunho (Word)</th>${pode ? '<th></th>' : ''}</tr></thead>
           <tbody>${p.cotacoes.map(c => `<tr>
             <td><b>${esc(c.razao_social)}</b>${c.resp_nome && c.resp_nome !== c.razao_social ? '<br><span style="color:var(--suave)">' + esc(c.resp_nome) + '</span>' : ''}
               ${c.vencedora === true ? ' <span class="st verde">🏆 vencedora</span>' : ''}</td>
@@ -2315,6 +2315,8 @@
             <td><span class="st ${stCot(c.status)}">${esc(c.status)}</span></td>
             <td>${c.doc_url ? `<a href="${esc(c.doc_url)}" target="_blank" rel="noopener">${c.status === 'Recebida' ? 'cotação' : 'para assinar'}</a>` : ''}
               ${c.doc_assinado_url ? ` · <a href="${esc(c.doc_assinado_url)}" target="_blank" rel="noopener">assinada</a>` : ''}</td>
+            <td>${c.rascunho_url ? `<a href="${esc(c.rascunho_url)}" target="_blank" rel="noopener" title="Mesma cotação em Word, para ajustar, inserir assinatura autorizada e salvar em PDF">⬇ Word (.docx)</a>`
+              : c.pode_rascunho && pode ? `<button class="btn-link" data-rascunho="${esc(c.id_cotacao)}">Gerar Word</button>` : '—'}</td>
             ${pode ? `<td style="white-space:nowrap">
               ${c.status !== 'Assinada' && c.status !== 'Recebida' ? `<button class="btn-link" data-assinada="${esc(c.id_cotacao)}">⬆️ Anexar assinada</button>` : ''}
               ${!p.id_contratacao && c.vencedora !== true ? `<button class="btn-link" data-vencedora="${esc(c.id_cotacao)}">Marcar vencedora</button>` : ''}</td>` : ''}
@@ -2331,6 +2333,7 @@
 
     const L = $('listaProc');
     L.querySelectorAll('[data-assinada]').forEach(b => b.addEventListener('click', () => { procAssinada = b.dataset.assinada; $('upAssinada').value = ''; $('upAssinada').click(); }));
+    L.querySelectorAll('[data-rascunho]').forEach(b => b.addEventListener('click', () => { b.textContent = 'Gerando…'; acaoCot('gerarRascunhoCotacao', { id_cotacao: b.dataset.rascunho }, b); }));
     L.querySelectorAll('[data-vencedora]').forEach(b => b.addEventListener('click', () => acaoCot('marcarCotacaoVencedora', { id_cotacao: b.dataset.vencedora }, b)));
     L.querySelectorAll('[data-exproc]').forEach(b => b.addEventListener('click', () => {
       if (confirm('Excluir este processo de cotação? Os documentos gerados vão para a lixeira do Drive.'))
