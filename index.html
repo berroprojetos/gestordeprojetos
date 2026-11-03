@@ -646,7 +646,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.03-d</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.03-e</span></span></div>
   </div>
 </section>
 
@@ -969,7 +969,7 @@
 <!-- MODAL: PROCESSO DE COTAÇÃO -->
 <dialog id="dlgProc" class="grande">
   <form id="formProc">
-    <div class="modal-cab"><h3>Novo processo de cotação</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+    <div class="modal-cab"><h3 id="tituloProc">Novo processo de cotação</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
     <div class="modal-corpo">
       <div class="form-grade">
         <div class="largo"><label for="pc_id_rubrica">Rubrica *</label><select id="pc_id_rubrica" required></select></div>
@@ -982,11 +982,15 @@
         <div class="largo"><label for="pc_id_modelo">Modelo de cotação (para gerar)</label><select id="pc_id_modelo"></select></div>
       </div>
       <div id="blocosCot"></div>
+      <div id="pc_regerar_box" class="oculto" style="margin-top:12px">
+        <label class="checkbox"><input type="checkbox" id="pc_regerar" checked> Gerar os documentos de novo (PDF e Word) com os dados corrigidos</label>
+        <div class="dica" style="margin:4px 0 0" id="pc_regerar_dica">Os arquivos antigos vão para a lixeira do Drive. Cotações já assinadas ou anexadas prontas não são geradas de novo.</div>
+      </div>
     </div>
     <div class="modal-rodape">
       <div class="msg" id="msgProc" role="alert"></div>
       <button type="button" class="btn-sec" data-fechar>Cancelar</button>
-      <button type="submit" class="btn">Salvar e gerar cotações</button>
+      <button type="submit" class="btn" id="btnProcOk">Salvar e gerar cotações</button>
     </div>
   </form>
 </dialog>
@@ -2284,7 +2288,7 @@
     ['razao_social', 'Razão social', 'largo'], ['cnpj', 'CNPJ'], ['resp_endereco', 'Endereço completo', 'largo'],
     ['resp_telefone', 'Telefone'], ['resp_email', 'E-mail'], ['valor_hora', 'Valor da hora (R$)'],
     ['valor_unitario_mensal', 'ou valor mensal (R$)']];
-  let procAssinada = null;
+  let procAssinada = null, procEditando = null;
 
   const stCot = s => s === 'Assinada' || s === 'Recebida' ? 'verde' : 'amarelo';
 
@@ -2301,6 +2305,7 @@
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <span class="st ${p.status === 'Contratado' || p.status === 'Concluído' ? 'verde' : 'amarelo'}">${esc(p.status)}</span>
             ${p.pasta_url ? `<a class="btn-sec" style="text-decoration:none" href="${esc(p.pasta_url)}" target="_blank" rel="noopener">📁 Pasta</a>` : ''}
+            ${pode ? `<button class="btn-sec" data-edproc="${esc(p.id_processo)}">✏️ Editar</button>` : ''}
             ${pode && !p.id_contratacao ? `<button class="btn-link perigo" data-exproc="${esc(p.id_processo)}">Excluir</button>` : ''}
           </div>
         </div>
@@ -2319,6 +2324,7 @@
               : c.pode_rascunho && pode ? `<button class="btn-link" data-rascunho="${esc(c.id_cotacao)}">Gerar Word</button>` : '—'}</td>
             ${pode ? `<td style="white-space:nowrap">
               ${c.status !== 'Assinada' && c.status !== 'Recebida' ? `<button class="btn-link" data-assinada="${esc(c.id_cotacao)}">⬆️ Anexar assinada</button>` : ''}
+              ${c.pode_rascunho ? `<button class="btn-link" data-regerar="${esc(c.id_cotacao)}" data-st="${esc(c.status)}" title="Gera de novo o PDF e o Word com os dados atuais">↻ Gerar de novo</button>` : ''}
               ${!p.id_contratacao && c.vencedora !== true ? `<button class="btn-link" data-vencedora="${esc(c.id_cotacao)}">Marcar vencedora</button>` : ''}</td>` : ''}
           </tr>`).join('')}</tbody>
         </table></div>
@@ -2333,6 +2339,14 @@
 
     const L = $('listaProc');
     L.querySelectorAll('[data-assinada]').forEach(b => b.addEventListener('click', () => { procAssinada = b.dataset.assinada; $('upAssinada').value = ''; $('upAssinada').click(); }));
+    L.querySelectorAll('[data-edproc]').forEach(b => b.addEventListener('click', () => abrirFormProc(ps.find(p => p.id_processo === b.dataset.edproc))));
+    L.querySelectorAll('[data-regerar]').forEach(b => b.addEventListener('click', () => {
+      const assinada = b.dataset.st === 'Assinada';
+      if (!confirm(assinada ? 'Esta cotação já está ASSINADA. Gerar o documento de novo cria um PDF novo, que precisará ser assinado outra vez. Continuar?'
+        : 'Gerar de novo o PDF e o Word desta cotação com os dados atuais? Os arquivos antigos vão para a lixeira do Drive.')) return;
+      b.textContent = 'Gerando…';
+      acaoCot('regerarCotacao', { id_cotacao: b.dataset.regerar, confirmar_assinada: assinada }, b).then(ok => { if (ok) toast('Documento gerado de novo ✓'); });
+    }));
     L.querySelectorAll('[data-rascunho]').forEach(b => b.addEventListener('click', () => { b.textContent = 'Gerando…'; acaoCot('gerarRascunhoCotacao', { id_cotacao: b.dataset.rascunho }, b); }));
     L.querySelectorAll('[data-vencedora]').forEach(b => b.addEventListener('click', () => acaoCot('marcarCotacaoVencedora', { id_cotacao: b.dataset.vencedora }, b)));
     L.querySelectorAll('[data-exproc]').forEach(b => b.addEventListener('click', () => {
@@ -2345,8 +2359,8 @@
 
   async function acaoCot(acao, dados, btn) {
     if (btn) btn.disabled = true;
-    try { atual.processos_cotacao = await api(acao, dados); renderCotacoes(); }
-    catch (err) { alert(err.message); if (btn) btn.disabled = false; }
+    try { atual.processos_cotacao = await api(acao, dados); renderCotacoes(); return true; }
+    catch (err) { alert(err.message); if (btn) btn.disabled = false; renderCotacoes(); return false; }
   }
 
   $('upAssinada').addEventListener('change', async () => {
@@ -2357,7 +2371,8 @@
     catch (err) { alert(err.message); }
   });
 
-  function abrirFormProc() {
+  function abrirFormProc(proc) {
+    procEditando = proc && proc.id_processo ? proc : null;
     $('pc_id_rubrica').innerHTML = '<option value="">Selecione…</option>' + atual.rubricas.map(r =>
       `<option value="${esc(r.id_rubrica)}">${esc(r.codigo ? r.codigo + ' – ' : '')}${esc(r.descricao)}</option>`).join('');
     ['funcao', 'horas_mensais', 'dias_mes', 'meses', 'descricao_atividades'].forEach(k => $('pc_' + k).value = '');
@@ -2366,7 +2381,8 @@
     $('pc_id_modelo').innerHTML = modelos.length
       ? modelos.map(m => `<option value="${esc(m.id_modelo)}">${esc(m.nome)}</option>`).join('')
       : '<option value="">Nenhum modelo cadastrado – anexe as cotações prontas</option>';
-    $('blocosCot').innerHTML = [1, 2, 3].map(n => `<fieldset data-bloco="${n}"><legend>Cotação ${n}</legend>
+    const blocos = procEditando ? procEditando.cotacoes.map((c, i) => i + 1) : [1, 2, 3];
+    $('blocosCot').innerHTML = blocos.map(n => `<fieldset data-bloco="${n}"><legend>Cotação ${n}</legend>
       <div class="linha-form puxar-cot" style="margin-bottom:10px">
         <div><label for="b${n}_busca">Buscar no menu Fornecedores</label><input id="b${n}_busca" placeholder="nome, CNPJ ou CPF" autocomplete="off"></div>
         <div style="grid-column:span 2"><label for="b${n}_escolha">Cadastro da planilha</label><select id="b${n}_escolha"></select></div>
@@ -2375,16 +2391,42 @@
       <div class="dica" id="b${n}_puxou" style="margin:-4px 0 10px">Opcional: puxe do cadastro ou preencha à mão. Os valores (hora/mensal) são sempre digitados.</div>
       <div class="form-grade">${CAMPOS_BLOCO.map(([k, rot, larg]) =>
         `<div class="${larg || ''}"><label for="b${n}_${k}">${rot}</label><input id="b${n}_${k}"${k.startsWith('valor') ? ' inputmode="decimal"' : ''}></div>`).join('')}
-        <div class="largo"><label for="b${n}_arquivo">Já tenho esta cotação pronta (anexar em vez de gerar)</label><input id="b${n}_arquivo" type="file"></div>
+        <div class="largo${procEditando ? ' oculto' : ''}"><label for="b${n}_arquivo">Já tenho esta cotação pronta (anexar em vez de gerar)</label><input id="b${n}_arquivo" type="file"></div>
       </div>
       <div class="total-preview" id="b${n}_prev">Preencha o valor da hora ou o valor mensal</div></fieldset>`).join('');
-    [1, 2, 3].forEach(n => ['valor_hora', 'valor_unitario_mensal'].forEach(k => $(`b${n}_${k}`).addEventListener('input', atualizarPrevCot)));
+    blocos.forEach(n => ['valor_hora', 'valor_unitario_mensal'].forEach(k => $(`b${n}_${k}`).addEventListener('input', atualizarPrevCot)));
     ['pc_horas_mensais', 'pc_meses'].forEach(id => $(id).oninput = atualizarPrevCot);
-    [1, 2, 3].forEach(n => {
+    blocos.forEach(n => {
       $(`b${n}_busca`).addEventListener('input', () => opcoesFornCot(n));
       $(`b${n}_puxar`).addEventListener('click', () => puxarFornCot(n));
     });
-    const todasOpc = () => [1, 2, 3].forEach(opcoesFornCot);
+    // Edição: preenche com os dados atuais; ao mudar o valor da hora, o mensal é recalculado (e vice-versa)
+    $('tituloProc').textContent = procEditando ? `Editar processo de cotação · ${procEditando.id_processo}` : 'Novo processo de cotação';
+    $('btnProcOk').textContent = procEditando ? 'Salvar alterações' : 'Salvar e gerar cotações';
+    $('pc_id_rubrica').disabled = !!procEditando;
+    const geradas = procEditando ? procEditando.cotacoes.filter(c => c.pode_rascunho && c.status !== 'Assinada').length : 0;
+    $('pc_regerar_box').classList.toggle('oculto', !procEditando || !geradas);
+    $('pc_regerar').checked = true;
+    if (procEditando) {
+      const p = procEditando;
+      $('pc_id_rubrica').value = p.id_rubrica || '';
+      if (![...$('pc_id_rubrica').options].some(o => o.value === p.id_rubrica)) $('pc_id_rubrica').insertAdjacentHTML('beforeend', `<option value="${esc(p.id_rubrica)}" selected>${esc(p.rubrica_descricao)}</option>`);
+      $('pc_funcao').value = p.funcao || ''; $('pc_horas_mensais').value = p.horas_mensais === '' ? '' : String(p.horas_mensais).replace('.', ',');
+      $('pc_dias_mes').value = p.dias_mes || ''; $('pc_meses').value = p.meses || '';
+      $('pc_data_cotacao').value = String(p.data_cotacao || '').slice(0, 10); $('pc_descricao_atividades').value = p.descricao_atividades || '';
+      if (p.id_modelo && [...$('pc_id_modelo').options].some(o => o.value === p.id_modelo)) $('pc_id_modelo').value = p.id_modelo;
+      p.cotacoes.forEach((c, i) => {
+        const n = i + 1;
+        $(`b${n}_puxou`).textContent = `Situação: ${c.status}. Puxe do cadastro ou corrija os campos à mão.`;
+        CAMPOS_BLOCO.forEach(([k]) => { const v = c[k]; $(`b${n}_${k}`).value = v === '' || v == null ? '' : (k.startsWith('valor') ? num2(v) : v); });
+        $(`b${n}_valor_hora`).addEventListener('input', () => { if ($(`b${n}_valor_hora`).value.trim()) $(`b${n}_valor_unitario_mensal`).value = ''; atualizarPrevCot(); });
+        $(`b${n}_valor_unitario_mensal`).addEventListener('input', () => { if ($(`b${n}_valor_unitario_mensal`).value.trim()) $(`b${n}_valor_hora`).value = ''; atualizarPrevCot(); });
+      });
+      $('pc_horas_mensais').addEventListener('input', () => { if (!procEditando) return;
+        procEditando.cotacoes.forEach((c, i) => { const n = i + 1; if ($(`b${n}`+'_valor_hora') && $(`b${n}_valor_hora`).value.trim()) $(`b${n}_valor_unitario_mensal`).value = ''; }); atualizarPrevCot(); });
+      atualizarPrevCot();
+    }
+    const todasOpc = () => blocos.forEach(opcoesFornCot);
     todasOpc();
     apiRapida('listarFornecedoresBase', { para_contratacao: true }, d => { fBase = d; todasOpc(); }, true)
       .catch(() => { fBase = fBase || { lista: [], conectada: false }; todasOpc(); });
@@ -2430,7 +2472,7 @@
 
   function atualizarPrevCot() {
     const h = lerNumero($('pc_horas_mensais').value) || 0, m = parseInt($('pc_meses').value, 10) || 0;
-    [1, 2, 3].forEach(n => {
+    [1, 2, 3].filter(n => $(`b${n}_prev`)).forEach(n => {
       const vh = lerNumero($(`b${n}_valor_hora`).value) || 0, vm = lerNumero($(`b${n}_valor_unitario_mensal`).value) || 0;
       const unit = vm || vh * h;
       $(`b${n}_prev`).textContent = unit ? `Mensal: ${brl(unit)}  ·  Total para ${m || '?'} meses: ${brl(unit * m)}` : 'Preencha o valor da hora ou o valor mensal';
@@ -2445,11 +2487,12 @@
     atualizarPrevCot();
   });
 
-  $('btnNovoProc').addEventListener('click', abrirFormProc);
+  $('btnNovoProc').addEventListener('click', () => abrirFormProc(null));
 
   $('formProc').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = e.submitter; btn.disabled = true;
+    if (procEditando) { await salvarEdicaoProc(btn); return; }
     msg('msgProc', 'Gerando as cotações… isso pode levar até 1 minuto.', 'ok');
     try {
       const cotacoes = [];
@@ -2467,6 +2510,22 @@
     } catch (err) { msg('msgProc', err.message); }
     btn.disabled = false;
   });
+
+  async function salvarEdicaoProc(btn) {
+    const p = procEditando, regerar = !$('pc_regerar_box').classList.contains('oculto') && $('pc_regerar').checked;
+    msg('msgProc', regerar ? 'Salvando e gerando os documentos de novo… pode levar até 1 minuto.' : 'Salvando…', 'ok');
+    try {
+      const dados = { id_processo: p.id_processo, id_modelo: $('pc_id_modelo').value, regerar,
+        cotacoes: p.cotacoes.map((c, i) => { const o = { id_cotacao: c.id_cotacao }; CAMPOS_BLOCO.forEach(([k]) => o[k] = $(`b${i + 1}_${k}`).value); return o; }) };
+      ['funcao', 'horas_mensais', 'dias_mes', 'meses', 'data_cotacao', 'descricao_atividades'].forEach(k => dados[k] = $('pc_' + k).value);
+      const r = await api('editarProcessoCotacao', dados);
+      atual.processos_cotacao = r.processos;
+      $('dlgProc').close(); renderCotacoes();
+      toast('Cotação atualizada ✓' + (r.resumo.regeradas ? ` · ${r.resumo.regeradas} documento(s) gerado(s) de novo` : '') +
+        (r.resumo.mantidas.length ? ' · mantidos: ' + r.resumo.mantidas.join(', ') : ''));
+    } catch (err) { msg('msgProc', err.message); }
+    btn.disabled = false;
+  }
 
   function contratarDaCotacao(p) {
     const v = p.cotacoes.find(c => c.vencedora === true);
