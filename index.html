@@ -674,7 +674,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.04-d</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.04-e</span></span></div>
   </div>
 </section>
 
@@ -2091,7 +2091,10 @@
   $('formCtr').addEventListener('submit', async e => {
     e.preventDefault();
     const trav = parcTravadas();
-    if (trav.length && ctrEditando && String(ctrEditando.inicio_execucao || '').slice(0, 7) !== $('c_inicio_execucao').value.slice(0, 7)) {
+    const p1Ctr = ((ctrAtual && (ctrAtual.parcelas_det || ctrAtual.parcelas)) || []).find(p => Number(p.num_parcela) === 1);
+    const mesP1 = p1Ctr ? String(p1Ctr.competencia || '').slice(0, 7) : '';
+    if (trav.length && ctrEditando && (String(ctrEditando.inicio_execucao || '').slice(0, 7) !== $('c_inicio_execucao').value.slice(0, 7) ||
+        (mesP1 && mesP1 !== $('c_inicio_execucao').value.slice(0, 7)))) {
       const sit = trav.filter(p => p.status === 'Lançada no SIT').length;
       if (!confirm(`Mudar o início para ${dataBr($('c_inicio_execucao').value)}?\n\nAs competências de todas as parcelas vão acompanhar o novo início ` +
         `(a 1ª parcela passa a ser ${mesAno($('c_inicio_execucao').value)}). As notas e pagamentos já lançados continuam nas mesmas parcelas.` +
