@@ -674,7 +674,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.04-a</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.04-b</span></span></div>
   </div>
 </section>
 
@@ -4974,6 +4974,46 @@
       saldo_anterior: '', saldo_final: bal ? Number(bal[1].replace(',', '.')) : '', lancamentos: lancs };
   }
 
+  /** Extrato do BB Rende Fácil / Rende Mais (aplicação automática ligada à conta corrente). */
+  function lerAplicacaoBB(itens) {
+    const linhas = linhasPdf(itens);
+    const texto = linhas.map(l => l.itens.map(i => i.s).join(' ')).join('\n');
+    const nomeAplic = (texto.match(/BB\s+RENDE\s+(F[ÁA]CIL|MAIS)/i) || ['BB Rende Fácil'])[0];
+    let comp = '', m = texto.match(/Resumo do m[êe]s\s*-\s*([A-Za-zçÇ]+)\/(\d{4})/i);
+    if (m) { const i = MESES_EXT.indexOf(m[1].toLowerCase()); if (i > -1) comp = `${m[2]}-${String(i + 1).padStart(2, '0')}`; }
+    const num = s => { const t = String(s || '').replace(/R\$\s*/, '').trim(); return /^-?[\d.]+,\d{2}$/.test(t) ? Math.round(Number(t.replace(/\./g, '').replace(',', '.')) * 100) / 100 : null; };
+    const resumoDe = rx => { const l = linhas.find(z => rx.test(z.itens.map(i => i.s).join(' '))); if (!l) return 0; const v = l.itens.map(i => num(i.s)).filter(x => x !== null); return v.length ? v[v.length - 1] : 0; };
+    const resumo = { aplicacoes: resumoDe(/Aplica[çc][õo]es no m[êe]s/i), resgates: resumoDe(/Resgates l[íi]quidos/i), ir: resumoDe(/^IR sobre/i),
+      iof: resumoDe(/^IOF sobre/i), rendimentos: resumoDe(/Rendimentos no m[êe]s/i) };
+    const saldos = linhas.filter(z => /^Saldo bruto em/i.test(z.itens[0].s.trim()));
+    const valSaldo = l => { const v = l.itens.map(i => num(i.s)).filter(x => x !== null); return v.length ? v[v.length - 1] : ''; };
+    const agc = (() => { const a = linhas.findIndex(z => z.itens.some(i => /^Ag[êe]ncia$/i.test(i.s.trim()))); return a > -1 && linhas[a + 1] ? linhas[a + 1].itens.map(i => i.s.trim()).join(' / ') : ''; })();
+    // Movimentação: colunas pelo cabeçalho
+    const cab = linhas.find(l => l.itens.some(i => /^Capital$/i.test(i.s.trim())) && l.itens.some(i => /L[íi]quido/i.test(i.s)));
+    const col = nome => { const it = cab && cab.itens.find(i => nome.test(i.s.trim())); return it ? it.x : null; };
+    const xs = { capital: col(/^Capital$/i), rend: col(/^Rendimento/i), ir: col(/^IR$/i), iof: col(/^IOF$/i), liq: col(/L[íi]quido/i) };
+    const naCol = (l, x) => { if (x === null) return null; const it = l.itens.find(i => Math.abs(i.x - x) < 30 && num(i.s) !== null); return it ? num(it.s) : null; };
+    const lancs = [];
+    linhas.forEach(l => {
+      if (!cab || l === cab || !RX_DATA.test(l.itens[0].s.trim())) return;
+      const hist = l.itens.filter(i => !RX_DATA.test(i.s.trim()) && num(i.s) === null).map(i => i.s.trim()).join(' ');
+      if (/^saldo/i.test(hist)) return;
+      const cap = naCol(l, xs.capital), rend = naCol(l, xs.rend), ir = naCol(l, xs.ir), iof = naCol(l, xs.iof), liq = naCol(l, xs.liq);
+      const resgate = /resgate/i.test(hist);
+      const det = [cap !== null ? 'capital ' + cap.toFixed(2).replace('.', ',') : '', rend ? 'rendimento ' + rend.toFixed(2).replace('.', ',') : '',
+        ir ? 'IR ' + ir.toFixed(2).replace('.', ',') : '', iof ? 'IOF ' + iof.toFixed(2).replace('.', ',') : ''].filter(Boolean).join(' · ');
+      lancs.push({ data: isoDeBr(l.itens[0].s.trim()), data_base: '', historico: hist + ' ' + nomeAplic.replace(/^BB\s+/i, 'BB '), detalhe: det, documento: '',
+        valor: liq || cap || 0, natureza: resgate ? 'D' : 'C', categoria: resgate ? 'Resgate da aplicação' : 'Aplicação' });
+    });
+    // Rendimento e impostos do mês (do resumo do extrato) viram lançamentos próprios, no último dia do mês
+    const fim = comp ? (() => { const [a, mm] = comp.split('-').map(Number); return `${comp}-${String(new Date(a, mm, 0).getDate()).padStart(2, '0')}`; })() : '';
+    if (resumo.rendimentos) lancs.push({ data: fim, historico: 'Rendimentos no mês ' + nomeAplic, detalhe: 'resumo do extrato', documento: '', valor: resumo.rendimentos, natureza: 'C', categoria: 'Rendimento' });
+    if (resumo.ir) lancs.push({ data: fim, historico: 'IR sobre resgates ' + nomeAplic, detalhe: 'resumo do extrato', documento: '', valor: resumo.ir, natureza: 'D', categoria: 'IR/IOF da aplicação' });
+    if (resumo.iof) lancs.push({ data: fim, historico: 'IOF sobre resgates ' + nomeAplic, detalhe: 'resumo do extrato', documento: '', valor: resumo.iof, natureza: 'D', categoria: 'IR/IOF da aplicação' });
+    return { formato: 'PDF', conta: 'APLIC', competencia: comp, agencia_conta: agc, nome_aplicacao: nomeAplic,
+      saldo_anterior: saldos[0] ? valSaldo(saldos[0]) : '', saldo_final: saldos[1] ? valSaldo(saldos[1]) : '', resumo, lancamentos: lancs };
+  }
+
   // pdf.js (só carrega quando for ler um PDF)
   let pdfjsPronto = null;
   function carregarPdfjs() {
@@ -5003,12 +5043,13 @@
     if (ofx) return lerOfx(await file.text());
     const itens = await itensDoPdf(file);
     if (!itens.length) return { formato: 'PDF', conta: '', competencia: '', lancamentos: [], erro: 'PDF sem texto (escaneado ou foto). Baixe o extrato original no internet banking.' };
+    if (itens.some(i => /BB\s*RENDE\s*(F[ÁA]CIL|MAIS)/i.test(i.s)) && itens.some(i => /Resumo do m[êe]s/i.test(i.s))) return lerAplicacaoBB(itens);
     return lerPdfBB(itens);
   }
 
   // ===== Tela Extratos =====
   let ext = null, extLidos = [], concDados = null, concMes = '';
-  const contaNome = c => c === 'POUP' ? 'Poupança' : 'Conta corrente';
+  const contaNome = c => c === 'POUP' ? 'Poupança' : c === 'APLIC' ? 'Aplicação (Rende Fácil)' : 'Conta corrente';
   async function abrirExtratos(idProjeto) {
     navAtivo('navExt', 'Extratos');
     mostrarView('viewExt');
@@ -5041,17 +5082,18 @@
       return opcional ? '<span style="color:var(--suave)">—</span>' : '<span class="st amarelo">falta</span>';
     };
     $('extTabela').innerHTML = !d.meses.length ? '<div class="vazio">Nenhum mês ainda.</div>' : `<div class="tabela-wrap"><table>
-      <thead><tr><th>Mês</th><th>Conta corrente (PDF)</th><th>Poupança (PDF)</th><th>OFX (opcional)</th><th>Conciliação</th><th class="num">Taxas</th><th class="num">Rendimentos</th><th></th></tr></thead>
+      <thead><tr><th>Mês</th><th>Conta corrente</th><th>Poupança</th>${d.tem_aplicacao ? '<th>Rende Fácil</th>' : ''}<th>OFX</th><th>Conciliação</th><th class="num">Taxas</th><th class="num">Rendimentos</th><th></th></tr></thead>
       <tbody>${d.meses.map(m => `<tr>
         <td style="white-space:nowrap"><b>${mesTitulo(m.mes)}</b></td>
         <td>${celArq(m, 'CC_PDF', 'PDF')}</td>
         <td>${celArq(m, 'POUP_PDF', 'PDF')}</td>
+        ${d.tem_aplicacao ? `<td>${celArq(m, 'APLIC_PDF', 'PDF', true)}${Number(m.saldo_aplicacao) > 0.01 ? `<br><small style="color:var(--alerta)" title="Saldo ainda aplicado no Rende Fácil no fim do mês">${brl(m.saldo_aplicacao)} aplicado</small>` : ''}</td>` : ''}
         <td>${celArq(m, 'CC_OFX', 'OFX', true)}</td>
         <td>${!m.tem_lancamentos ? (m.pagamentos ? `<span class="st amarelo">${m.pagamentos} pagamento(s) sem extrato</span>` : '<span style="color:var(--suave)">—</span>')
           : `<span class="st ${m.conciliados === m.pagamentos && !m.saidas_sem_pagamento ? 'verde' : 'amarelo'}">${m.conciliados}/${m.pagamentos} pagamentos</span>` +
             (m.saidas_sem_pagamento ? `<br><small style="color:var(--alerta)">${m.saidas_sem_pagamento} saída(s) sem pagamento</small>` : '')}</td>
         <td class="num">${m.tarifas ? `<b style="color:var(--alerta)">${brl(m.tarifas)}</b>` : '—'}${m.estornos ? `<br><small style="color:var(--ok)">− ${brl(m.estornos)} devolvido</small>` : ''}${m.tarifas_antes ? `<br><small style="color:var(--suave)" title="Antes do 1º pagamento: fora do controle">${brl(m.tarifas_antes)} antes do início</small>` : ''}</td>
-        <td class="num">${m.rendimentos ? brl(m.rendimentos) : '—'}</td>
+        <td class="num">${m.rendimentos ? brl(m.rendimentos) : '—'}${m.rendimentos_aplicacao ? `<br><small style="color:var(--suave)">poup. ${brl(m.rendimentos_poupanca)} · aplic. ${brl(m.rendimentos_aplicacao)}</small>` : ''}${m.ir_iof ? `<br><small style="color:var(--suave)">IR/IOF ${brl(m.ir_iof)}</small>` : ''}</td>
         <td>${m.tem_lancamentos || m.pagamentos ? `<button class="btn-sec" style="padding:6px 12px" data-conc="${m.mes}">Abrir</button>` : ''}</td>
       </tr>`).join('')}</tbody></table></div>`;
     const T = $('extTabela');
@@ -5084,14 +5126,16 @@
       <thead><tr><th>Arquivo</th><th>Conta</th><th>Mês</th><th>Formato</th><th>Leitura</th><th></th></tr></thead>
       <tbody>${extLidos.map((x, i) => `<tr>
         <td>${esc(x.file.name)}</td>
-        <td><select style="min-width:150px" data-lconta="${i}" ${x.status === 'ok' ? 'disabled' : ''}><option value="CC" ${x.conta === 'CC' ? 'selected' : ''}>Conta corrente</option><option value="POUP" ${x.conta === 'POUP' ? 'selected' : ''}>Poupança</option></select></td>
+        <td><select style="min-width:150px" data-lconta="${i}" ${x.status === 'ok' ? 'disabled' : ''}><option value="CC" ${x.conta === 'CC' ? 'selected' : ''}>Conta corrente</option><option value="POUP" ${x.conta === 'POUP' ? 'selected' : ''}>Poupança</option><option value="APLIC" ${x.conta === 'APLIC' ? 'selected' : ''}>Aplicação (Rende Fácil/Mais)</option></select></td>
         <td><select data-lmes="${i}" ${x.status === 'ok' ? 'disabled' : ''}>${opcoesMesExt(x.competencia)}</select></td>
         <td>${x.leitura.formato || '—'}</td>
         <td>${x.lendo ? 'lendo…' : x.leitura.erro ? `<span style="color:var(--alerta)">${esc(x.leitura.erro)}</span>` : `${nLanc(x)} lançamento(s)` +
-          (x.conta === 'POUP' && typeof x.leitura.saldo_final === 'number' ? ` · saldo ${brl(x.leitura.saldo_final)}` : '')}</td>
+          (x.conta !== 'CC' && typeof x.leitura.saldo_final === 'number' ? ` · saldo ${brl(x.leitura.saldo_final)}` : '') +
+          (x.leitura.resumo ? ` · rendimentos ${brl(x.leitura.resumo.rendimentos)}` : '') +
+          (x.leitura.conta && x.conta !== x.leitura.conta ? ` <span style="color:var(--alerta)">· o arquivo parece ser de ${contaNome(x.leitura.conta)}</span>` : '')}</td>
         <td>${x.status === 'ok' ? '<span class="st verde">✓ enviado</span>' : x.status === 'erro' ? `<span class="st amarelo" title="${esc(x.erroEnvio)}">erro</span>` : x.status === 'enviando' ? 'enviando…' : `<button class="btn-link perigo" data-ltira="${i}">tirar</button>`}</td>
       </tr>`).join('')}</tbody></table></div>` : '';
-    $('extLidos').querySelectorAll('[data-lconta]').forEach(s => s.addEventListener('change', () => { extLidos[+s.dataset.lconta].conta = s.value; }));
+    $('extLidos').querySelectorAll('[data-lconta]').forEach(s => s.addEventListener('change', () => { extLidos[+s.dataset.lconta].conta = s.value; renderLidos(); }));
     $('extLidos').querySelectorAll('[data-lmes]').forEach(s => s.addEventListener('change', () => { extLidos[+s.dataset.lmes].competencia = s.value; }));
     $('extLidos').querySelectorAll('[data-ltira]').forEach(b => b.addEventListener('click', () => { extLidos.splice(+b.dataset.ltira, 1); renderLidos(); }));
     $('btnExtEnviar').disabled = !extLidos.some(x => x.status !== 'ok') || extLidos.some(x => x.lendo);
@@ -5120,7 +5164,7 @@
       x.status = 'enviando'; renderLidos(); msg('msgExtUp', `Enviando ${x.file.name}…`, 'ok');
       try {
         const arquivo = await lerArquivo(x.file);
-        const lancs = (x.leitura.lancamentos || []).filter(l => !l.saldo_linha && !/^saldo (anterior|do dia|atual|total)/i.test(l.historico)).map(l => ({ data: l.data, data_base: l.data_base, historico: l.historico, detalhe: l.detalhe, documento: l.documento, valor: l.valor, natureza: l.natureza }));
+        const lancs = (x.leitura.lancamentos || []).filter(l => !l.saldo_linha && !/^saldo (anterior|do dia|atual|total|final|bruto)/i.test(l.historico)).map(l => ({ data: l.data, data_base: l.data_base, historico: l.historico, detalhe: l.detalhe, documento: l.documento, valor: l.valor, natureza: l.natureza, categoria: l.categoria || '' }));
         ext = await api('anexarExtrato', { id_projeto: ext.projeto.id_projeto, competencia: x.competencia, conta: x.conta, formato: x.leitura.formato === 'OFX' ? 'OFX' : 'PDF', arquivo,
           leitura: { lancamentos: lancs, saldo_anterior: x.leitura.saldo_anterior ?? '', saldo_final: x.leitura.saldo_final ?? '', agencia_conta: x.leitura.agencia_conta || '', erro: x.leitura.erro || '' } });
         x.status = 'ok'; ok++; conc += (ext.resumo_importacao && ext.resumo_importacao.conciliados) || 0;
@@ -5146,7 +5190,7 @@
   const rotPag = p => `${esc(p.contratado || '—')}${p.parcela ? ' · parc. ' + esc(p.parcela) : ''} · ${brl(p.valor)} · ${p.data ? dataBr(p.data) : 's/ data'}`;
   function renderConciliacao() {
     const d = concDados, pode = d.pode_conciliar;
-    const cc = d.lancamentos.filter(l => l.conta === 'CC'), pp = d.lancamentos.filter(l => l.conta === 'POUP');
+    const cc = d.lancamentos.filter(l => l.conta === 'CC'), pp = d.lancamentos.filter(l => l.conta === 'POUP'), ap = d.lancamentos.filter(l => l.conta === 'APLIC');
     const semPar = d.pagamentos_mes.filter(p => !p.lancamento);
     const linhaLanc = l => {
       const saida = l.natureza === 'D';
@@ -5173,12 +5217,16 @@
         <div><span>Conciliados</span><b>${d.pagamentos_mes.length - semPar.length}</b></div>
         <div><span>Taxas no mês</span><b>${brl(soma(d.lancamentos, l => l.categoria === 'Tarifa bancária'))}</b></div>
         <div><span>Rendimentos da poupança</span><b>${brl(soma(pp, l => l.categoria === 'Rendimento'))}</b></div>
+        ${ap.length ? `<div><span>Rendimentos da aplicação (Rende Fácil)</span><b>${brl(soma(ap, l => l.categoria === 'Rendimento'))}</b></div>
+        <div><span>IR/IOF da aplicação</span><b>${brl(soma(ap, l => l.categoria === 'IR/IOF da aplicação'))}</b></div>` : ''}
       </div>
       ${semPar.length ? `<div class="secao"><h4>⚠️ Pagamentos lançados sem saída no extrato (${semPar.length})</h4>
         <p class="dica" style="margin-top:0">Confira o valor e a "data do débito na conta" do pagamento, ou ligue à mão na lista da conta corrente abaixo.</p>
         <div class="tabela-wrap"><table><tbody>${semPar.map(p => `<tr><td>${rotPag(p)}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
       <div class="secao"><h4>🏦 Conta corrente (${cc.length})</h4>${tab(cc, 'Sem extrato da conta corrente neste mês.')}</div>
-      <div class="secao"><h4>💰 Poupança (${pp.length})</h4>${tab(pp, 'Sem extrato da poupança neste mês.')}</div>`;
+      <div class="secao"><h4>💰 Poupança (${pp.length})</h4>${tab(pp, 'Sem extrato da poupança neste mês.')}</div>
+      ${ap.length ? `<div class="secao"><h4>📈 Aplicação BB Rende Fácil / Rende Mais (${ap.length})</h4>
+        <p class="dica" style="margin-top:0">O projeto deve manter o recurso na poupança. Os rendimentos e o IR/IOF abaixo vêm do resumo do extrato da aplicação.</p>${tab(ap, '')}</div>` : ''}`;
     const C = $('corpoConc');
     const enviar = async (acao, dados, ok) => { msg('msgConc', 'Salvando…', 'ok'); try { concDados = await api(acao, dados); renderConciliacao(); msg('msgConc', ok, 'ok'); atualizarExtFundo(); } catch (err) { msg('msgConc', err.message); } };
     C.querySelectorAll('[data-cat]').forEach(s => s.addEventListener('change', () => enviar('classificarLancamento', { id_lancamento: s.dataset.cat, categoria: s.value }, 'Categoria alterada ✓')));
