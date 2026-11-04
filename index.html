@@ -674,7 +674,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.04-c</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.04-d</span></span></div>
   </div>
 </section>
 
@@ -5299,7 +5299,11 @@
         (pode ? `<br><button class="btn-link" style="font-size:12px" data-desliga="${esc(l.id_lancamento)}">desfazer</button>` : '');
       else if (podeLigar) sit = (l.observacao ? `<span class="st">justificado</span><br><small>${esc(l.observacao)}</small>` : '<span class="st amarelo">sem pagamento no sistema</span>') +
         (pode ? `<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><select data-ligasel="${esc(l.id_lancamento)}" style="max-width:320px;padding:6px 8px">
-            <option value="">Ligar a um pagamento…</option>${d.livres.map(p => `<option value="${esc(p.id_pagamento)}">${Math.abs(p.valor - l.valor) < 0.01 ? '★ ' : ''}${rotPag(p)}</option>`).join('')}</select>
+            <option value="">Ligar a um pagamento…</option>
+            ${d.livres.length ? `<optgroup label="Pagamentos já lançados no sistema">${d.livres.map(p => `<option value="${esc(p.id_pagamento)}">${Math.abs(p.valor - l.valor) < 0.01 ? '★ ' : ''}${rotPag(p)}</option>`).join('')}</optgroup>` : ''}
+            ${(d.abertas || []).length ? `<optgroup label="Parcelas sem pagamento registrado (registra com a data e o valor do extrato)">${d.abertas.slice().sort((a, b) => (Math.abs(b.valor - l.valor) < 0.01) - (Math.abs(a.valor - l.valor) < 0.01)).map(p =>
+              `<option value="par:${esc(p.id_parcela)}">${Math.abs(p.valor - l.valor) < 0.01 ? '★ ' : ''}${esc(p.contratado)} · parc. ${esc(p.parcela)} · serviço de ${mesTitulo(p.competencia)} · ${brl(p.valor)} · ${esc(p.status)}</option>`).join('')}</optgroup>` : ''}
+            ${!d.livres.length && !(d.abertas || []).length ? '<option value="" disabled>Nenhum pagamento ou parcela em aberto neste projeto</option>' : ''}</select>
             <button class="btn-link" style="font-size:12px" data-just="${esc(l.id_lancamento)}">${l.observacao ? 'editar justificativa' : 'justificar'}</button></div>` : '');
       else if (l.categoria === 'Tarifa bancária') sit = '<span class="st amarelo">taxa a ressarcir</span>';
       else if (l.categoria === 'Estorno de tarifa') sit = '<span class="st verde">devolução de taxa</span>';
@@ -5330,7 +5334,13 @@
     C.querySelectorAll('[data-cat]').forEach(s => s.addEventListener('change', () => enviar('classificarLancamento', { id_lancamento: s.dataset.cat, categoria: s.value }, 'Categoria alterada ✓')));
     C.querySelectorAll('[data-ligasel]').forEach(s => s.addEventListener('change', () => {
       if (!s.value) return;
-      const l = d.lancamentos.find(x => x.id_lancamento === s.dataset.ligasel), p = d.livres.find(x => x.id_pagamento === s.value);
+      const l = d.lancamentos.find(x => x.id_lancamento === s.dataset.ligasel);
+      if (s.value.startsWith('par:')) {
+        const pa = (d.abertas || []).find(x => x.id_parcela === s.value.slice(4));
+        if (!confirm(`Registrar o pagamento da parcela ${pa.parcela} de ${pa.contratado} com os dados do extrato?\n\nData: ${dataBr(l.data)} · Valor: ${brl(l.valor)}${Math.abs(pa.valor - l.valor) > 0.009 ? ` (a parcela previa ${brl(pa.valor)})` : ''}\n\nA parcela passa para "Paga". O comprovante pode ser anexado depois, na própria parcela.`)) { s.value = ''; return; }
+        return enviar('ligarLancamento', { id_lancamento: l.id_lancamento, ids_pagamento: [], ids_parcela: [pa.id_parcela] }, 'Pagamento registrado e conciliado ✓');
+      }
+      const p = d.livres.find(x => x.id_pagamento === s.value);
       if (l && p && Math.abs(l.valor - p.valor) > 0.009 && !confirm(`Os valores são diferentes (extrato ${brl(l.valor)} × pagamento ${brl(p.valor)}). Ligar mesmo assim?`)) { s.value = ''; return; }
       enviar('ligarLancamento', { id_lancamento: s.dataset.ligasel, ids_pagamento: [s.value] }, 'Pagamento conciliado ✓');
     }));
