@@ -372,6 +372,7 @@
       <button class="nav-item" id="btnInstituicoes"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6M9 11h.01M15 11h.01"/></svg>Instituições</button>
       <button class="nav-item" id="navPagamentos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>Pagamentos</button>
       <button class="nav-item" id="navSit"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Prestação SIT</button>
+      <button class="nav-item" id="navExt"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>Extratos</button>
       <button class="nav-item oculto" id="navForn"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Fornecedores</button>
       <button class="nav-item oculto" id="navConfig"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</button>
     </nav>
@@ -478,6 +479,33 @@
         <div id="pagTabela"></div>
         <div id="pagAtrasadas"></div>
         <div id="pagPausadas"></div>
+      </section>
+    </div>
+
+    <!-- Extratos bancários e conciliação -->
+    <div id="viewExt" class="oculto">
+      <div class="pagina-cab">
+        <div>
+          <p class="sobretitulo">Conta corrente e poupança</p>
+          <h1>Extratos</h1>
+          <p class="subtitulo" id="extSub">Escolha o projeto.</p>
+        </div>
+        <div class="pag-filtros">
+          <div><label for="extProjeto">Projeto</label><select id="extProjeto"></select></div>
+        </div>
+      </div>
+      <div class="resumo" id="extResumo"></div>
+      <section class="painel">
+        <div class="titulo-linha">
+          <h2 style="font-size:16px">Extratos mês a mês</h2>
+          <div class="acoes-lote">
+            <button class="btn-sec" id="btnExtTaxas">📄 Relatório de taxas</button>
+            <button class="btn-sec oculto" id="btnExtConciliar" title="Procura de novo os pagamentos nos extratos">↻ Conciliar automaticamente</button>
+            <button class="btn oculto" id="btnExtAnexar">📥 Anexar extratos</button>
+          </div>
+        </div>
+        <p class="dica" style="margin-top:0">Todo mês: o <b>PDF da conta corrente</b> e o <b>PDF da poupança</b>, baixados do internet banking do Banco do Brasil (o original, não escaneado). O <b>OFX</b> da conta corrente é opcional — quando houver, a conciliação usa ele.</p>
+        <div id="extTabela"></div>
       </section>
     </div>
 
@@ -646,7 +674,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.03-e</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.04-a</span></span></div>
   </div>
 </section>
 
@@ -995,6 +1023,28 @@
   </form>
 </dialog>
 
+<!-- MODAL: ANEXAR EXTRATOS -->
+<dialog id="dlgExtUp" class="grande">
+  <div class="modal-cab"><h3>Anexar extratos</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+  <div class="modal-corpo">
+    <p class="dica" style="margin-top:0">Pode escolher vários arquivos de uma vez (vários meses, conta corrente e poupança, PDF e OFX). O sistema lê cada um e identifica a conta e o mês — confira antes de enviar.</p>
+    <input type="file" id="extArquivos" multiple accept=".pdf,.ofx,application/pdf">
+    <div id="extLidos" style="margin-top:12px"></div>
+  </div>
+  <div class="modal-rodape">
+    <div class="msg" id="msgExtUp" role="alert"></div>
+    <button type="button" class="btn-sec" data-fechar>Fechar</button>
+    <button type="button" class="btn" id="btnExtEnviar" disabled>Enviar</button>
+  </div>
+</dialog>
+
+<!-- MODAL: CONCILIAÇÃO DO MÊS -->
+<dialog id="dlgConc" class="grande">
+  <div class="modal-cab"><h3 id="tituloConc">Conciliação</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+  <div class="modal-corpo" id="corpoConc"></div>
+  <div class="modal-rodape"><div class="msg" id="msgConc" role="alert"></div><button type="button" class="btn-sec" data-fechar>Fechar</button></div>
+</dialog>
+
 <!-- MODAL: PARCELA (NF e pagamento) -->
 <dialog id="dlgParc" class="grande">
   <div class="modal-cab"><h3 id="tituloParc">Parcela</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
@@ -1196,7 +1246,7 @@
     const novo = r ? '#' + r : '';
     if (novo === location.hash) return;
     const a = partesRota(location.hash), b = partesRota(novo);
-    const mesmaTela = a.tipo === b.tipo && (['projeto', 'sit'].includes(b.tipo) ? a.id === b.id : true);
+    const mesmaTela = a.tipo === b.tipo && (['projeto', 'sit', 'extratos'].includes(b.tipo) ? a.id === b.id : true);
     const prof = (history.state && history.state.prof) || 0;
     try {
       if (!r || !location.hash || mesmaTela) history.replaceState({ prof }, '', novo || location.pathname + location.search);
@@ -1465,12 +1515,13 @@
     if (rota.tipo === 'fornecedores' && podeFornecedores()) return abrirFornecedores();
     if (rota.tipo === 'pagamentos') return abrirPagamentos(rota.id, rota.aba);
     if (rota.tipo === 'sit') return abrirSit(rota.id, rota.aba);
+    if (rota.tipo === 'extratos') return abrirExtratos(rota.id);
     return mostrarLista();
   }
   // Botões voltar/avançar do navegador (e do mouse)
   window.addEventListener('popstate', () => { if (usuario && sessao.get()) irParaRota(lerRota()); });
 
-  const VIEWS = ['viewLista', 'viewDetalhe', 'viewInst', 'viewPag', 'viewSit', 'viewConfig', 'viewForn'];
+  const VIEWS = ['viewLista', 'viewDetalhe', 'viewInst', 'viewPag', 'viewSit', 'viewConfig', 'viewForn', 'viewExt'];
   function mostrarView(id) { VIEWS.forEach(v => $(v).classList.toggle('oculto', v !== id)); }
   function navAtivo(id, migalha) {
     seqTela++;
@@ -2838,7 +2889,7 @@
         <td style="white-space:nowrap">${x.vencimento ? dataBr(x.vencimento) : '—'}</td>
         <td><span class="st ${stClasse(x.status)}">${esc(x.status)}</span></td>
         <td>${x.nf && x.nf.url ? `<a href="${esc(x.nf.url)}" target="_blank" rel="noopener">📄 ${x.nf.numero ? 'nº ' + esc(x.nf.numero) : 'abrir'}</a>${x.nf.divergencias ? ' <span title="' + esc(x.nf.divergencias) + '">⚠️</span>' : ''}` : '—'}</td>
-        <td>${x.pagamento && x.pagamento.url ? `<a href="${esc(x.pagamento.url)}" target="_blank" rel="noopener">🧾 ${x.pagamento.data_pagamento ? dataBr(x.pagamento.data_pagamento) : 'abrir'}</a>` : '—'}</td>
+        <td>${x.pagamento && x.pagamento.url ? `<a href="${esc(x.pagamento.url)}" target="_blank" rel="noopener">🧾 ${x.pagamento.data_pagamento ? dataBr(x.pagamento.data_pagamento) : 'abrir'}</a>` : '—'}${x.pagamento && x.pagamento.conciliado === true ? ' <span title="Conciliado com o extrato bancário">🏦</span>' : ''}</td>
         <td>${x.dados_sit_ok ? '<span class="st verde">✓ completos</span>' : (x.pagamento ? '<span class="st amarelo">a preencher</span>' : '—')}</td>
         <td><button class="btn-sec" style="padding:6px 12px" data-parc="${esc(x.id_parcela)}">Abrir</button></td>
       </tr>`).join('')}</tbody></table></div>`;
@@ -4834,6 +4885,342 @@
   });
   $('btnFaturarExec').addEventListener('click', () => abrirFaturar(atual.projeto.id_projeto));
   $('btnPagFaturar').addEventListener('click', () => abrirFaturar(pagFiltro || '', '', true));
+
+  // ===== Leitura de extratos do Banco do Brasil (PDF original do internet banking) e OFX =====
+  const RX_DATA = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+  const RX_VALOR = /^\(?-?\s*[\d.]+,\d{2}\)?\s*[CD]?$/;
+  const RX_AG = /^\d{3,5}-[\dXx]$/;
+  const MESES_EXT = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const isoDeBr = s => { const m = String(s).match(RX_DATA); return m ? `${m[3]}-${m[2]}-${m[1]}` : ''; };
+  function valorBr(s) {
+    const t = String(s).trim(), neg = /^\(|-|D$/.test(t);
+    const n = Number(t.replace(/[^\d,]/g, '').replace(',', '.'));
+    return { valor: Math.round(n * 100) / 100, natureza: /C$/.test(t) ? 'C' : (neg ? 'D' : 'C') };
+  }
+  /** Agrupa os textos do PDF em linhas (por página e altura). itens: [{s, x, y, p}] */
+  function linhasPdf(itens) {
+    const lin = [];
+    itens.slice().sort((a, b) => a.p - b.p || b.y - a.y || a.x - b.x).forEach(it => {
+      const l = lin.find(z => z.p === it.p && Math.abs(z.y - it.y) <= 2.5);
+      if (l) l.itens.push(it); else lin.push({ p: it.p, y: it.y, itens: [it] });
+    });
+    lin.forEach(l => l.itens.sort((a, b) => a.x - b.x));
+    return lin.sort((a, b) => a.p - b.p || b.y - a.y);
+  }
+  function lerPdfBB(itens) {
+    const linhas = linhasPdf(itens);
+    const texto = linhas.map(l => l.itens.map(i => i.s).join(' ')).join('\n');
+    const conta = /Extratos?\s*-\s*Poupan|POUPAN[ÇC]A-OURO|Poupança\s*\(var/i.test(texto.slice(0, 400)) && !/Conta Corrente/i.test(texto.slice(0, 400)) ? 'POUP' : 'CC';
+    // Competência: "Período 01/10/2026 a 31/10/2026" | "Movimentação em Outubro de 2026" | "Outubro/2026"
+    let comp = '';
+    let m = texto.match(/Per[ií]odo\s+(\d{2})\/(\d{2})\/(\d{4})\s+a\s+(\d{2})\/(\d{2})\/(\d{4})/i);
+    if (m) comp = `${m[6]}-${m[5]}`;
+    if (!comp && (m = texto.match(/Movimenta[çc][ãa]o em\s+([A-Za-zçÇ]+)\s+de\s+(\d{4})/i))) { const i = MESES_EXT.indexOf(m[1].toLowerCase()); if (i > -1) comp = `${m[2]}-${String(i + 1).padStart(2, '0')}`; }
+    if (!comp && (m = texto.match(/\b([A-Za-zçÇ]+)\/(\d{4})\b/))) { const i = MESES_EXT.indexOf(m[1].toLowerCase()); if (i > -1) comp = `${m[2]}-${String(i + 1).padStart(2, '0')}`; }
+    const agc = (texto.match(/Ag[êe]ncia\s*\/\s*Conta\s+([\dXx-]+\s*\/\s*[\dXx.-]+)/i) || [])[1] || '';
+    // Coluna das datas: x do cabeçalho "Data"/"Dt. lançamento"
+    const cab = linhas.find(l => l.itens.some(i => /^(Data|Dt\. lan[çc]amento)$/i.test(i.s.trim())) && l.itens.some(i => /Hist[óo]rico/i.test(i.s)));
+    const xData = cab ? cab.itens.find(i => /^(Data|Dt\. lan[çc]amento)$/i.test(i.s.trim())).x : null;
+    const xHist = cab ? (cab.itens.find(i => /Hist[óo]rico/i.test(i.s)) || {}).x : null;
+    const lancs = []; let atual = null, saldoAnterior = null, saldoFinal = null;
+    linhas.forEach(l => {
+      const its = l.itens.map(i => Object.assign({}, i, { s: i.s.trim() })).filter(i => i.s);
+      if (!its.length || l === cab) return;
+      const primeiro = its[0];
+      const ehData = RX_DATA.test(primeiro.s) && (xData === null || Math.abs(primeiro.x - xData) < 25);
+      if (!ehData) {
+        const rot = its.map(i => i.s).join(' ');
+        if (/^Saldo (atual|total)/i.test(rot)) { const v = its.find(i => RX_VALOR.test(i.s)); if (v && /total/i.test(rot)) saldoFinal = valorBr(v.s); atual = null; return; }
+        // linha de complemento (ex.: nome do favorecido do PIX), na coluna do histórico
+        if (atual && (xData === null || primeiro.x - xData > 40) && (xHist === null || primeiro.x >= xHist - 15) && !its.some(i => RX_VALOR.test(i.s)) && l.y > atual._y - 22 && l.p === atual._p) {
+          atual.detalhe = (atual.detalhe ? atual.detalhe + ' ' : '') + rot;
+        } else atual = null;
+        return;
+      }
+      const datas = its.filter(i => RX_DATA.test(i.s));
+      const valores = its.filter(i => RX_VALOR.test(i.s) && i.s.includes(','));
+      const resto = its.filter(i => !RX_DATA.test(i.s) && !(RX_VALOR.test(i.s) && i.s.includes(',')));
+      const nums = resto.filter(i => /^[\d.\/-]+$/.test(i.s) && !RX_AG.test(i.s));
+      const textos = resto.filter(i => !/^[\d.\/-]+$/.test(i.s) && !RX_AG.test(i.s));
+      const historico = textos.map(i => i.s).join(' ').replace(/^\d{3}\s+/, '').trim();
+      if (!valores.length) { atual = null; return; }
+      const v = valorBr(valores[0].s);
+      const lanc = { data: isoDeBr(datas[0].s), data_base: datas[1] ? isoDeBr(datas[1].s) : '', historico, detalhe: '',
+        documento: nums.length ? nums[0].s : '', valor: v.valor, natureza: v.natureza,
+        saldo: valores[1] ? valorBr(valores[1].s) : null, _y: l.y, _p: l.p };
+      if (/^Saldo anterior$/i.test(historico)) { saldoAnterior = valores.length ? valorBr(valores[valores.length - 1].s) : null; lanc.saldo_linha = true; }
+      lancs.push(lanc); atual = lanc;
+    });
+    lancs.forEach(x => { delete x._y; delete x._p; });
+    const sinal = s => s ? (s.natureza === 'D' ? -s.valor : s.valor) : '';
+    return { formato: 'PDF', conta, competencia: comp, agencia_conta: agc, saldo_anterior: sinal(saldoAnterior), saldo_final: sinal(saldoFinal), lancamentos: lancs };
+  }
+  function lerOfx(txt) {
+    const tag = (b, t) => { const m = b.match(new RegExp('<' + t + '>([^<\\r\\n]*)', 'i')); return m ? m[1].trim() : ''; };
+    const conta = /<ACCTTYPE>\s*(SAVINGS|POUP)/i.test(txt) ? 'POUP' : 'CC';
+    const ini = tag(txt, 'DTSTART'), fim = tag(txt, 'DTEND');
+    const comp = (fim || ini) ? (fim || ini).slice(0, 4) + '-' + (fim || ini).slice(4, 6) : '';
+    const lancs = [];
+    (txt.match(/<STMTTRN>[\s\S]*?(?=<\/STMTTRN>|<STMTTRN>|<\/BANKTRANLIST>)/gi) || []).forEach(b => {
+      const memoM = b.match(/<MEMO>([\s\S]*?)(?=<\/MEMO>|<[A-Z]+>|$)/i);
+      const memo = (memoM ? memoM[1] : tag(b, 'NAME')).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      const d = tag(b, 'DTPOSTED'), amt = Number(String(tag(b, 'TRNAMT')).replace(',', '.')) || 0;
+      lancs.push({ data: d ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : '', data_base: '', historico: memo[0] || '', detalhe: memo.slice(1).join(' '),
+        documento: tag(b, 'CHECKNUM'), valor: Math.round(Math.abs(amt) * 100) / 100, natureza: amt < 0 ? 'D' : 'C', fitid: tag(b, 'FITID'),
+        saldo_linha: /^Saldo (anterior|do dia)/i.test(memo[0] || '') });
+    });
+    const bal = txt.match(/<LEDGERBAL>[\s\S]*?<BALAMT>([^<\r\n]*)/i);
+    return { formato: 'OFX', conta, competencia: comp, agencia_conta: tag(txt, 'BRANCHID') + (tag(txt, 'ACCTID') ? ' / ' + tag(txt, 'ACCTID') : ''),
+      saldo_anterior: '', saldo_final: bal ? Number(bal[1].replace(',', '.')) : '', lancamentos: lancs };
+  }
+
+  // pdf.js (só carrega quando for ler um PDF)
+  let pdfjsPronto = null;
+  function carregarPdfjs() {
+    if (pdfjsPronto) return pdfjsPronto;
+    pdfjsPronto = new Promise((ok, falha) => {
+      if (window.pdfjsLib) { window.pdfjsLib.GlobalWorkerOptions.workerSrc = window.pdfjsLib.GlobalWorkerOptions.workerSrc || 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; return ok(window.pdfjsLib); }
+      const sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      sc.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; ok(window.pdfjsLib); };
+      sc.onerror = () => { pdfjsPronto = null; falha(new Error('Não consegui carregar o leitor de PDF. Verifique a internet e tente de novo.')); };
+      document.head.appendChild(sc);
+    });
+    return pdfjsPronto;
+  }
+  async function itensDoPdf(file) {
+    const lib = await carregarPdfjs();
+    const doc = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const out = [];
+    for (let p = 1; p <= doc.numPages; p++) {
+      const tc = await (await doc.getPage(p)).getTextContent();
+      tc.items.forEach(it => { if (it.str && it.str.trim()) out.push({ s: it.str, x: it.transform[4], y: it.transform[5], p }); });
+    }
+    return out;
+  }
+  async function lerExtratoArquivo(file) {
+    const ofx = /\.ofx$/i.test(file.name) || /OFXHEADER|<OFX>/i.test(await file.slice(0, 400).text());
+    if (ofx) return lerOfx(await file.text());
+    const itens = await itensDoPdf(file);
+    if (!itens.length) return { formato: 'PDF', conta: '', competencia: '', lancamentos: [], erro: 'PDF sem texto (escaneado ou foto). Baixe o extrato original no internet banking.' };
+    return lerPdfBB(itens);
+  }
+
+  // ===== Tela Extratos =====
+  let ext = null, extLidos = [], concDados = null, concMes = '';
+  const contaNome = c => c === 'POUP' ? 'Poupança' : 'Conta corrente';
+  async function abrirExtratos(idProjeto) {
+    navAtivo('navExt', 'Extratos');
+    mostrarView('viewExt');
+    if (!ext || (idProjeto && ext.projeto.id_projeto !== idProjeto)) { $('extTabela').innerHTML = '<div class="vazio">Carregando…</div>'; $('extResumo').innerHTML = ''; }
+    try {
+      if (!idProjeto) {
+        const projetos = lerCache('listarProjetos|{}') || await api('listarProjetos');
+        if (!projetos.length) { $('extTabela').innerHTML = '<div class="vazio">Nenhum projeto disponível.</div>'; return; }
+        idProjeto = (projetos.find(p => p.id_projeto === $('extProjeto').value) || projetos[0]).id_projeto;
+      }
+      gravarRota('extratos/' + idProjeto);
+      await apiRapida('obterExtratos', { id_projeto: idProjeto }, d => { ext = d; renderExtratos(); });
+    } catch (err) { erroComRepetir($('extTabela'), err, () => abrirExtratos(idProjeto)); }
+  }
+  function renderExtratos() {
+    const d = ext, pr = d.projeto, t = d.taxas, c = d.conciliacao;
+    $('extProjeto').innerHTML = d.projetos.map(p => `<option value="${esc(p.id_projeto)}" ${p.id_projeto === pr.id_projeto ? 'selected' : ''}>${esc(p.sigla || p.nome_projeto)}</option>`).join('');
+    $('extSub').innerHTML = `${esc(pr.nome_projeto)}${pr.agencia || pr.conta ? ` · ${esc(pr.banco || 'Banco do Brasil')} · ag. ${esc(pr.agencia)} · c/c ${esc(pr.conta)}` : ''}`;
+    $('btnExtAnexar').classList.toggle('oculto', !d.pode_anexar);
+    $('btnExtConciliar').classList.toggle('oculto', !d.pode_conciliar);
+    $('extResumo').innerHTML = `
+      <div class="kpi ${c.pagamentos && c.conciliados < c.pagamentos ? 'alerta' : 'ok'}"><span>Pagamentos conciliados</span><strong>${c.conciliados} de ${c.pagamentos}</strong><small>pagamentos lançados × saídas no extrato</small></div>
+      <div class="kpi"><span>Taxas bancárias cobradas</span><strong>${brl(t.cobradas)}</strong><small>${d.inicio_controle ? 'desde o 1º pagamento (' + dataBr(d.inicio_controle) + ')' : 'ainda sem pagamentos'}</small></div>
+      <div class="kpi ok"><span>Devolvidas pelo banco</span><strong>${brl(t.devolvidas)}</strong><small>estornos e ressarcimentos</small></div>
+      <div class="kpi ${t.a_ressarcir > 0 ? 'alerta' : 'ok'}"><span>Saldo a ressarcir</span><strong>${brl(t.a_ressarcir)}</strong><small>pedir isenção ou depósito ao banco</small></div>`;
+    const celArq = (m, chave, rot, opcional) => {
+      const a = m.arquivos[chave];
+      if (a) return `<a href="${esc(a.url)}" target="_blank" rel="noopener" title="${esc(a.nome)}">📄 ${rot}</a>${a.erro ? ` <span title="${esc(a.erro)}">⚠️</span>` : ` <small style="color:var(--suave)">${a.qtd} lanç.</small>`}` +
+        (d.pode_conciliar ? ` <button class="btn-link perigo" style="font-size:12px" data-extdel="${esc(a.id_importacao)}" title="Excluir este arquivo">✕</button>` : '');
+      return opcional ? '<span style="color:var(--suave)">—</span>' : '<span class="st amarelo">falta</span>';
+    };
+    $('extTabela').innerHTML = !d.meses.length ? '<div class="vazio">Nenhum mês ainda.</div>' : `<div class="tabela-wrap"><table>
+      <thead><tr><th>Mês</th><th>Conta corrente (PDF)</th><th>Poupança (PDF)</th><th>OFX (opcional)</th><th>Conciliação</th><th class="num">Taxas</th><th class="num">Rendimentos</th><th></th></tr></thead>
+      <tbody>${d.meses.map(m => `<tr>
+        <td style="white-space:nowrap"><b>${mesTitulo(m.mes)}</b></td>
+        <td>${celArq(m, 'CC_PDF', 'PDF')}</td>
+        <td>${celArq(m, 'POUP_PDF', 'PDF')}</td>
+        <td>${celArq(m, 'CC_OFX', 'OFX', true)}</td>
+        <td>${!m.tem_lancamentos ? (m.pagamentos ? `<span class="st amarelo">${m.pagamentos} pagamento(s) sem extrato</span>` : '<span style="color:var(--suave)">—</span>')
+          : `<span class="st ${m.conciliados === m.pagamentos && !m.saidas_sem_pagamento ? 'verde' : 'amarelo'}">${m.conciliados}/${m.pagamentos} pagamentos</span>` +
+            (m.saidas_sem_pagamento ? `<br><small style="color:var(--alerta)">${m.saidas_sem_pagamento} saída(s) sem pagamento</small>` : '')}</td>
+        <td class="num">${m.tarifas ? `<b style="color:var(--alerta)">${brl(m.tarifas)}</b>` : '—'}${m.estornos ? `<br><small style="color:var(--ok)">− ${brl(m.estornos)} devolvido</small>` : ''}${m.tarifas_antes ? `<br><small style="color:var(--suave)" title="Antes do 1º pagamento: fora do controle">${brl(m.tarifas_antes)} antes do início</small>` : ''}</td>
+        <td class="num">${m.rendimentos ? brl(m.rendimentos) : '—'}</td>
+        <td>${m.tem_lancamentos || m.pagamentos ? `<button class="btn-sec" style="padding:6px 12px" data-conc="${m.mes}">Abrir</button>` : ''}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+    const T = $('extTabela');
+    T.querySelectorAll('[data-conc]').forEach(b => b.addEventListener('click', () => abrirConciliacao(b.dataset.conc)));
+    T.querySelectorAll('[data-extdel]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('Excluir este arquivo de extrato? Os lançamentos lidos dele também saem (as ligações com pagamentos são desfeitas).')) return;
+      try { ext = await api('excluirExtrato', { id_importacao: b.dataset.extdel }); renderExtratos(); toast(ext.aviso || 'Extrato excluído'); } catch (err) { alert(err.message); }
+    }));
+  }
+  $('navExt').addEventListener('click', () => abrirExtratos($('extProjeto').value || (ext && ext.projeto.id_projeto) || ''));
+  $('extProjeto').addEventListener('change', () => abrirExtratos($('extProjeto').value));
+  $('btnExtConciliar').addEventListener('click', async e => {
+    const b = e.currentTarget; b.disabled = true;
+    try { ext = await api('conciliarAgora', { id_projeto: ext.projeto.id_projeto }); renderExtratos(); toast(ext.novas ? `${ext.novas} pagamento(s) conciliado(s) agora` : 'Nada novo para conciliar'); }
+    catch (err) { alert(err.message); }
+    b.disabled = false;
+  });
+
+  // --- anexar (leitura no navegador)
+  $('btnExtAnexar').addEventListener('click', () => { extLidos = []; $('extArquivos').value = ''; $('extLidos').innerHTML = ''; $('btnExtEnviar').disabled = true; msg('msgExtUp', ''); $('dlgExtUp').showModal(); });
+  function opcoesMesExt(sel) {
+    const hoje = hojeYM(); let ini = somaYM(hoje, -36);
+    if (sel && sel < ini) ini = sel;
+    const l = []; for (let m = somaYM(hoje, 1); m >= ini; m = somaYM(m, -1)) l.push(m);
+    return (sel ? '' : '<option value="">mês?</option>') + l.map(m => `<option value="${m}" ${m === sel ? 'selected' : ''}>${mesTitulo(m)}</option>`).join('');
+  }
+  function renderLidos() {
+    const nLanc = x => (x.leitura.lancamentos || []).filter(l => !l.saldo_linha && !/^saldo/i.test(l.historico)).length;
+    $('extLidos').innerHTML = extLidos.length ? `<div class="tabela-wrap"><table>
+      <thead><tr><th>Arquivo</th><th>Conta</th><th>Mês</th><th>Formato</th><th>Leitura</th><th></th></tr></thead>
+      <tbody>${extLidos.map((x, i) => `<tr>
+        <td>${esc(x.file.name)}</td>
+        <td><select style="min-width:150px" data-lconta="${i}" ${x.status === 'ok' ? 'disabled' : ''}><option value="CC" ${x.conta === 'CC' ? 'selected' : ''}>Conta corrente</option><option value="POUP" ${x.conta === 'POUP' ? 'selected' : ''}>Poupança</option></select></td>
+        <td><select data-lmes="${i}" ${x.status === 'ok' ? 'disabled' : ''}>${opcoesMesExt(x.competencia)}</select></td>
+        <td>${x.leitura.formato || '—'}</td>
+        <td>${x.lendo ? 'lendo…' : x.leitura.erro ? `<span style="color:var(--alerta)">${esc(x.leitura.erro)}</span>` : `${nLanc(x)} lançamento(s)` +
+          (x.conta === 'POUP' && typeof x.leitura.saldo_final === 'number' ? ` · saldo ${brl(x.leitura.saldo_final)}` : '')}</td>
+        <td>${x.status === 'ok' ? '<span class="st verde">✓ enviado</span>' : x.status === 'erro' ? `<span class="st amarelo" title="${esc(x.erroEnvio)}">erro</span>` : x.status === 'enviando' ? 'enviando…' : `<button class="btn-link perigo" data-ltira="${i}">tirar</button>`}</td>
+      </tr>`).join('')}</tbody></table></div>` : '';
+    $('extLidos').querySelectorAll('[data-lconta]').forEach(s => s.addEventListener('change', () => { extLidos[+s.dataset.lconta].conta = s.value; }));
+    $('extLidos').querySelectorAll('[data-lmes]').forEach(s => s.addEventListener('change', () => { extLidos[+s.dataset.lmes].competencia = s.value; }));
+    $('extLidos').querySelectorAll('[data-ltira]').forEach(b => b.addEventListener('click', () => { extLidos.splice(+b.dataset.ltira, 1); renderLidos(); }));
+    $('btnExtEnviar').disabled = !extLidos.some(x => x.status !== 'ok') || extLidos.some(x => x.lendo);
+  }
+  $('extArquivos').addEventListener('change', async () => {
+    const files = [...$('extArquivos').files];
+    files.forEach(f => extLidos.push({ file: f, lendo: true, leitura: {}, conta: '', competencia: '', status: '' }));
+    renderLidos();
+    for (const x of extLidos.filter(y => y.lendo)) {
+      try {
+        if (x.file.size > LIMITE_MB * 1024 * 1024) throw new Error('Arquivo maior que ' + LIMITE_MB + ' MB.');
+        x.leitura = await lerExtratoArquivo(x.file);
+        if (!x.leitura.erro && !x.leitura.lancamentos.length) x.leitura.erro = 'Não encontrei lançamentos neste arquivo. É um extrato do Banco do Brasil?';
+      } catch (err) { x.leitura = { formato: /\.ofx$/i.test(x.file.name) ? 'OFX' : 'PDF', lancamentos: [], erro: 'Não consegui ler: ' + err.message }; }
+      x.conta = x.leitura.conta || 'CC'; x.competencia = x.leitura.competencia || ''; x.lendo = false;
+      renderLidos();
+    }
+    $('extArquivos').value = '';
+  });
+  $('btnExtEnviar').addEventListener('click', async () => {
+    const pend = extLidos.filter(x => x.status !== 'ok');
+    if (pend.some(x => !x.competencia)) return msg('msgExtUp', 'Escolha o mês de cada arquivo.');
+    const btn = $('btnExtEnviar'); btn.disabled = true;
+    let ok = 0, conc = 0;
+    for (const x of pend) {
+      x.status = 'enviando'; renderLidos(); msg('msgExtUp', `Enviando ${x.file.name}…`, 'ok');
+      try {
+        const arquivo = await lerArquivo(x.file);
+        const lancs = (x.leitura.lancamentos || []).filter(l => !l.saldo_linha && !/^saldo (anterior|do dia|atual|total)/i.test(l.historico)).map(l => ({ data: l.data, data_base: l.data_base, historico: l.historico, detalhe: l.detalhe, documento: l.documento, valor: l.valor, natureza: l.natureza }));
+        ext = await api('anexarExtrato', { id_projeto: ext.projeto.id_projeto, competencia: x.competencia, conta: x.conta, formato: x.leitura.formato === 'OFX' ? 'OFX' : 'PDF', arquivo,
+          leitura: { lancamentos: lancs, saldo_anterior: x.leitura.saldo_anterior ?? '', saldo_final: x.leitura.saldo_final ?? '', agencia_conta: x.leitura.agencia_conta || '', erro: x.leitura.erro || '' } });
+        x.status = 'ok'; ok++; conc += (ext.resumo_importacao && ext.resumo_importacao.conciliados) || 0;
+      } catch (err) { x.status = 'erro'; x.erroEnvio = err.message; }
+      renderLidos();
+    }
+    renderExtratos();
+    const erros = extLidos.filter(x => x.status === 'erro');
+    msg('msgExtUp', `${ok} arquivo(s) enviado(s)` + (conc ? ` · ${conc} pagamento(s) conciliado(s) automaticamente` : '') +
+      (erros.length ? ` · ${erros.length} com erro: ` + erros.map(x => `${x.file.name} (${x.erroEnvio})`).join('; ') : ''), erros.length ? 'erro' : 'ok');
+    btn.disabled = !extLidos.some(x => x.status !== 'ok');
+  });
+
+  // --- conciliação do mês
+  async function abrirConciliacao(mes) {
+    concMes = mes; concDados = null;
+    $('tituloConc').textContent = `Conciliação · ${mesTitulo(mes)} · ${ext.projeto.sigla || ext.projeto.nome_projeto}`;
+    $('corpoConc').innerHTML = '<div class="vazio">Carregando…</div>'; msg('msgConc', '');
+    $('dlgConc').showModal();
+    try { concDados = await api('obterConciliacao', { id_projeto: ext.projeto.id_projeto, competencia: mes }); renderConciliacao(); }
+    catch (err) { $('corpoConc').innerHTML = `<div class="vazio">${esc(err.message)}</div>`; }
+  }
+  const rotPag = p => `${esc(p.contratado || '—')}${p.parcela ? ' · parc. ' + esc(p.parcela) : ''} · ${brl(p.valor)} · ${p.data ? dataBr(p.data) : 's/ data'}`;
+  function renderConciliacao() {
+    const d = concDados, pode = d.pode_conciliar;
+    const cc = d.lancamentos.filter(l => l.conta === 'CC'), pp = d.lancamentos.filter(l => l.conta === 'POUP');
+    const semPar = d.pagamentos_mes.filter(p => !p.lancamento);
+    const linhaLanc = l => {
+      const saida = l.natureza === 'D';
+      const ligado = l.pagamentos.length;
+      const podeLigar = saida && l.conta === 'CC' && ['Pagamento', 'Outro débito'].includes(l.categoria);
+      let sit = '';
+      if (ligado) sit = `<span class="st verde">✓ ${l.conciliado === 'manual' ? 'ligado à mão' : 'conciliado'}</span><br><small>${l.pagamentos.map(rotPag).join('<br>')}</small>` +
+        (pode ? `<br><button class="btn-link" style="font-size:12px" data-desliga="${esc(l.id_lancamento)}">desfazer</button>` : '');
+      else if (podeLigar) sit = (l.observacao ? `<span class="st">justificado</span><br><small>${esc(l.observacao)}</small>` : '<span class="st amarelo">sem pagamento no sistema</span>') +
+        (pode ? `<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><select data-ligasel="${esc(l.id_lancamento)}" style="max-width:320px;padding:6px 8px">
+            <option value="">Ligar a um pagamento…</option>${d.livres.map(p => `<option value="${esc(p.id_pagamento)}">${Math.abs(p.valor - l.valor) < 0.01 ? '★ ' : ''}${rotPag(p)}</option>`).join('')}</select>
+            <button class="btn-link" style="font-size:12px" data-just="${esc(l.id_lancamento)}">${l.observacao ? 'editar justificativa' : 'justificar'}</button></div>` : '');
+      else if (l.categoria === 'Tarifa bancária') sit = '<span class="st amarelo">taxa a ressarcir</span>';
+      else if (l.categoria === 'Estorno de tarifa') sit = '<span class="st verde">devolução de taxa</span>';
+      const cat = pode ? `<select data-cat="${esc(l.id_lancamento)}" style="padding:6px 8px">${d.categorias.map(c => `<option ${c === l.categoria ? 'selected' : ''}>${c}</option>`).join('')}</select>` : esc(l.categoria);
+      return `<tr><td style="white-space:nowrap">${dataBr(l.data)}</td><td><b>${esc(l.historico)}</b>${l.detalhe ? '<br><small>' + esc(l.detalhe) + '</small>' : ''}${l.documento ? '<br><small style="color:var(--suave)">doc. ' + esc(l.documento) + '</small>' : ''}</td>
+        <td class="num" style="white-space:nowrap;color:${saida ? 'var(--alerta)' : 'var(--ok)'}"><b>${saida ? '− ' : '+ '}${brl(l.valor)}</b></td><td>${cat}</td><td>${sit}</td></tr>`;
+    };
+    const tab = (lista, vazio) => lista.length ? `<div class="tabela-wrap"><table><thead><tr><th>Data</th><th>Lançamento</th><th class="num">Valor</th><th>Categoria</th><th>Situação</th></tr></thead><tbody>${lista.map(linhaLanc).join('')}</tbody></table></div>` : `<p class="dica">${vazio}</p>`;
+    const soma = (arr, f) => arr.filter(f).reduce((s, l) => s + l.valor, 0);
+    $('corpoConc').innerHTML = `
+      <div class="info-grade">
+        <div><span>Pagamentos do mês (débito)</span><b>${d.pagamentos_mes.length}</b></div>
+        <div><span>Conciliados</span><b>${d.pagamentos_mes.length - semPar.length}</b></div>
+        <div><span>Taxas no mês</span><b>${brl(soma(d.lancamentos, l => l.categoria === 'Tarifa bancária'))}</b></div>
+        <div><span>Rendimentos da poupança</span><b>${brl(soma(pp, l => l.categoria === 'Rendimento'))}</b></div>
+      </div>
+      ${semPar.length ? `<div class="secao"><h4>⚠️ Pagamentos lançados sem saída no extrato (${semPar.length})</h4>
+        <p class="dica" style="margin-top:0">Confira o valor e a "data do débito na conta" do pagamento, ou ligue à mão na lista da conta corrente abaixo.</p>
+        <div class="tabela-wrap"><table><tbody>${semPar.map(p => `<tr><td>${rotPag(p)}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
+      <div class="secao"><h4>🏦 Conta corrente (${cc.length})</h4>${tab(cc, 'Sem extrato da conta corrente neste mês.')}</div>
+      <div class="secao"><h4>💰 Poupança (${pp.length})</h4>${tab(pp, 'Sem extrato da poupança neste mês.')}</div>`;
+    const C = $('corpoConc');
+    const enviar = async (acao, dados, ok) => { msg('msgConc', 'Salvando…', 'ok'); try { concDados = await api(acao, dados); renderConciliacao(); msg('msgConc', ok, 'ok'); atualizarExtFundo(); } catch (err) { msg('msgConc', err.message); } };
+    C.querySelectorAll('[data-cat]').forEach(s => s.addEventListener('change', () => enviar('classificarLancamento', { id_lancamento: s.dataset.cat, categoria: s.value }, 'Categoria alterada ✓')));
+    C.querySelectorAll('[data-ligasel]').forEach(s => s.addEventListener('change', () => {
+      if (!s.value) return;
+      const l = d.lancamentos.find(x => x.id_lancamento === s.dataset.ligasel), p = d.livres.find(x => x.id_pagamento === s.value);
+      if (l && p && Math.abs(l.valor - p.valor) > 0.009 && !confirm(`Os valores são diferentes (extrato ${brl(l.valor)} × pagamento ${brl(p.valor)}). Ligar mesmo assim?`)) { s.value = ''; return; }
+      enviar('ligarLancamento', { id_lancamento: s.dataset.ligasel, ids_pagamento: [s.value] }, 'Pagamento conciliado ✓');
+    }));
+    C.querySelectorAll('[data-desliga]').forEach(b => b.addEventListener('click', () => enviar('ligarLancamento', { id_lancamento: b.dataset.desliga, ids_pagamento: [] }, 'Ligação desfeita')));
+    C.querySelectorAll('[data-just]').forEach(b => b.addEventListener('click', () => {
+      const l = d.lancamentos.find(x => x.id_lancamento === b.dataset.just);
+      const t = prompt('Justificativa desta saída (ex.: devolução de saldo ao convênio, pagamento de imposto…). Deixe em branco para tirar.', l.observacao || '');
+      if (t === null) return;
+      enviar('classificarLancamento', { id_lancamento: l.id_lancamento, observacao: t }, 'Justificativa salva ✓');
+    }));
+  }
+  function atualizarExtFundo() {
+    api('obterExtratos', { id_projeto: ext.projeto.id_projeto }).then(d => { ext = d; if (!$('viewExt').classList.contains('oculto')) renderExtratos(); }).catch(() => {});
+  }
+
+  // --- relatório de taxas (para pedir isenção/ressarcimento ao banco)
+  $('btnExtTaxas').addEventListener('click', () => {
+    if (!ext) return;
+    const d = ext, t = d.taxas, pr = d.projeto;
+    const linhas = t.lista.filter(x => x.conta_no_controle);
+    const w = window.open('', '_blank');
+    if (!w) return alert('O navegador bloqueou a janela. Libere pop-ups para este site.');
+    w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Taxas bancárias – ${esc(pr.sigla || pr.nome_projeto)}</title>
+      <style>body{font-family:Arial,sans-serif;margin:32px;color:#222}h1{font-size:20px}table{border-collapse:collapse;width:100%;margin-top:12px}th,td{border:1px solid #ccc;padding:6px 8px;font-size:13px;text-align:left}td.n,th.n{text-align:right}.tot{font-weight:bold;background:#f4f4f4}@media print{button{display:none}}</style></head><body>
+      <button onclick="print()">Imprimir / salvar PDF</button>
+      <h1>Taxas bancárias cobradas – ${esc(pr.nome_projeto)}</h1>
+      <p>${esc(pr.banco || 'Banco do Brasil')} · Agência ${esc(pr.agencia)} · Conta ${esc(pr.conta)}<br>Período: a partir de ${d.inicio_controle ? dataBr(d.inicio_controle) : '—'} (1º pagamento do projeto) · emitido em ${new Date().toLocaleDateString('pt-BR')}</p>
+      <table><thead><tr><th>Data</th><th>Conta</th><th>Lançamento</th><th>Tipo</th><th class="n">Valor (R$)</th></tr></thead><tbody>
+      ${linhas.map(x => `<tr><td>${dataBr(x.data)}</td><td>${contaNome(x.conta)}</td><td>${esc(x.historico)}${x.detalhe ? ' – ' + esc(x.detalhe) : ''}</td><td>${x.categoria === 'Estorno de tarifa' ? 'Devolução' : 'Tarifa'}</td>
+        <td class="n">${x.categoria === 'Estorno de tarifa' ? '− ' : ''}${brl(x.valor).replace('R$', '').trim()}</td></tr>`).join('') || '<tr><td colspan="5">Nenhuma taxa encontrada nos extratos anexados.</td></tr>'}
+      <tr class="tot"><td colspan="4">Total de taxas cobradas</td><td class="n">${brl(t.cobradas)}</td></tr>
+      <tr class="tot"><td colspan="4">Total devolvido pelo banco</td><td class="n">${brl(t.devolvidas)}</td></tr>
+      <tr class="tot"><td colspan="4">Saldo a ressarcir</td><td class="n">${brl(t.a_ressarcir)}</td></tr>
+      </tbody></table></body></html>`);
+    w.document.close();
+  });
 
   // ---------- reprogramar parcela (ex.: mês de férias: a parcela vai para outro mês ou para o fim)
   const parcelaLivre = p => p.status === 'Prevista' && !(p.nf && p.nf.numero) && !p.pagamento;
