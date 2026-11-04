@@ -674,7 +674,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.04-b</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.04-c</span></span></div>
   </div>
 </section>
 
@@ -5014,7 +5014,96 @@
       saldo_anterior: saldos[0] ? valSaldo(saldos[0]) : '', saldo_final: saldos[1] ? valSaldo(saldos[1]) : '', resumo, lancamentos: lancs };
   }
 
-  // pdf.js (só carrega quando for ler um PDF)
+  /** Leitura linha a linha (texto vindo do OCR de um PDF "impresso" sem texto). Modelos do BB: conta corrente e poupança. */
+  function lerTextoBB(texto) {
+    const linhas = String(texto || '').split(/\r?\n/).map(l => l.replace(/[“”"|_~]/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean);
+    const tudo = linhas.join('\n');
+    const ehPoup = /Poupan[çc]a|POUPAN/i.test(linhas.slice(0, 8).join(' ')) && !/conta corrente/i.test(linhas.slice(0, 8).join(' '));
+    const conta = /BB\s*RENDE/i.test(linhas.slice(0, 3).join(' ')) ? 'APLIC' : ehPoup ? 'POUP' : 'CC';
+    const RXV = /(\d{1,3}(?:\.\d{3})*,\d{2})\s*([CD])\b/g;
+    const RXD = /^(\d{2}\/\d{2}\/\d{4})\b/;
+    const parada = /^(\*{2,}|Transa[çc][ãa]o efetuada|OBSERVA|Saldo (atual|bloqueado|total)|Rendimentos|Domingo|Tem novidade|Servi[çc]o de Atendimento)/i;
+    const lancs = []; let atual = null, fim = false, saldoAnterior = '', saldoFinal = '';
+    const v2n = (v, cd) => { const n = Math.round(Number(v.replace(/\./g, '').replace(',', '.')) * 100) / 100; return { valor: n, natureza: cd }; };
+    linhas.forEach(l => {
+      if (/^Saldo total/i.test(l)) { const m = [...l.matchAll(RXV)][0]; if (m) { const x = v2n(m[1], m[2]); saldoFinal = x.natureza === 'D' ? -x.valor : x.valor; } }
+      if (fim) return;
+      const md = l.match(RXD);
+      if (!md) {
+        if (parada.test(l)) { if (lancs.length) fim = true; atual = null; return; }
+        if (atual && l.length < 70 && !RXV.test(l)) { atual.detalhe = (atual.detalhe ? atual.detalhe + ' ' : '') + l.replace(/^[—–-]\s*/, ''); }
+        RXV.lastIndex = 0;
+        return;
+      }
+      const valores = [...l.matchAll(RXV)];
+      let resto = l.replace(RXV, ' ');
+      const datas = resto.match(/\d{2}\/\d{2}\/\d{4}/g) || [];
+      resto = resto.replace(/\d{2}\/\d{2}\/\d{4}/g, ' ').replace(/\s[—–=.,;:]+(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim();
+      let toks = resto.split(' ').map(t => t.replace(/^[—–=]+/, '')).filter(Boolean);
+      while (toks.length && /^[\d.\/]+$/.test(toks[0])) toks.shift();          // agência, lote, código, "2/3"
+      if (toks.length) toks[0] = toks[0].replace(/^\d{3}(?=[A-Za-zÀ-ú])/, '');      // "351BBRende" → "BBRende"
+      const hist = [], depois = [];
+      let i = 0;
+      while (i < toks.length && !(/^[\d.\/-]+$/.test(toks[i]) && /\d/.test(toks[i]) && hist.length)) hist.push(toks[i++]);
+      while (i < toks.length) depois.push(toks[i++]);
+      const nums = depois.filter(t => /^[\d.]+$/.test(t));
+      const docTok = nums.length ? nums[0] : '';
+      const info = depois.filter(t => !/^\d{3,5}-[\dXx]$/.test(t) && t !== docTok).join(' ');
+      let historico = hist.join(' ').replace(/^BB\s*Rende/i, 'BB Rende ').replace(/\s+/g, ' ').replace(/Pix-\s*/i, 'Pix - ').trim();
+      const ehSaldo = /^[\dOo]{0,5}saldo/i.test(historico.replace(/[\s—–-]/g, ''));
+      if (ehSaldo) {
+        if (/anterior/i.test(historico) && valores.length) { const x = v2n(valores[valores.length - 1][1], valores[valores.length - 1][2]); saldoAnterior = x.natureza === 'D' ? -x.valor : x.valor; }
+        atual = null; return;
+      }
+      if (!valores.length) { atual = null; return; }
+      const x = v2n(valores[0][1], valores[0][2]);
+      atual = { data: isoDeBr(datas[0] || md[1]), data_base: datas[1] ? isoDeBr(datas[1]) : '', historico, detalhe: info.replace(/^[—–-]\s*/, ''), documento: docTok, valor: x.valor, natureza: x.natureza };
+      lancs.push(atual);
+    });
+    // Competência: "Período 01/03/2026 a 31/03/2026" | "Período do extrato 03 / 2026" | mês mais frequente dos lançamentos
+    let comp = '', m = tudo.match(/(\d{2})\/(\d{2})\/(\d{4})\s+a\s+(\d{2})\/(\d{2})\/(\d{4})/);
+    if (m) comp = `${m[6]}-${m[5]}`;
+    if (!comp && (m = tudo.match(/extrato\s+(\d{2})\s*\/\s*(\d{4})/i))) comp = `${m[2]}-${m[1]}`;
+    if (!comp && lancs.length) { const c = {}; lancs.forEach(z => { const k = z.data.slice(0, 7); c[k] = (c[k] || 0) + 1; }); comp = Object.keys(c).sort((a, b) => c[b] - c[a])[0]; }
+    const agc = (tudo.match(/Ag[êe]ncia\s*\/?\s*(?:Conta)?\s*([\dXx-]+\s*\/\s*[\dXx.-]+)/i) || [])[1] || '';
+    return { formato: 'PDF', ocr: true, conta, competencia: comp, agencia_conta: agc, saldo_anterior: saldoAnterior, saldo_final: saldoFinal, lancamentos: lancs };
+  }
+
+  // OCR (para PDF "impresso" sem texto, ex.: Microsoft Print to PDF) – tesseract.js, carregado só quando precisa
+  const TESS = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/';
+  let tessPronto = null;
+  function carregarTesseract() {
+    if (tessPronto) return tessPronto;
+    tessPronto = new Promise((ok, falha) => {
+      if (window.Tesseract) return ok(window.Tesseract);
+      const sc = document.createElement('script');
+      sc.src = TESS + 'tesseract.min.js';
+      sc.onload = () => ok(window.Tesseract);
+      sc.onerror = () => { tessPronto = null; falha(new Error('Não consegui carregar o leitor de imagem (OCR). Verifique a internet.')); };
+      document.head.appendChild(sc);
+    });
+    return tessPronto;
+  }
+  async function ocrDoPdf(file, aviso) {
+    const lib = await carregarPdfjs(), T = await carregarTesseract();
+    const doc = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const worker = await T.createWorker('por', 1, { workerPath: TESS + 'worker.min.js', corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',
+      langPath: 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/por@1.0.0/4.0.0_best_int' });
+    let texto = '';
+    try {
+      for (let p = 1; p <= Math.min(doc.numPages, 15); p++) {
+        if (aviso) aviso(`reconhecendo o texto (página ${p} de ${doc.numPages})…`);
+        const pg = await doc.getPage(p), vp = pg.getViewport({ scale: 3.5 });
+        const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
+        const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+        await pg.render({ canvasContext: ctx, viewport: vp }).promise;
+        const r = await worker.recognize(cv);
+        texto += r.data.text + '\n';
+      }
+    } finally { await worker.terminate(); }
+    return texto;
+  }
+
   let pdfjsPronto = null;
   function carregarPdfjs() {
     if (pdfjsPronto) return pdfjsPronto;
@@ -5038,11 +5127,17 @@
     }
     return out;
   }
-  async function lerExtratoArquivo(file) {
+  async function lerExtratoArquivo(file, aviso) {
     const ofx = /\.ofx$/i.test(file.name) || /OFXHEADER|<OFX>/i.test(await file.slice(0, 400).text());
     if (ofx) return lerOfx(await file.text());
     const itens = await itensDoPdf(file);
-    if (!itens.length) return { formato: 'PDF', conta: '', competencia: '', lancamentos: [], erro: 'PDF sem texto (escaneado ou foto). Baixe o extrato original no internet banking.' };
+    if (!itens.length) {
+      // PDF sem texto (impresso como imagem): lê por OCR
+      const texto = await ocrDoPdf(file, aviso);
+      const r = lerTextoBB(texto);
+      if (!r.lancamentos.length) r.erro = 'PDF sem texto e o reconhecimento (OCR) não encontrou lançamentos. Baixe o extrato original (PDF) no internet banking.';
+      return r;
+    }
     if (itens.some(i => /BB\s*RENDE\s*(F[ÁA]CIL|MAIS)/i.test(i.s)) && itens.some(i => /Resumo do m[êe]s/i.test(i.s))) return lerAplicacaoBB(itens);
     return lerPdfBB(itens);
   }
@@ -5129,10 +5224,13 @@
         <td><select style="min-width:150px" data-lconta="${i}" ${x.status === 'ok' ? 'disabled' : ''}><option value="CC" ${x.conta === 'CC' ? 'selected' : ''}>Conta corrente</option><option value="POUP" ${x.conta === 'POUP' ? 'selected' : ''}>Poupança</option><option value="APLIC" ${x.conta === 'APLIC' ? 'selected' : ''}>Aplicação (Rende Fácil/Mais)</option></select></td>
         <td><select data-lmes="${i}" ${x.status === 'ok' ? 'disabled' : ''}>${opcoesMesExt(x.competencia)}</select></td>
         <td>${x.leitura.formato || '—'}</td>
-        <td>${x.lendo ? 'lendo…' : x.leitura.erro ? `<span style="color:var(--alerta)">${esc(x.leitura.erro)}</span>` : `${nLanc(x)} lançamento(s)` +
+        <td>${x.lendo ? esc(x.lendoMsg || 'lendo…') : x.leitura.erro ? `<span style="color:var(--alerta)">${esc(x.leitura.erro)}</span>` : `${nLanc(x)} lançamento(s)` +
           (x.conta !== 'CC' && typeof x.leitura.saldo_final === 'number' ? ` · saldo ${brl(x.leitura.saldo_final)}` : '') +
           (x.leitura.resumo ? ` · rendimentos ${brl(x.leitura.resumo.rendimentos)}` : '') +
-          (x.leitura.conta && x.conta !== x.leitura.conta ? ` <span style="color:var(--alerta)">· o arquivo parece ser de ${contaNome(x.leitura.conta)}</span>` : '')}</td>
+          (x.leitura.conta && x.conta !== x.leitura.conta ? ` <span style="color:var(--alerta)">· o arquivo parece ser de ${contaNome(x.leitura.conta)}</span>` : '') +
+          (x.leitura.ocr && !x.leitura.erro ? ` <span class="st amarelo" title="PDF sem texto: lido por reconhecimento de imagem. Confira os valores.">lido por OCR</span>` : '') +
+          (!x.leitura.erro && (x.leitura.lancamentos || []).length ? `<details style="margin-top:4px"><summary class="dica" style="margin:0;cursor:pointer">ver lançamentos</summary><div style="font-size:12px;line-height:1.5">${(x.leitura.lancamentos || []).filter(l => !l.saldo_linha && !/^saldo/i.test(l.historico)).map(l =>
+            `${dataBr(l.data)} · ${esc(l.historico)}${l.detalhe ? ' – ' + esc(l.detalhe) : ''} · <b style="color:${l.natureza === 'D' ? 'var(--alerta)' : 'var(--ok)'}">${l.natureza === 'D' ? '−' : '+'} ${brl(l.valor)}</b>`).join('<br>')}</div></details>` : '')}</td>
         <td>${x.status === 'ok' ? '<span class="st verde">✓ enviado</span>' : x.status === 'erro' ? `<span class="st amarelo" title="${esc(x.erroEnvio)}">erro</span>` : x.status === 'enviando' ? 'enviando…' : `<button class="btn-link perigo" data-ltira="${i}">tirar</button>`}</td>
       </tr>`).join('')}</tbody></table></div>` : '';
     $('extLidos').querySelectorAll('[data-lconta]').forEach(s => s.addEventListener('change', () => { extLidos[+s.dataset.lconta].conta = s.value; renderLidos(); }));
@@ -5147,7 +5245,7 @@
     for (const x of extLidos.filter(y => y.lendo)) {
       try {
         if (x.file.size > LIMITE_MB * 1024 * 1024) throw new Error('Arquivo maior que ' + LIMITE_MB + ' MB.');
-        x.leitura = await lerExtratoArquivo(x.file);
+        x.leitura = await lerExtratoArquivo(x.file, t => { x.lendoMsg = t; renderLidos(); });
         if (!x.leitura.erro && !x.leitura.lancamentos.length) x.leitura.erro = 'Não encontrei lançamentos neste arquivo. É um extrato do Banco do Brasil?';
       } catch (err) { x.leitura = { formato: /\.ofx$/i.test(x.file.name) ? 'OFX' : 'PDF', lancamentos: [], erro: 'Não consegui ler: ' + err.message }; }
       x.conta = x.leitura.conta || 'CC'; x.competencia = x.leitura.competencia || ''; x.lendo = false;
