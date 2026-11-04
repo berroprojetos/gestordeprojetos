@@ -674,7 +674,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.04-e</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.04-f</span></span></div>
   </div>
 </section>
 
@@ -5175,7 +5175,10 @@
       <div class="kpi ${t.a_ressarcir > 0 ? 'alerta' : 'ok'}"><span>Saldo a ressarcir</span><strong>${brl(t.a_ressarcir)}</strong><small>pedir isenção ou depósito ao banco</small></div>`;
     const celArq = (m, chave, rot, opcional) => {
       const a = m.arquivos[chave];
-      if (a) return `<a href="${esc(a.url)}" target="_blank" rel="noopener" title="${esc(a.nome)}">📄 ${rot}</a>${a.erro ? ` <span title="${esc(a.erro)}">⚠️</span>` : ` <small style="color:var(--suave)">${a.qtd} lanç.</small>`}` +
+      const semMov = a && (a.sem_movimento || /^(Não encontrei lançamentos|Nenhum lançamento lido)/.test(a.erro || ''));
+      if (a) return `<a href="${esc(a.url)}" target="_blank" rel="noopener" title="${esc(a.nome)}">📄 ${rot}</a>` +
+        (semMov ? ` <small style="color:var(--suave)" title="${a.sem_movimento ? 'Extrato lido: nenhum lançamento no mês' : 'Nenhum lançamento lido. Se o mês teve movimento, anexe o PDF de novo (ou envie para ajuste da leitura).'}">sem movimento${a.sem_movimento ? '' : '?'}</small>`
+          : a.erro ? ` <span title="${esc(a.erro)}">⚠️</span>` : ` <small style="color:var(--suave)">${a.qtd} lanç.</small>`) +
         (d.pode_conciliar ? ` <button class="btn-link perigo" style="font-size:12px" data-extdel="${esc(a.id_importacao)}" title="Excluir este arquivo">✕</button>` : '');
       return opcional ? '<span style="color:var(--suave)">—</span>' : '<span class="st amarelo">falta</span>';
     };
@@ -5183,7 +5186,7 @@
       <thead><tr><th>Mês</th><th>Conta corrente</th><th>Poupança</th>${d.tem_aplicacao ? '<th>Rende Fácil</th>' : ''}<th>OFX</th><th>Conciliação</th><th class="num">Taxas</th><th class="num">Rendimentos</th><th></th></tr></thead>
       <tbody>${d.meses.map(m => `<tr>
         <td style="white-space:nowrap"><b>${mesTitulo(m.mes)}</b></td>
-        <td>${celArq(m, 'CC_PDF', 'PDF')}</td>
+        <td>${m.arquivos.CC_PDF || !m.arquivos.CC_OFX ? celArq(m, 'CC_PDF', 'PDF') : '<span style="color:var(--suave)" title="Lançamentos lidos do OFX. Para a prestação de contas, anexe também o PDF.">só OFX</span>'}</td>
         <td>${celArq(m, 'POUP_PDF', 'PDF')}</td>
         ${d.tem_aplicacao ? `<td>${celArq(m, 'APLIC_PDF', 'PDF', true)}${Number(m.saldo_aplicacao) > 0.01 ? `<br><small style="color:var(--alerta)" title="Saldo ainda aplicado no Rende Fácil no fim do mês">${brl(m.saldo_aplicacao)} aplicado</small>` : ''}</td>` : ''}
         <td>${celArq(m, 'CC_OFX', 'OFX', true)}</td>
@@ -5227,7 +5230,7 @@
         <td><select style="min-width:150px" data-lconta="${i}" ${x.status === 'ok' ? 'disabled' : ''}><option value="CC" ${x.conta === 'CC' ? 'selected' : ''}>Conta corrente</option><option value="POUP" ${x.conta === 'POUP' ? 'selected' : ''}>Poupança</option><option value="APLIC" ${x.conta === 'APLIC' ? 'selected' : ''}>Aplicação (Rende Fácil/Mais)</option></select></td>
         <td><select data-lmes="${i}" ${x.status === 'ok' ? 'disabled' : ''}>${opcoesMesExt(x.competencia)}</select></td>
         <td>${x.leitura.formato || '—'}</td>
-        <td>${x.lendo ? esc(x.lendoMsg || 'lendo…') : x.leitura.erro ? `<span style="color:var(--alerta)">${esc(x.leitura.erro)}</span>` : `${nLanc(x)} lançamento(s)` +
+        <td>${x.lendo ? esc(x.lendoMsg || 'lendo…') : x.leitura.erro ? `<span style="color:var(--alerta)">${esc(x.leitura.erro)}</span>` : (x.leitura.sem_movimento ? 'sem movimento no mês' : `${nLanc(x)} lançamento(s)`) +
           (x.conta !== 'CC' && typeof x.leitura.saldo_final === 'number' ? ` · saldo ${brl(x.leitura.saldo_final)}` : '') +
           (x.leitura.resumo ? ` · rendimentos ${brl(x.leitura.resumo.rendimentos)}` : '') +
           (x.leitura.conta && x.conta !== x.leitura.conta ? ` <span style="color:var(--alerta)">· o arquivo parece ser de ${contaNome(x.leitura.conta)}</span>` : '') +
@@ -5249,7 +5252,11 @@
       try {
         if (x.file.size > LIMITE_MB * 1024 * 1024) throw new Error('Arquivo maior que ' + LIMITE_MB + ' MB.');
         x.leitura = await lerExtratoArquivo(x.file, t => { x.lendoMsg = t; renderLidos(); });
-        if (!x.leitura.erro && !x.leitura.lancamentos.length) x.leitura.erro = 'Não encontrei lançamentos neste arquivo. É um extrato do Banco do Brasil?';
+        const movs = (x.leitura.lancamentos || []).filter(l => !l.saldo_linha && !/^saldo/i.test(l.historico));
+        if (!x.leitura.erro && !movs.length) {
+          if (x.leitura.competencia) { x.leitura.sem_movimento = true; x.leitura.lancamentos = []; }       // extrato reconhecido, mês sem movimento
+          else x.leitura.erro = 'Não encontrei lançamentos neste arquivo. É um extrato do Banco do Brasil?';
+        }
       } catch (err) { x.leitura = { formato: /\.ofx$/i.test(x.file.name) ? 'OFX' : 'PDF', lancamentos: [], erro: 'Não consegui ler: ' + err.message }; }
       x.conta = x.leitura.conta || 'CC'; x.competencia = x.leitura.competencia || ''; x.lendo = false;
       renderLidos();
@@ -5267,7 +5274,7 @@
         const arquivo = await lerArquivo(x.file);
         const lancs = (x.leitura.lancamentos || []).filter(l => !l.saldo_linha && !/^saldo (anterior|do dia|atual|total|final|bruto)/i.test(l.historico)).map(l => ({ data: l.data, data_base: l.data_base, historico: l.historico, detalhe: l.detalhe, documento: l.documento, valor: l.valor, natureza: l.natureza, categoria: l.categoria || '' }));
         ext = await api('anexarExtrato', { id_projeto: ext.projeto.id_projeto, competencia: x.competencia, conta: x.conta, formato: x.leitura.formato === 'OFX' ? 'OFX' : 'PDF', arquivo,
-          leitura: { lancamentos: lancs, saldo_anterior: x.leitura.saldo_anterior ?? '', saldo_final: x.leitura.saldo_final ?? '', agencia_conta: x.leitura.agencia_conta || '', erro: x.leitura.erro || '' } });
+          leitura: { lancamentos: lancs, saldo_anterior: x.leitura.saldo_anterior ?? '', saldo_final: x.leitura.saldo_final ?? '', agencia_conta: x.leitura.agencia_conta || '', erro: x.leitura.erro || '', sem_movimento: !!x.leitura.sem_movimento } });
         x.status = 'ok'; ok++; conc += (ext.resumo_importacao && ext.resumo_importacao.conciliados) || 0;
       } catch (err) { x.status = 'erro'; x.erroEnvio = err.message; }
       renderLidos();
