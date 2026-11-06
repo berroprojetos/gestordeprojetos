@@ -674,7 +674,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.06-b</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.06-c</span></span></div>
   </div>
 </section>
 
@@ -1839,6 +1839,42 @@
     try { atual = await api('excluirRubrica', { id_rubrica: r.id_rubrica }); guardarProjeto(); renderDetalhe(); trocarAba('orcamento'); }
     catch (err) { alert(err.message); }
   }
+
+  // ---------- abrir arquivos do Drive pelo próprio sistema (sem pedir login no Google)
+  function idArquivoDrive(href) {
+    const h = String(href || '');
+    let m = h.match(/drive\.google\.com\/file\/d\/([\w-]{10,})/) || h.match(/docs\.google\.com\/(?:document|spreadsheets|presentation)\/d\/([\w-]{10,})/);
+    if (m) return { id: m[1], baixar: false };
+    m = h.match(/drive\.google\.com\/(?:uc|open)\?[^#]*\bid=([\w-]{10,})/);
+    if (m) return { id: m[1], baixar: /export=download/.test(h) };
+    return null;
+  }
+  document.addEventListener('click', async e => {
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (!a || e.ctrlKey || e.metaKey || e.shiftKey || a.dataset.drive === 'direto') return;
+    const alvo = idArquivoDrive(a.href);
+    if (!alvo || !sessao.get()) return;
+    e.preventDefault();
+    // abre a aba já no clique (senão o navegador bloqueia como pop-up)
+    const w = alvo.baixar ? null : window.open('', '_blank');
+    if (w) w.document.write('<!doctype html><title>Abrindo…</title><p style="font-family:sans-serif;color:#555;padding:24px">Abrindo o arquivo…</p>');
+    try {
+      const r = await api('baixarArquivo', { id: alvo.id });
+      const bin = atob(r.base64), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([bytes], { type: r.mime || 'application/octet-stream' }));
+      const exibe = /^(application\/pdf|image\/|text\/)/.test(r.mime || '');
+      if (w && exibe) { w.location.href = url; }
+      else {
+        if (w) w.close();
+        const l = document.createElement('a'); l.href = url; l.download = r.nome || 'arquivo'; document.body.appendChild(l); l.click(); l.remove();
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
+    } catch (err) {
+      if (w) w.close();
+      alert('Não consegui abrir o arquivo: ' + err.message);
+    }
+  });
 
   // ---------- contratações
   const STATUS_CTR = ['Em cotação', 'Contrato em elaboração', 'Contrato assinado', 'Em execução', 'Encerrada', 'Cancelada'];
