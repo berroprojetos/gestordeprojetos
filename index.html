@@ -167,6 +167,7 @@
   .painel { background: var(--card); border: 1px solid var(--borda); border-radius: 18px; padding: 24px; box-shadow: var(--sombra); }
   .form-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px 18px; }
   .form-grade .largo { grid-column: 1 / -1; }
+  .form-grade .duplo { grid-column: span 2; }
   .form-acoes { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 20px; }
   .form-acoes .msg { margin: 0 auto 0 0; }
 
@@ -677,7 +678,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.06-e</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.06-f</span></span></div>
   </div>
 </section>
 
@@ -1079,7 +1080,7 @@
       </div>
       <p class="dica" style="margin-top:14px">Formatação: <code>**texto**</code> fica em <b>negrito</b> e linhas começando com <code>- </code> viram lista com marcadores.<br>
         Campos preenchidos automaticamente: <code>{{prezado_a}}</code> (Prezado/Prezada) <code>{{nome}}</code> <code>{{mes_referencia}}</code> <code>{{valor}}</code>
-        <code>{{descricao_nf}}</code> <code>{{projeto_nome}}</code> <code>{{projeto_sigla}}</code> <code>{{termo_fomento}}</code> <code>{{instituicao}}</code>
+        <code>{{descricao_nf}}</code> <code>{{projeto_nome}}</code> <code>{{projeto_sigla}}</code> <code>{{termo_fomento}}</code> <code>{{orgao}}</code> <code>{{instituicao}}</code>
         <code>{{instituicao_cnpj}}</code> <code>{{instituicao_sigla}}</code> <code>{{parcela}}</code> <code>{{prazo}}</code> <code>{{assinatura}}</code></p>
     </div>
     <div class="modal-rodape">
@@ -1219,6 +1220,7 @@
     ['data_publicacao_edital', 'Publicação do edital', 'date'],
     ['num_proposta', 'Nº da proposta', 'text'],
     ['termo_fomento_cit', 'Termo de fomento (SIT)', 'text'],
+    ['orgao', 'Órgão (do termo de fomento)', 'text', 'duplo'],
     ['data_celebracao', 'Data da celebração', 'date'],
     ['inicio_vigencia', 'Início da vigência', 'date'],
     ['fim_vigencia', 'Fim da vigência', 'date'],
