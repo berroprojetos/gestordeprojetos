@@ -622,9 +622,12 @@
       <section class="painel oculto" id="abaOrcamento" role="tabpanel">
         <div class="titulo-linha">
           <h2 style="font-size:16px">Rubricas do projeto</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-sec" id="btnRelExec" title="Resumo da execução para enviar ao cliente (imprimir ou salvar em PDF)">📄 Relatório de execução</button>
           <div id="acoesRubricas" style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn-sec" id="btnColar">📋 Importar da planilha</button>
             <button class="btn" id="btnNovaRubrica">+ Nova rubrica</button>
+          </div>
           </div>
         </div>
         <div class="tabela-wrap" id="tabelaRubricas"></div>
@@ -674,7 +677,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.06-c</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.06-d</span></span></div>
   </div>
 </section>
 
@@ -1821,6 +1824,100 @@
   ['r_quantidade', 'r_valor_unitario_max', 'r_meses'].forEach(id => $(id).addEventListener('input', atualizarTotalRubrica));
 
   $('btnNovaRubrica').addEventListener('click', () => abrirRubrica(null));
+
+  // ---------- relatório de execução (para enviar ao cliente)
+  $('btnRelExec').addEventListener('click', () => {
+    if (!atual) return;
+    const p = atual.projeto || {}, inst = atual.instituicao || {}, r = atual.resumo || {}, rs = (atual.rubricas || []).slice();
+    const n = v => Number(v || 0);
+    const pct = (a, b) => b ? (a / b * 100).toFixed(1).replace('.', ',') + '%' : '—';
+    const dt = v => v ? dataBr(String(v).slice(0, 10)) : '—';
+    const total = n(r.valor_total) || rs.reduce((t, x) => t + n(x.valor_total_orcado), 0);
+    const orcado = rs.reduce((t, x) => t + n(x.valor_total_orcado), 0);
+    const contratado = rs.reduce((t, x) => t + n(x.valor_contratado), 0);
+    const realizado = rs.reduce((t, x) => t + n(x.valor_realizado), 0);
+    const saldo = total - realizado;
+    const qtdTxt = x => { const q = n(x.quantidade), m = n(x.meses); return `${String(q).replace('.', ',')} ${esc(x.unidade || '')}${m > 0 ? ' × ' + m + ' meses' : ''}`; };
+    const g = {};
+    rs.forEach(x => { const t = x.tipo_despesa || 'Sem tipo definido'; const o = g[t] = g[t] || { n: 0, orcado: 0, contratado: 0, realizado: 0 };
+      o.n++; o.orcado += n(x.valor_total_orcado); o.contratado += n(x.valor_contratado); o.realizado += n(x.valor_realizado); });
+    const barra = (v, cor) => `<div class="barra"><span style="width:${Math.min(100, total ? v / total * 100 : 0).toFixed(1)}%;background:${cor}"></span></div>`;
+    const w = window.open('', '_blank');
+    if (!w) return alert('O navegador bloqueou a janela. Libere pop-ups para este site.');
+    w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>Relatório de execução – ${esc(p.sigla || p.nome_projeto || '')}</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #1f2a33; margin: 24px; font-size: 12px; }
+  .acoes { margin-bottom: 16px; } .acoes button { font-size: 14px; padding: 8px 16px; border-radius: 8px; border: 1px solid #2c5a85; background: #2c5a85; color: #fff; cursor: pointer; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #2c5a85; padding-bottom: 10px; margin-bottom: 16px; }
+  header h1 { font-size: 20px; margin: 0 0 4px; } header p { margin: 0; color: #5b6770; }
+  .emitido { text-align: right; color: #5b6770; font-size: 11px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: #2c5a85; margin: 20px 0 8px; }
+  .dados { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 20px; background: #f6f3ee; border-radius: 10px; padding: 14px 16px; }
+  .dados div span { display: block; color: #5b6770; font-size: 10.5px; } .dados div b { font-size: 12.5px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .kpi { border: 1px solid #e3ddd3; border-radius: 10px; padding: 10px 12px; } .kpi span { color: #5b6770; font-size: 10.5px; display: block; }
+  .kpi strong { font-size: 17px; display: block; margin: 2px 0; } .kpi small { color: #5b6770; }
+  .barra { height: 6px; background: #ece7df; border-radius: 4px; overflow: hidden; margin-top: 6px; } .barra span { display: block; height: 100%; }
+  table { width: 100%; border-collapse: collapse; } th, td { padding: 6px 7px; border-bottom: 1px solid #e6e1d8; text-align: left; vertical-align: top; }
+  th { background: #f6f3ee; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: #4a5560; }
+  td.n, th.n { text-align: right; white-space: nowrap; } tfoot td { font-weight: bold; background: #f6f3ee; border-top: 2px solid #c9c2b6; }
+  .tag { display: inline-block; padding: 1px 7px; border-radius: 10px; background: #e8eef5; font-size: 10px; white-space: nowrap; }
+  footer { margin-top: 22px; color: #8a949c; font-size: 10px; border-top: 1px solid #e6e1d8; padding-top: 8px; }
+  tr { page-break-inside: avoid; }
+  @media print { body { margin: 0; } .acoes { display: none; } }
+</style></head><body>
+<div class="acoes"><button onclick="print()">🖨️ Imprimir / salvar em PDF</button></div>
+<header>
+  <div><h1>Relatório de execução do projeto</h1><p><b>${esc(p.nome_projeto || '')}</b>${p.sigla ? ' (' + esc(p.sigla) + ')' : ''}</p></div>
+  <div class="emitido">Posição em ${new Date().toLocaleDateString('pt-BR')}</div>
+</header>
+
+<h2>Dados gerais</h2>
+<div class="dados">
+  <div style="grid-column:span 2"><span>Instituição</span><b>${esc(inst.razao_social || inst.sigla || '—')}</b></div>
+  <div><span>CNPJ</span><b>${esc(inst.cnpj || '—')}</b></div>
+  <div><span>Nº do Termo de Fomento</span><b>${esc(p.termo_fomento_cit || '—')}</b></div>
+  <div style="grid-column:span 2"><span>Projeto</span><b>${esc(p.nome_projeto || '—')}</b></div>
+  <div><span>Edital</span><b>${esc(p.num_edital || '—')}</b></div>
+  <div><span>Data da celebração</span><b>${dt(p.data_celebracao)}</b></div>
+  <div><span>Vigência</span><b>${dt(p.inicio_vigencia)} a ${dt(p.fim_vigencia)}</b></div>
+  <div><span>Recurso creditado na conta em</span><b>${dt(p.data_recebimento_recurso)}</b></div>
+  <div><span>1º pagamento realizado em</span><b>${r.primeiro_pagamento ? dt(r.primeiro_pagamento) : '—'}</b></div>
+  <div><span>Conta do projeto</span><b>${esc(p.banco || '—')}${p.agencia ? ' · ag. ' + esc(p.agencia) : ''}${p.conta_corrente ? ' · c/c ' + esc(p.conta_corrente) : ''}</b></div>
+</div>
+
+<h2>Resumo financeiro</h2>
+<div class="kpis">
+  <div class="kpi"><span>Valor total do projeto</span><strong>${brl(total)}</strong><small>${rs.length} rubrica(s)</small></div>
+  <div class="kpi"><span>Contratado</span><strong>${brl(contratado)}</strong><small>${pct(contratado, total)} do projeto</small>${barra(contratado, '#7a9cc0')}</div>
+  <div class="kpi"><span>Executado (pago)</span><strong>${brl(realizado)}</strong><small>${pct(realizado, total)} do projeto${r.qtd_pagamentos ? ' · ' + r.qtd_pagamentos + ' pagamento(s)' : ''}</small>${barra(realizado, '#2e7d5b')}</div>
+  <div class="kpi"><span>Saldo a executar</span><strong>${brl(saldo)}</strong><small>${pct(saldo, total)} do projeto</small></div>
+</div>
+${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de aplicação no período (extratos): <b style="color:#1f2a33">${brl(r.rendimentos)}</b>${n(r.ir_iof) ? ' · IR/IOF retidos: ' + brl(r.ir_iof) : ''}</p>` : ''}
+
+<h2>Execução por rubrica</h2>
+<table>
+  <thead><tr><th>Item</th><th>Rubrica</th><th>Tipo</th><th>Classificação (SIT)</th><th>Quantidade</th><th class="n">Orçado</th><th class="n">Contratado</th><th class="n">Executado (pago)</th><th class="n">Saldo</th><th class="n">% exec.</th></tr></thead>
+  <tbody>${rs.map((x, i) => `<tr><td>${esc(x.codigo || String(i + 1))}</td><td><b>${esc(x.descricao || '')}</b></td><td>${x.tipo_despesa ? `<span class="tag">${esc(x.tipo_despesa)}</span>` : '—'}</td>
+    <td>${esc(x.classificacao_contabil || '—')}</td><td>${qtdTxt(x)}</td><td class="n">${brl(n(x.valor_total_orcado))}</td><td class="n">${brl(n(x.valor_contratado))}</td>
+    <td class="n">${brl(n(x.valor_realizado))}</td><td class="n">${brl(n(x.valor_total_orcado) - n(x.valor_realizado))}</td><td class="n">${pct(n(x.valor_realizado), n(x.valor_total_orcado))}</td></tr>`).join('')}</tbody>
+  <tfoot><tr><td colspan="5">Total</td><td class="n">${brl(orcado)}</td><td class="n">${brl(contratado)}</td><td class="n">${brl(realizado)}</td><td class="n">${brl(orcado - realizado)}</td><td class="n">${pct(realizado, orcado)}</td></tr></tfoot>
+</table>
+
+<h2>Resumo por tipo de despesa</h2>
+<table>
+  <thead><tr><th>Tipo</th><th class="n">Rubricas</th><th class="n">Orçado</th><th class="n">% do orçamento</th><th class="n">Contratado</th><th class="n">Executado (pago)</th><th class="n">Saldo</th><th class="n">% exec.</th></tr></thead>
+  <tbody>${Object.keys(g).map(t => { const o = g[t]; return `<tr><td>${esc(t)}</td><td class="n">${o.n}</td><td class="n">${brl(o.orcado)}</td><td class="n">${pct(o.orcado, orcado)}</td>
+    <td class="n">${brl(o.contratado)}</td><td class="n">${brl(o.realizado)}</td><td class="n">${brl(o.orcado - o.realizado)}</td><td class="n">${pct(o.realizado, o.orcado)}</td></tr>`; }).join('')}</tbody>
+</table>
+
+<footer>Executado (pago) = soma dos pagamentos realizados e lançados no sistema. Saldo = valor orçado − executado. Relatório gerado pelo Gestor de Projetos em ${new Date().toLocaleString('pt-BR')}.</footer>
+</body></html>`);
+    w.document.close();
+  });
 
   $('formRubrica').addEventListener('submit', async e => {
     e.preventDefault();
