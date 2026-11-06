@@ -562,7 +562,7 @@
         <button class="aba" data-cfg="listas" aria-selected="false">Listas (tipos e classificações)</button>
       </div>
       <section class="painel" id="cfgUsuarios">
-        <div class="titulo-linha"><h2 style="font-size:16px">Usuários</h2><button class="btn" id="btnNovoUsuario">+ Novo usuário</button></div>
+        <div class="titulo-linha"><h2 style="font-size:16px">Usuários</h2><div class="acoes-lote"><button class="btn-sec" id="btnSyncDrive" title="Libera o acesso aos arquivos (notas, comprovantes, contratos) no Google Drive para todos os usuários ativos">🔑 Liberar Drive para todos</button><button class="btn" id="btnNovoUsuario">+ Novo usuário</button></div></div>
         <div id="cfgListaUsuarios"><div class="vazio">Carregando…</div></div>
         <div class="secao"><h4>O que cada alçada pode fazer</h4><div id="cfgAlcadas"></div></div>
       </section>
@@ -674,7 +674,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.06-a</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.06-b</span></span></div>
   </div>
 </section>
 
@@ -4384,6 +4384,15 @@
   }
   $('us_perfil').addEventListener('change', dicaUsuario); $('us_inst').addEventListener('change', dicaUsuario);
   $('btnNovoUsuario').addEventListener('click', () => abrirUsuario(null));
+  $('btnSyncDrive').addEventListener('click', async e => {
+    if (!confirm('Liberar o acesso aos arquivos do Google Drive para todos os usuários ativos?\n\nQuem vê todas as instituições recebe a pasta geral; usuários de instituição, só a pasta da própria instituição.')) return;
+    const b = e.currentTarget; b.disabled = true; b.textContent = 'Liberando…';
+    try {
+      const r = await api('sincronizarDriveUsuarios', {});
+      alert(`Acesso ao Drive liberado para ${r.liberados} usuário(s).` + (r.falhas.length ? '\n\nNão foi possível:\n' + r.falhas.join('\n') : ''));
+    } catch (err) { alert(err.message); }
+    b.disabled = false; b.textContent = '🔑 Liberar Drive para todos';
+  });
 
   function mostrarSenha(senha, email) {
     $('us_senha').innerHTML = `<div class="sucesso" style="margin-top:12px">Senha temporária: <b style="font-size:16px;letter-spacing:.05em">${esc(senha)}</b>
@@ -4398,7 +4407,7 @@
       const dados = { id_usuario: usEditando ? usEditando.id_usuario : '', nome: $('us_nome').value, email: $('us_email').value,
         perfil: $('us_perfil').value, id_instituicao: $('us_inst').value, ativo: $('us_ativo').checked };
       const r = await api('salvarUsuario', dados, { tambem: [['listarUsuarios', {}]] });
-      msg('msgUsuario', usEditando ? 'Usuário atualizado ✓' : 'Usuário criado ✓', 'ok');
+      msg('msgUsuario', (usEditando ? 'Usuário atualizado ✓' : 'Usuário criado ✓') + (r.drive && r.drive.msg ? ' · ' + r.drive.msg : ''), r.drive && !r.drive.ok ? 'erro' : 'ok');
       if (r.senha_temporaria) { mostrarSenha(r.senha_temporaria, dados.email); usEditando = { id_usuario: r.id_usuario }; $('btnUsSenha').classList.remove('oculto'); }
       btn.disabled = false;
       carregarUsuarios();
