@@ -674,7 +674,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.04-f</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.06-a</span></span></div>
   </div>
 </section>
 
@@ -1846,7 +1846,7 @@
   // Dados do contratado mostrados na contratação (vêm do cadastro de Fornecedores)
   const CAMPOS_FORN_CTR = [['cnpj', 'CNPJ'], ['razao_social', 'Razão social'], ['nome_fantasia', 'Nome fantasia'],
     ['nome_completo', 'Nome completo'], ['cpf', 'CPF'], ['rg', 'RG'], ['endereco', 'Rua'], ['numero', 'Nº'], ['complemento', 'Complemento'],
-    ['bairro', 'Bairro'], ['cidade', 'Cidade'], ['uf', 'Estado'], ['representante_genero', 'Gênero'], ['email', 'E-mail'],
+    ['bairro', 'Bairro'], ['cidade', 'Cidade'], ['uf', 'Estado'], ['representante_genero', 'Gênero'], ['email', 'E-mail'], ['email_2', 'E-mail 2 (opcional – também recebe)'],
     ['telefone', 'Celular (WhatsApp)'], ['chave_pix', 'Chave PIX'], ['banco', 'Banco'], ['agencia', 'Agência'], ['conta', 'Conta com dígito']];
   const CAMPOS_FORN = CAMPOS_FORN_CTR.map(c => c[0]);
   const CAMPOS_FORN_EXTRA = ['cep', 'nacionalidade', 'estado_civil', 'profissao', 'representante_cargo'];
@@ -2075,7 +2075,8 @@
     if (!x) return msg('msgCtr', 'Escolha um cadastro do menu Fornecedores para puxar.');
     const temDados = CAMPOS_FORN.some(k => { const el = $('f_' + k); return el && el.value.trim(); });
     if (temDados && !confirm(`Substituir os dados do contratado nesta contratação pelos do cadastro de ${nomeForn(x.dados)}?`)) return;
-    renderCamposContratado(x.dados);
+    const email2 = $('f_email_2') ? $('f_email_2').value : '';
+    renderCamposContratado(Object.assign({}, x.dados, x.dados.email_2 ? {} : { email_2: email2 }));   // a planilha não tem o 2º e-mail: mantém
     fExtras = {};
     CAMPOS_FORN_EXTRA.forEach(k => { if (x.dados[k]) fExtras[k] = x.dados[k]; });
     msg('msgCtr', `Dados de ${nomeForn(x.dados)} copiados do menu Fornecedores. Confira e salve.`, 'ok');
@@ -3116,7 +3117,7 @@
         <div><span>Valor previsto</span><b>${brl(x.valor_previsto)}</b></div>
         <div><span>Vencimento</span>${x.vencimento ? dataBr(x.vencimento) + ' (5º dia útil)' : '—'}${x.pausada ? ' · <span class="st amarelo">⏸ pausada</span>' : ''}</div>
         <div><span>CPF/CNPJ do contratado</span>${esc(x.contratado_cnpj)}</div>
-        <div><span>E-mail</span>${esc(x.contratado_email || '—')}</div>
+        <div><span>E-mail${String(x.contratado_email || '').includes(',') ? 's' : ''}</span>${(x.contratado_email || '—').split(', ').map(esc).join('<br>')}</div>
         <div><span>Nº Termo de fomento (SIT)</span><b>${esc(x.termo_fomento || '—')}</b></div>
       </div>
       <div class="trilha">${TRILHA.map(t => `<span class="${idxSt(t) < i || (t === x.status && t === 'Lançada no SIT') ? 'feito' : t === x.status ? 'agora' : ''}">${t}</span>`).join('')}</div>
