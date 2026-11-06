@@ -677,7 +677,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.06-d</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.06-e</span></span></div>
   </div>
 </section>
 
@@ -3252,6 +3252,10 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
         <div><span>CPF/CNPJ do contratado</span>${esc(x.contratado_cnpj)}</div>
         <div><span>E-mail${String(x.contratado_email || '').includes(',') ? 's' : ''}</span>${(x.contratado_email || '—').split(', ').map(esc).join('<br>')}</div>
         <div><span>Nº Termo de fomento (SIT)</span><b>${esc(x.termo_fomento || '—')}</b></div>
+        <div><span>Chave PIX</span><b>${x.contratado_pix ? esc(x.contratado_pix) + ` <button type="button" class="btn-link" style="font-size:12px" data-copiapix="${esc(x.contratado_pix)}" title="Copiar a chave PIX">📋 copiar</button>` : '—'}</b></div>
+        <div><span>Banco</span>${esc(x.contratado_banco || '—')}</div>
+        <div><span>Agência</span>${esc(x.contratado_agencia || '—')}</div>
+        <div><span>Conta com dígito</span>${esc(x.contratado_conta || '—')}</div>
       </div>
       <div class="trilha">${TRILHA.map(t => `<span class="${idxSt(t) < i || (t === x.status && t === 'Lançada no SIT') ? 'feito' : t === x.status ? 'agora' : ''}">${t}</span>`).join('')}</div>
       ${blocoNF}${blocoPg}${blocoSit}
@@ -3609,6 +3613,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     b2.addEventListener('click', () => t.remove());
     document.body.appendChild(t); setTimeout(() => t.remove(), 15000);
   }
+  document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-copiapix]'); if (b) { e.preventDefault(); copiar(b.dataset.copiapix); } });
   async function copiar(texto) {
     try { await navigator.clipboard.writeText(texto); toast('Copiado ✓'); } catch { prompt('Copie o texto:', texto); }
   }
