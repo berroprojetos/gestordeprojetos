@@ -691,7 +691,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.15-a</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.15-b</span></span></div>
   </div>
 </section>
 
@@ -703,6 +703,7 @@
       <div class="form-grade">
         <div><label for="r_codigo">Item</label><input id="r_codigo"></div>
         <div class="largo"><label for="r_descricao">Descrição rubrica *</label><input id="r_descricao" required></div>
+        <div><label for="r_carga_horaria">Carga horária (horas/mês)</label><input id="r_carga_horaria" inputmode="decimal" placeholder="ex.: 40"></div>
         <div><label for="r_tipo_despesa">Tipo de despesa</label>
           <select id="r_tipo_despesa"><option value="">—</option></select></div>
         <div><label for="r_classificacao_contabil">Classificação contábil (SIT)</label><select id="r_classificacao_contabil"><option value="">—</option></select>
@@ -1746,7 +1747,7 @@
         </tr></thead>
         <tbody>${rs.map(r => `<tr>
           <td>${esc(r.codigo)}</td>
-          <td>${esc(r.descricao)}</td>
+          <td>${esc(r.descricao)}${Number(r.carga_horaria) > 0 ? `<br><small style="color:var(--suave)">⏱ ${numBr(r.carga_horaria)} h/mês</small>` : ''}</td>
           <td>${r.tipo_despesa ? `<span class="tag">${esc(r.tipo_despesa)}</span>` : '—'}</td>
           <td>${esc(r.classificacao_contabil) || '<span style="color:var(--alerta)">⚠️ preencher</span>'}</td>
           <td class="num">${numBr(r.quantidade)}</td>
@@ -1807,7 +1808,7 @@
   const calcRubrica = r => Number(r.quantidade || 0) * Number(r.valor_unitario_max || 0) * (Number(r.meses) > 0 ? Number(r.meses) : 1);
   const totalNaoBate = r => Math.abs(calcRubrica(r) - Number(r.valor_total_orcado || 0)) > 0.01;
 
-  const CAMPOS_RUB = ['codigo', 'descricao', 'tipo_despesa', 'classificacao_contabil', 'unidade', 'quantidade', 'valor_unitario_max', 'meses', 'observacoes'];
+  const CAMPOS_RUB = ['codigo', 'descricao', 'carga_horaria', 'tipo_despesa', 'classificacao_contabil', 'unidade', 'quantidade', 'valor_unitario_max', 'meses', 'observacoes'];
   let rubricaEditando = null;
 
   function abrirRubrica(r) {
@@ -1823,6 +1824,7 @@
       let v = r ? (r[c] ?? '') : '';
       if (c === 'valor_unitario_max') v = num2(v);
       else if (c === 'quantidade') v = numBr(v);
+      else if (c === 'carga_horaria') v = v === '' || v == null ? '' : numBr(v);
       $('r_' + c).value = v;
     });
     msg('msgRubrica', ''); atualizarTotalRubrica();
@@ -2160,6 +2162,8 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       if (!$('c_objeto').value) $('c_objeto').value = r.descricao;
       calcularFimCtr();
     }
+    // Carga horária vem da rubrica (Orçamento) quando o campo ainda está vazio
+    if (r && Number(r.carga_horaria) > 0 && !$('c_carga_horaria_mensal').value) $('c_carga_horaria_mensal').value = String(r.carga_horaria).replace('.', ',');
     atualizarSaldoCtr(); atualizarTotalCtr();
   });
   ['c_num_parcelas', 'c_valor_parcela'].forEach(id => $(id).addEventListener('input', atualizarTotalCtr));
@@ -2687,6 +2691,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     if (!r) return;
     if (!$('pc_funcao').value) $('pc_funcao').value = r.descricao;
     if (!$('pc_meses').value && Number(r.meses) > 0) $('pc_meses').value = r.meses;
+    if (!$('pc_horas_mensais').value && Number(r.carga_horaria) > 0) $('pc_horas_mensais').value = String(r.carga_horaria).replace('.', ',');
     atualizarPrevCot();
   });
 
