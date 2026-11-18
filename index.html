@@ -691,7 +691,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.15-d</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.18-a</span></span></div>
   </div>
 </section>
 
@@ -1189,7 +1189,7 @@
           <div><label for="cp_nf">Nº da NF</label><input id="cp_nf"></div>
           <div><label for="cp_emissao">Data de emissão</label><input id="cp_emissao" type="date"></div>
           <div><label for="cp_pagto">Data do pagamento / débito</label><input id="cp_pagto" type="date"></div>
-          <div><label for="cp_forma">Forma</label><select id="cp_forma"><option>PIX</option><option>Transferência</option></select></div>
+          <div><label for="cp_forma">Forma</label><select id="cp_forma"><option>PIX</option><option>TED</option><option>DOC</option><option>Boleto</option><option>Transferência</option></select></div>
           <div><label for="cp_ident">Nº de identificação (extrato)</label><input id="cp_ident"></div>
           <div><label for="cp_status">Depois de lançar, deixar como</label><select id="cp_status"><option>Conferida</option><option>Paga</option><option>Lançada no SIT</option></select></div>
           <div class="largo" style="grid-column:1/-1"><label for="cp_arquivo">Arquivo (NF + comprovante)</label><input id="cp_arquivo" type="file"></div>
@@ -3251,7 +3251,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
           <div class="largo"><label for="nf_razao">Razão social</label><input id="nf_razao" value="${esc(nf.razao_social_emitente || x.contratado)}"></div>
         </div></fieldset>
         <fieldset><legend>Pagamento</legend><div class="form-grade">
-          <div><label for="pg_forma">Forma</label><select id="pg_forma">${['PIX', 'Transferência'].map(t => `<option ${t === (pg.forma_pagamento || 'PIX') ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+          <div><label for="pg_forma">Forma</label><select id="pg_forma">${['PIX', 'TED', 'DOC', 'Boleto', 'Transferência'].map(t => `<option ${t === (pg.forma_pagamento || 'PIX') ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
           <div><label for="pg_pix">Nº de identificação (extrato)</label><input id="pg_pix" value="${esc(pg.num_identificacao_pix || '')}"></div>
           <div><label for="pg_data">Data do pagamento</label><input id="pg_data" type="date" value="${esc(pg.data_pagamento || '')}"></div>
           <div><label for="pg_debito">Data do débito na conta</label><input id="pg_debito" type="date" value="${esc(pg.data_debito_conta || pg.data_pagamento || '')}"></div>
