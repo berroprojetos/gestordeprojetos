@@ -701,7 +701,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.18-c</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.18-d</span></span></div>
   </div>
 </section>
 
@@ -793,6 +793,7 @@
         <div class="largo" style="grid-column:1/-1"><label for="us_email">E-mail (login) *</label><input id="us_email" type="email" required></div>
         <div><label class="checkbox"><input type="checkbox" id="us_ativo" checked> Ativo</label></div>
       </div>
+      <div id="us_senha"></div>
       <div id="us_legado"></div>
       <label class="checkbox" style="margin-top:14px"><input type="checkbox" id="us_admin"> <span><b>Administrador</b> — acesso a tudo, em todas as instituições, inclusive Configurações</span></label>
       <div id="us_perm">
@@ -805,7 +806,6 @@
           <tbody id="us_areas"></tbody></table></div>
         <p class="dica">“Ver” mostra as telas sem os botões de incluir, alterar e excluir. Configurações (usuários, listas, exclusão de projetos e contratações) é só do administrador.</p>
       </div>
-      <div id="us_senha"></div>
     </div>
     <div class="modal-rodape">
       <div class="msg" id="msgUsuario"></div>
@@ -4814,6 +4814,8 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       <button type="button" class="btn-link" id="btnCopiarSenha">📋 copiar</button><br>
       <small>Envie para ${esc(email)}. No primeiro acesso a pessoa cria a própria senha. Esta senha não aparece de novo.</small></div>`;
     $('btnCopiarSenha').addEventListener('click', () => copiar(`Acesso ao Gestor de Projetos\nE-mail: ${email}\nSenha temporária: ${senha}\n${location.href.split('#')[0]}`));
+    // A tela do usuário ficou comprida: leva a senha para a vista
+    const caixa = $('us_senha'); caixa.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
   $('formUsuario').addEventListener('submit', async e => {
     e.preventDefault();
