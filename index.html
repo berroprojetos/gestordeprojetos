@@ -691,7 +691,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.18-a</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.18-b</span></span></div>
   </div>
 </section>
 
@@ -2254,6 +2254,16 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
         `(a 1ª parcela passa a ser ${mesAno($('c_inicio_execucao').value)}). As notas e pagamentos já lançados continuam nas mesmas parcelas.` +
         (sit ? `\n\nAtenção: ${sit} parcela(s) já estão como "Lançada no SIT" — confira se o SIT também precisa de ajuste.` : ''))) return;
     }
+    // Valor da parcela mudou e há parcelas já lançadas com o valor antigo: pergunta se corrige também nelas
+    let revalorar = false;
+    const novoValor = lerNumero($('c_valor_parcela').value);
+    const difs = trav.filter(p => novoValor > 0 && Math.abs(Number(p.valor_previsto || 0) - novoValor) > 0.009);
+    if (difs.length && $('c_modalidade').value !== 'Por demanda') {
+      revalorar = confirm(`O valor da parcela agora é ${brl(novoValor)}, mas ${difs.length} parcela(s) já lançada(s) estão com outro valor previsto ` +
+        `(${[...new Set(difs.map(p => brl(Number(p.valor_previsto || 0))))].join(', ')}).\n\n` +
+        `OK = corrigir o valor previsto também dessas parcelas (use quando o contrato foi cadastrado com o valor errado).\n` +
+        `Cancelar = manter o valor antigo nas parcelas já lançadas e mudar só as futuras.`);
+    }
     const btn = e.submitter; btn.disabled = true; msg('msgCtr', 'Salvando… (na primeira vez o sistema cria as parcelas e a pasta no Drive)', 'ok');
     const dados = { id_projeto: atual.projeto.id_projeto, id_contratacao: ctrEditando ? ctrEditando.id_contratacao : '',
                     id_processo_cotacao: ctrEditando ? '' : procParaContratar, fornecedor: {} };
@@ -2261,6 +2271,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
      'data_assinatura_contrato', 'status', 'observacoes', 'carga_horaria_mensal', 'descricao_nf',
      'modalidade', 'unidade_execucao', 'valor_unitario', 'quantidade_contratada'].forEach(k => dados[k] = $('c_' + k).value);
     dados.fornecedor = dadosContratadoDoForm();
+    dados.revalorar_lancadas = revalorar;
     if (!digitos(dados.fornecedor.cnpj) && !digitos(dados.fornecedor.cpf)) { btn.disabled = false; return msg('msgCtr', 'Informe o CNPJ ou o CPF do contratado.'); }
     try {
       ctrAtual = await api('salvarContratacao', dados);
