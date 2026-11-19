@@ -700,7 +700,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.19-c</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.19-d</span></span></div>
   </div>
 </section>
 
@@ -4171,7 +4171,8 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
             ${ed && b.extratos && Object.keys(b.extratos).length ? '<button class="btn-sec" id="btnBimExtratos" title="Preenche rendimento bruto, IR, ressarcimento de taxas e saldos com o que foi lido dos extratos anexados">⬇ Puxar dos extratos</button>' : ''}
             ${enviado ? `<span class="st verde">✓ Enviado ao SIT em ${dataBr(b.enviado_cit_em)}</span>` : ''}</div></div>
         <p class="dica" style="margin-top:-6px">Um mês por linha. Saldo inicial, rendimento líquido, despesas e saldo final são calculados.
-          Rendimento líquido = bruto − IR retido. Saldo final = saldo inicial + rendimento líquido + ressarcimento de taxas + recursos próprios + outros créditos − despesas${b.prestacao_final ? ' − devolução' : ''}.</p>
+          <b>Rendimento líquido = bruto − IR retido</b> e <b>saldo final = saldo inicial + rendimento líquido${(b.meses_mov || []).some(m => Number(m.outros_creditos)) ? ' + outros créditos' : ''} − despesas do mês${b.prestacao_final ? ' − devolução' : ''}</b>.
+          Ressarcimento de taxas, recursos próprios e os saldos da conta corrente e da aplicação são informados só para o SIT.</p>
         ${(b.meses_mov || []).some(m => m.legado) ? '<div class="aviso" style="margin-bottom:12px">Este bimestre foi preenchido antes com os valores do bimestre inteiro (eles aparecem no 2º mês). Separe os rendimentos de cada mês e salve.</div>' : ''}
         <div class="tabela-wrap"><table class="tab-meses">
           <thead><tr><th>Mês</th><th class="num">Saldo inicial</th><th class="num">Rendimento bruto</th><th class="num">IR retido</th><th class="num">Rendimento líquido</th>
@@ -4204,7 +4205,6 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
             ${b.prestacao_final ? '<td class="num" id="bimTotDev"></td>' : ''}<td class="num" id="bimTotFim"></td><td></td><td></td></tr></tfoot>
         </table></div>
 
-        <p class="dica" id="bim_sb_conf" style="margin-top:8px"></p>
 
         ${b.prestacao_final ? `<h3 style="font-size:14px;margin:20px 0 0">Devolução de saldo <span class="tag">prestação final</span></h3>
         <p class="dica" style="margin:4px 0 0">Preencha só se houve devolução do saldo ao final do projeto.</p>
@@ -4259,7 +4259,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       const cred = n(campo('outros_creditos').value), desp = n(campo('despesas').value);
       const dev = devTotal && (devData === tr.dataset.mes || (!mesesB.includes(devData) && i === linhas.length - 1)) ? devTotal : 0;
       if (campo('devolucao')) campo('devolucao').value = num2(dev);
-      const fim = r2(ini + rend + ress + prop + cred - desp - dev);
+      const fim = r2(ini + rend + cred - desp - dev);   // ressarcimento, recursos próprios e saldos do extrato: só para o SIT
       campo('saldo_final').value = num2(fim);
       if (i === 0) ini0 = ini;
       tot.bruto += bruto; tot.ir += ir; tot.rend += rend; tot.ress += ress; tot.prop += prop; tot.cred += cred; tot.desp += desp; tot.dev += dev;
@@ -4269,20 +4269,8 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     put('bimTotIni', ini0); put('bimTotBruto', tot.bruto); put('bimTotIr', tot.ir); put('bimTotRend', tot.rend); put('bimTotRess', tot.ress);
     put('bimTotProp', tot.prop); put('bimTotCred', tot.cred); put('bimTotDesp', tot.desp); put('bimTotDev', tot.dev); put('bimTotFim', fimUlt);
     $('sitConta').textContent = `Bimestre: saldo inicial ${brl(ini0)} + rendimento líquido ${brl(tot.rend)}` +
-      (tot.ress ? ` + ressarcimento de taxas ${brl(tot.ress)}` : '') + (tot.prop ? ` + recursos próprios ${brl(tot.prop)}` : '') +
       (tot.cred ? ` + outros créditos ${brl(tot.cred)}` : '') + ` − despesas ${brl(tot.desp)}` + (tot.dev ? ` − devolução ${brl(tot.dev)}` : '') +
       ` = saldo final ${brl(fimUlt)}`;
-    // Saldo bancário de cada mês: conta corrente + aplicação deve bater com o saldo final calculado do mês
-    const conf = linhas.map(tr => {
-      const campo = k => tr.querySelector(`[data-m="${k}"]`);
-      const cc = campo('saldo_conta_corrente').value.trim(), ap = campo('saldo_conta_aplicacao').value.trim();
-      if (!cc && !ap) return `${mesExt(tr.dataset.mes)}: informe os saldos da conta corrente e da conta de aplicação do último dia do mês.`;
-      const dif = r2(n(cc) + n(ap) - n(campo('saldo_final').value));
-      [campo('saldo_conta_corrente'), campo('saldo_conta_aplicacao')].forEach(el => { el.style.borderColor = Math.abs(dif) < 0.01 ? '' : 'var(--alerta)'; });
-      return Math.abs(dif) < 0.01 ? `<span style="color:var(--verde)">✓ ${mesExt(tr.dataset.mes)}: saldos conferem com o saldo final calculado.</span>`
-        : `<span style="color:var(--alerta)">⚠️ ${mesExt(tr.dataset.mes)}: conta corrente + aplicação = ${brl(n(cc) + n(ap))}, diferença de ${brl(dif)} em relação ao saldo final calculado.</span>`;
-    });
-    if ($('bim_sb_conf')) $('bim_sb_conf').innerHTML = conf.join('<br>');
   }
   function mesesDigitados() {
     return [...$('sitCorpo').querySelectorAll('tr[data-mes]')].map(tr => {
