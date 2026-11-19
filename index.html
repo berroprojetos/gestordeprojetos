@@ -102,6 +102,8 @@
   .lema .ponto { display: flex; align-items: center; gap: 6px; color: var(--azul); font-weight: 600; font-size: 12px; margin-bottom: 8px; }
   .lema .ponto::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--azul-claro); }
   body.ver-pagamentos .ed-pag, body.ver-fornecedores .ed-forn, body.ver-fat .ed-fat { display: none !important; }
+  .sit-termo-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 18px; font-size: 14px; }
+  .sit-termo-grade small { display: block; color: var(--suave); font-size: 11.5px; margin-bottom: 2px; }
   .perm-grade { width: 100%; border-collapse: collapse; }
   .perm-grade td, .perm-grade th { padding: 8px 6px; border-bottom: 1px solid var(--borda); text-align: left; vertical-align: top; }
   .perm-grade th { font-size: 12px; color: var(--suave); font-weight: 600; }
@@ -300,7 +302,14 @@
   .bim small { display: block; color: var(--suave); font-size: 12px; margin: 2px 0 8px; }
   .bim .valor { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
   .st.azul { background: var(--azul-fundo); color: var(--azul-escuro); }
-  .tab-meses input { max-width: 150px; text-align: right; padding: 7px 10px; }
+  .tab-meses input { max-width: 130px; min-width: 96px; text-align: right; padding: 7px 10px; }
+  .tab-meses th { white-space: normal; min-width: 96px; }
+  .sit-sub { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px 18px; margin-top: 10px; }
+  .sit-sub label { font-size: 12px; }
+  .sit-sub input, .sit-sub select { text-align: left; }
+  .sit-arq { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--borda); }
+  .sit-arq:last-child { border-bottom: 0; }
+  .sit-arq pre { margin: 6px 0 0; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: var(--suave); max-height: 90px; overflow: auto; }
   .tab-meses td { vertical-align: middle; }
   input.calculado { background: var(--card-suave); color: var(--azul-escuro); font-weight: 700; cursor: default; }
   .cp-sit { cursor: copy; border-radius: 4px; padding: 1px 3px; margin: -1px -3px; }
@@ -691,7 +700,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.19-a</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.19-b</span></span></div>
   </div>
 </section>
 
@@ -771,6 +780,13 @@
     <button type="button" class="btn-sec" data-fechar>Fechar</button>
     <button type="button" class="btn" id="btnDocsEnviar" disabled>Enviar</button>
   </div>
+</dialog>
+
+<!-- MODAL: EXPORTAR PARA O SIT -->
+<dialog id="dlgSitExp" class="grande">
+  <div class="modal-cab"><h3 id="sitExpTitulo">Arquivos para importar no SIT</h3><button type="button" class="btn-link" data-fechar>✕</button></div>
+  <div class="modal-corpo" id="sitExpCorpo"></div>
+  <div class="modal-rodape"><button type="button" class="btn-sec" data-fechar>Fechar</button><button type="button" class="btn" id="btnSitExpTodos">⬇ Baixar todos</button></div>
 </dialog>
 
 <!-- MODAL: USUÁRIO -->
@@ -1243,6 +1259,7 @@
     ['data_publicacao_edital', 'Publicação do edital', 'date'],
     ['num_proposta', 'Nº da proposta', 'text'],
     ['termo_fomento_cit', 'Termo de fomento (SIT)', 'text'],
+    ['cnpj_concedente', 'CNPJ do órgão concedente', 'text'],
     ['orgao', 'Órgão (do termo de fomento)', 'text', 'duplo'],
     ['data_celebracao', 'Data da celebração', 'date'],
     ['inicio_vigencia', 'Início da vigência', 'date'],
@@ -3995,6 +4012,52 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     } catch (err) { erroComRepetir($('sitCorpo'), err, () => carregarBimestre()); }
   }
 
+  // ---------- códigos do SIT (manual de importação do TCE-PR, v1.994, Apêndice A)
+  const TP_DESPESA_SIT = {"3.0.00.00.00":[[1,"DESPESAS CORRENTES"]],"3.1.00.00.00":[[2,"PESSOAL E ENCARGOS SOCIAIS"]],"3.1.90.00.00":[[3,"APLICAÇÕES DIRETAS"]],"3.1.90.04.00":[[4,"CONTRATAÇÃO POR TEMPO DETERMINADO"]],"3.1.90.11.00":[[5,"VENCIMENTOS E VANTAGENS FIXAS - PESSOAL CIVIL"]],"3.1.90.11.01":[[6,"VENCIMENTOS E SALÁRIOS"]],"3.1.90.11.05":[[7,"INCORPORAÇÕES"]],"3.1.90.11.07":[[8,"ABONO PERMANÊNCIA"]],"3.1.90.11.31":[[9,"GRATIFICAÇÃO POR EXERCÍCIO DE CARGOS"]],"3.1.90.11.33":[[10,"GRATIFICAÇÃO POR EXERCÍCIO DE FUNÇÕES"]],"3.1.90.11.37":[[11,"GRATIFICAÇÃO POR TEMPO DE SERVIÇO"]],"3.1.90.11.42":[[12,"FÉRIAS INDENIZADAS"]],"3.1.90.11.43":[[13,"13º SALÁRIO"]],"3.1.90.11.44":[[14,"FÉRIAS - ABONO PECUNIÁRIO"]],"3.1.90.11.45":[[15,"FÉRIAS - ABONO CONSTITUCIONAL"]],"3.1.90.11.46":[[16,"FÉRIAS - PAGAMENTO ANTECIPADO"]],"3.1.90.11.47":[[17,"LICENÇA-PRÊMIO"]],"3.1.90.11.49":[[18,"LICENÇA CAPACITAÇÃO"]],"3.1.90.11.99":[[19,"OUTRAS DESPESAS FIXAS - PESSOAL CIVIL"]],"3.1.90.13.00":[[20,"OBRIGAÇÕES PATRONAIS"]],"3.1.90.13.01":[[21,"FGTS"]],"3.1.90.13.02":[[22,"CONTRIBUIÇÕES PREVIDENCIÁRIAS - INSS"]],"3.1.90.13.05":[[23,"CONTRIBUIÇÕES AO INSS - AGENTES POLÍTICOS E EQUIPARADOS"]],"3.1.90.13.10":[[24,"CONTRIBUIÇÕES AO INSS - COMISSIONADOS NÃO DETENTORES DE CARGO EFETIVO"]],"3.1.90.13.16":[[25,"INSS - REMUNERAÇÃO DOS CONSELHEIROS TUTELARES"]],"3.1.90.13.99":[[26,"OUTRAS OBRIGAÇÕES PATRONAIS"]],"3.1.90.16.00":[[27,"OUTRAS DESPESAS VARIÁVEIS - PESSOAL CIVIL"]],"3.1.90.16.01":[[28,"SESSÕES EXTRAORDINÁRIAS DOS VEREADORES"]],"3.1.90.16.06":[[29,"ABONOS PAGOS C/RECURSOS DO FUNDEB"]],"3.1.90.16.32":[[30,"SUBSTITUIÇÕES"]],"3.1.90.16.44":[[31,"HORAS EXTRAS E SERVIÇOS EXTRAORDINÁRIOS"]],"3.1.90.16.99":[[32,"OUTRAS DESPESAS VARIÁVEIS - PESSOAL CIVIL"]],"3.1.90.34.00":[[33,"OUTRAS DESPESAS DE PESSOAL DECORRENTES DE CONTRATOS DE TERCEIRIZAÇÃO"]],"3.1.90.34.01":[[34,"OUTRAS DESP.C/PESSOAL DECOR.TERCEIR.DE MÃO-DE-OBRA (PROGRAMAS EDUCACIONAIS)"]],"3.1.90.34.02":[[35,"OUTRAS DESP.C/PESSOAL DECOR.TERCEIR.DE MÃO-DE-OBRA (PROGRAMAS DE SAÚDE)"]],"3.1.90.34.03":[[36,"OUTRAS DESP.C/PESSOAL DECOR.TERCEIR.DE MÃO-DE-OBRA (OUTRAS OCUPAÇÕES)"]],"3.1.90.46.00":[[37,"AUXÍLIO-ALIMENTAÇÃO"]],"3.1.90.47.00":[[38,"OBRIGAÇÕES TRIBUTÁRIAS E CONTRIBUTIVAS"]],"3.1.90.47.01":[[39,"INSS SOBRE OUTRAS DESPESAS DE PESSOAL DECORRENTES DE CONTRATOS DE TERCEIRIZAÇÃO E SERVIÇOS"]],"3.1.90.47.99":[[40,"OUTRAS OBRIGAÇÕES TRIBUTÁRIAS E CONTRIBUTIVAS"]],"3.1.90.49.00":[[41,"AUXÍLIO-TRANSPORTE"]],"3.3.00.00.00":[[42,"OUTRAS DESPESAS CORRENTES"]],"3.3.90.00.00":[[43,"APLICAÇÕES DIRETAS"]],"3.3.90.14.00":[[44,"DIÁRIAS - PESSOAL CIVIL"]],"3.3.90.14.14":[[45,"DIÁRIAS NO PAÍS"]],"3.3.90.14.16":[[46,"DIÁRIAS NO EXTERIOR"]],"3.3.90.18.00":[[47,"AUXÍLIO FINANCEIRO A ESTUDANTES"]],"3.3.90.18.04":[[48,"AUXÍLIOS PARA DESENV. DE ESTUDOS E PESQUISAS"]],"3.3.90.18.05":[[49,"AUXÍLIOS FINAN. P/BOLSA AGENTE JOVEM E PETI"]],"3.3.90.18.96":[[50,"AUXÍLIO FINANCEIRO A ESTUDANTES - PAGAMENTO ANTECIPADO"]],"3.3.90.18.99":[[51,"OUTROS AUXÍLIOS FINANCEIROS A ESTUDANTES"]],"3.3.90.20.00":[[52,"AUXÍLIO FINANCEIRO A PESQUISADORES"]],"3.3.90.30.00":[[53,"MATERIAL DE CONSUMO"]],"3.3.90.30.01":[[54,"COMBUSTÍVEIS E LUBRIFICANTES AUTOMOTIVOS"]],"3.3.90.30.02":[[55,"COMBUSTÍVEIS E LUBRIFICANTES DE AVIAÇÃO"]],"3.3.90.30.03":[[56,"COMBUSTÍVEIS E LUBRIFICANTES PARA OUTRAS FINALIDADES"]],"3.3.90.30.04":[[57,"GÁS E OUTROS MATERIAIS ENGARRAFADOS"]],"3.3.90.30.05":[[58,"EXPLOSIVOS E MUNIÇÕES"]],"3.3.90.30.06":[[59,"ALIMENTOS PARA ANIMAIS"]],"3.3.90.30.07":[[60,"GÊNEROS DE ALIMENTAÇÃO"]],"3.3.90.30.08":[[61,"ANIMAIS PARA PESQUISA E ABATE"]],"3.3.90.30.09":[[62,"MATERIAL FARMACOLÓGICO"]],"3.3.90.30.10":[[63,"MATERIAL ODONTOLÓGICO"]],"3.3.90.30.11":[[64,"MATERIAL QUÍMICO"]],"3.3.90.30.12":[[65,"MATERIAL DE COUDELARIA OU DE USO ZOOTÉCNICO"]],"3.3.90.30.13":[[66,"MATERIAL DE CAÇA E PESCA"]],"3.3.90.30.14":[[67,"MATERIAL EDUCATIVO E ESPORTIVO"]],"3.3.90.30.15":[[68,"MATERIAL PARA FESTIVIDADES E HOMENAGENS"]],"3.3.90.30.16":[[69,"MATERIAL DE EXPEDIENTE"]],"3.3.90.30.17":[[70,"MATERIAL DE PROCESSAMENTO DE DADOS"]],"3.3.90.30.18":[[71,"MATERIAIS E MEDICAMENTOS PARA USO VETERINÁRIO"]],"3.3.90.30.19":[[72,"MATERIAL DE ACONDICIONAMENTO E EMBALAGEM"]],"3.3.90.30.20":[[73,"MATERIAL DE CAMA, MESA E BANHO"]],"3.3.90.30.21":[[74,"MATERIAL DE COPA E COZINHA"],[379,"MATERIAIS DE LIMPEZA E PRODUTOS DE HIGIENIZAÇÃO"]],"3.3.90.30.22":[[75,"MATERIAL DE LIMPEZA E PRODUTOS DE HIGIENIZAÇÃO"]],"3.3.90.30.23":[[76,"UNIFORMES, TECIDOS E AVIAMENTOS"]],"3.3.90.30.24":[[77,"MATERIAL PARA MANUTENÇÃO DE BENS IMÓVEIS"]],"3.3.90.30.25":[[78,"MATERIAL PARA MANUTENÇÃO DE BENS MÓVEIS"]],"3.3.90.30.26":[[79,"MATERIAL ELÉTRICO E ELETRÔNICO"]],"3.3.90.30.27":[[80,"MATERIAL DE MANOBRA E PATRULHAMENTO"]],"3.3.90.30.28":[[81,"MATERIAL DE PROTEÇÃO E SEGURANÇA"]],"3.3.90.30.29":[[82,"MATERIAL PARA ÁUDIO, VÍDEO E FOTO"]],"3.3.90.30.30":[[83,"MATERIAL PARA COMUNICAÇÕES"]],"3.3.90.30.31":[[84,"SEMENTES, MUDAS DE PLANTAS E INSUMOS"]],"3.3.90.30.32":[[85,"SUPRIMENTO DE AVIAÇÃO"]],"3.3.90.30.33":[[86,"MATERIAL PARA PRODUÇÃO INDUSTRIAL"]],"3.3.90.30.34":[[87,"SOBRESSALENTES, MÁQUINAS E MOTORES DE NAVIOS E EMBARCACÕES"]],"3.3.90.30.35":[[88,"MATERIAL LABORATORIAL"]],"3.3.90.30.36":[[89,"MATERIAL HOSPITALAR"]],"3.3.90.30.37":[[90,"SOBRESSALENTES DE ARMAMENTO"]],"3.3.90.30.38":[[91,"SUPRIMENTO DE PROTEÇÃO AO VÔO"]],"3.3.90.30.39":[[92,"MATERIAL PARA MANUTENÇÃO DE VEÍCULOS"]],"3.3.90.30.40":[[93,"MATERIAL BIOLÓGICO"]],"3.3.90.30.41":[[94,"MATERIAL PARA UTILIZAÇÃO EM GRÁFICA"]],"3.3.90.30.42":[[95,"FERRAMENTAS"]],"3.3.90.30.43":[[96,"MATERIAL PARA REABILITAÇÃO PROFISSIONAL"]],"3.3.90.30.44":[[97,"MATERIAL DE SINALIZAÇÃO VISUAL E AFINS"]],"3.3.90.30.45":[[98,"MATERIAL TÉCNICO PARA SELEÇÃO E TREINAMENTO"]],"3.3.90.30.46":[[99,"MATERIAL BIBLIOGRÁFICO NÃO IMOBILIZÁVEL"]],"3.3.90.30.47":[[100,"AQUISIÇÃO DE SOFTWARES DE BASE"]],"3.3.90.30.48":[[101,"BENS MÓVEIS NÃO ATIVÁVEIS"]],"3.3.90.30.49":[[102,"BILHETES DE PASSAGEM"]],"3.3.90.30.50":[[103,"BANDEIRAS, FLÂMULAS E INSÍGNIAS"]],"3.3.90.30.51":[[104,"DISCOTECAS E FILMOTECAS NÃO IMOBILIZÁVEL"]],"3.3.90.30.52":[[105,"MATERIAL DE CARÁTER SECRETO OU RESERVADO"]],"3.3.90.30.53":[[106,"MATERIAL METEOROLÓGICO"]],"3.3.90.30.54":[[107,"MATERIAL P/MANUT.CONSERV.DE ESTRADAS E VIAS"]],"3.3.90.30.96":[[108,"MATERIAL DECONSUMO - PAGAMENTO ANTECIPADO"]],"3.3.90.30.99":[[109,"OUTROS MATERIAIS DE CONSUMO"]],"3.3.90.31.00":[[110,"PREM. CULTURAIS, ARTÍSTICAS, CIENTIF. DESPORT. E OUTRAS"]],"3.3.90.31.01":[[111,"PREMIAÇÕES CULTURAIS"]],"3.3.90.31.02":[[112,"PREMIAÇÕES ARTÍSTICAS"]],"3.3.90.31.03":[[113,"PREMIAÇÕES CIENTÍFICAS"]],"3.3.90.31.04":[[114,"PREMIAÇÕES DESPORTIVAS"]],"3.3.90.31.05":[[115,"ORDENS HONORÍFICAS"]],"3.3.90.31.99":[[116,"OUTRAS PREMIAÇÕES"]],"3.3.90.32.00":[[117,"MATERIAL, BEM OU SERVIÇO PARA DISTRIBUIÇÃO GRATUITA"]],"3.3.90.32.01":[[118,"MATERIAIS ESPORTIVOS PARA DISTRIBUIÇÃO GRATUITA"]],"3.3.90.32.02":[[119,"MATERIAIS DE EDUCAÇÃO PARA DISTRIBUIÇÃO GRATUITA"]],"3.3.90.32.03":[[120,"MATERIAIS DE SAÚDE PARA DISTRIBUIÇÃO GRATUITA"]],"3.3.90.32.04":[[121,"MAT. P/DISTRIB. GRATUITA EM PROGR. DE ASSIST. SOCIAL"]],"3.3.90.32.05":[[122,"MERENDA ESCOLAR"]],"3.3.90.32.99":[[123,"OUTROS MATERIAIS PARA DISTRIBUIÇÃO GRATUITA"]],"3.3.90.33.00":[[124,"PASSAGENS E DESPESAS COM LOCOMOÇÃO"]],"3.3.90.33.01":[[125,"PASSAGENS PARA O PAÍS"]],"3.3.90.33.02":[[126,"PASSAGENS PARA O EXTERIOR"]],"3.3.90.33.03":[[127,"DESPESAS COM TRANSPORTE ESCOLAR"]],"3.3.90.33.05":[[128,"LOCOMOÇÃO URBANA"]],"3.3.90.33.06":[[129,"LOCAÇÃO DE VEÍCULOS PARA LOCOMOÇÃO"]],"3.3.90.33.99":[[130,"OUTRAS DESPESAS DE LOCOMOÇÃO"]],"3.3.90.35.00":[[131,"SERVIÇOS DE CONSULTORIA"]],"3.3.90.35.01":[[132,"ASSESSORIA E CONSULTORIA TÉCNICA OU JURÍDICA"]],"3.3.90.35.02":[[133,"AUDITORIA EXTERNA"]],"3.3.90.35.99":[[134,"OUTROS SERVIÇOS DE CONSULTORIA"]],"3.3.90.36.00":[[135,"OUTROS SERVIÇOS DE TERCEIROS - PESSOA FÍSICA"]],"3.3.90.36.01":[[136,"CONDOMÍNIOS"]],"3.3.90.36.02":[[137,"DIÁRIAS A COLABORADORES EVENTUAIS NO PAÍS"]],"3.3.90.36.03":[[138,"DIÁRIAS A COLABORADORES EVENTUAIS NO EXTERIOR"]],"3.3.90.36.04":[[139,"COMISSÕES E CORRETAGENS"]],"3.3.90.36.05":[[140,"DIREITOS AUTORAIS"]],"3.3.90.36.06":[[141,"SERVIÇOS TÉCNICOS PROFISSIONAIS"]],"3.3.90.36.07":[[142,"ESTAGIÁRIOS"]],"3.3.90.36.09":[[143,"SALÁRIOS DE INTERNOS EM PENITENCIÁRIAS"]],"3.3.90.36.10":[[144,"PERÍCIAS TÉCNICAS JUSTIÇA GRATUITA"]],"3.3.90.36.11":[[145,"PRÓ-LABORE A CONSULTORES EVENTUAIS"]],"3.3.90.36.12":[[146,"CAPATAZIA, ESTIVA E PESAGEM"]],"3.3.90.36.13":[[147,"CONFERÊNCIAS, EXPOSIÇÕES E ESPETÁCULOS"]],"3.3.90.36.14":[[148,"ARMAZENAGEM"]],"3.3.90.36.15":[[149,"LOCAÇÃO DE IMÓVEIS"]],"3.3.90.36.16":[[150,"LOCAÇÃO DE BENS MÓVEIS E INTANGÍVEIS"]],"3.3.90.36.18":[[151,"MANUTENÇÃO E CONSERVAÇÃO DE EQUIPAMENTOS"]],"3.3.90.36.20":[[152,"MANUTENÇÃO E CONSERVAÇÃO DE VEÍCULOS"]],"3.3.90.36.21":[[153,"MANUTENÇÃO E CONSERVAÇÃO DE BENS MÓVEIS DE OUTRAS NATUREZAS"]],"3.3.90.36.22":[[154,"MANUTENÇÃO E CONSERVAÇÃO DE BENS IMÓVEIS"]],"3.3.90.36.23":[[155,"FORNECIMENTO DE ALIMENTAÇÃO"]],"3.3.90.36.24":[[156,"SERVIÇOS DE CARÁTER SECRETO OU RESERVADO"]],"3.3.90.36.25":[[157,"SERVIÇOS DE LIMPEZA E CONSERVAÇÃO"]],"3.3.90.36.26":[[158,"SERVIÇOS DOMÉSTICOS"]],"3.3.90.36.27":[[159,"SERVIÇOS DE COMUNICAÇÃO EM GERAL"]],"3.3.90.36.28":[[160,"SERVIÇO DE SELEÇÃO E TREINAMENTO"]],"3.3.90.36.29":[[161,"HONORÁRIOS ADVOCATÍCIOS - ÔNUS DA SUCUMBÊNCIA"]],"3.3.90.36.30":[[162,"SERVIÇOS MÉDICOS E ODONTOLÓGICOS"]],"3.3.90.36.31":[[163,"SERVIÇOS DE REABILITAÇÃO PROFISSIONAL"]],"3.3.90.36.32":[[164,"SERVIÇOS DE ASSISTÊNCIA SOCIAL"]],"3.3.90.36.34":[[165,"SERVIÇOS DE PERÍCIAS MÉDICAS POR BENEFÍCIOS"]],"3.3.90.36.35":[[166,"SERVIÇO DE APOIO ADMINISTRATIVO, TÉCNICO E OPERACIONAL"]],"3.3.90.36.36":[[167,"SERVIÇO DE CONSERVAÇÃO E REBENEFICIAMENTO DE MERCADORIAS"]],"3.3.90.36.37":[[168,"CONFECÇÃO DE MATERIAL DE ACONDICIONAMENTO E EMBALAGEM"]],"3.3.90.36.38":[[169,"CONFECÇÃO DE UNIFORMES, BANDEIRAS E FLÂMULAS"]],"3.3.90.36.39":[[170,"FRETES E TRANSPORTES DE ENCOMENDAS"]],"3.3.90.36.40":[[171,"ENCARGOS FINANCEIROS DEDUTÍVEIS"]],"3.3.90.36.41":[[172,"MULTAS DEDUTÍVEIS"]],"3.3.90.36.42":[[173,"JUROS"]],"3.3.90.36.43":[[174,"ENCARGOS FINANCEIROS INDEDUTÍVEIS"]],"3.3.90.36.44":[[175,"MULTAS INDEDUTÍVEIS"]],"3.3.90.36.45":[[176,"JETONS A CONSELHEIROS"]],"3.3.90.36.46":[[177,"DIÁRIAS A CONSELHEIROS"]],"3.3.90.36.59":[[178,"SERVIÇOS DE ÁUDIO, VÍDEO E FOTO"]],"3.3.90.36.66":[[179,"SERVIÇOS JUDICIÁRIOS"]],"3.3.90.36.89":[[180,"MANUTENÇÃO DE REPARTIÇÕES, SERVIÇO EXTERIOR"]],"3.3.90.36.96":[[181,"OUTROS SERVIÇOS DE TERCEIROS PF - PAGAMENTO ANTECIPADO"]],"3.3.90.36.99":[[182,"OUTROS SERVIÇOS DE PESSOA FÍSICA"]],"3.3.90.37.00":[[183,"LOCAÇÃO DE MÃO-DE-OBRA"]],"3.3.90.37.01":[[184,"APOIO ADMINISTRATIVO, TÉCNICO E OPERACIONAL"]],"3.3.90.37.02":[[185,"LIMPEZA E CONSERVAÇÃO"]],"3.3.90.37.03":[[186,"VIGILÂNCIA OSTENSIVA"]],"3.3.90.37.04":[[187,"MANUTENÇÃO E CONSERVAÇÃO DE BENS IMÓVEIS"]],"3.3.90.37.05":[[188,"SERVIÇOS DE COPA E COZINHA"]],"3.3.90.37.06":[[189,"MANUTENÇÃO E CONSERVAÇÃO DE BENS MÓVEIS"]],"3.3.90.37.07":[[190,"LOCAÇÃO DE MÃO-DE-OBRA DE LIMPEZA PÚBLICA"]],"3.3.90.37.99":[[191,"OUTRAS LOCAÇOES DE MÃO-DE-OBRA"]],"3.3.90.39.00":[[192,"OUTROS SERVIÇOS DE TERCEIROS - PESSOA JURÍDICA"]],"3.3.90.39.01":[[193,"ASSINATURAS DE PERIÓDICOS E ANUIDADES"]],"3.3.90.39.02":[[194,"CONDOMÍNIOS"]],"3.3.90.39.03":[[195,"COMISSÕES, CORRETAGENS E CUSTÓDIA"]],"3.3.90.39.04":[[196,"DIREITOS AUTORAIS"]],"3.3.90.39.05":[[197,"SERVIÇOS TÉCNICOS PROFISSIONAIS"]],"3.3.90.39.06":[[198,"CAPATAZIA, ESTIVA E PESAGEM"]],"3.3.90.39.07":[[199,"DESCONTOS FINANCEIROS CONCEDIDOS"]],"3.3.90.39.08":[[200,"MANUTENÇÃO DE SOFTWARE"]],"3.3.90.39.09":[[201,"ARMAZENAGEM"]],"3.3.90.39.10":[[202,"LOCAÇÃO DE IMÓVEIS"]],"3.3.90.39.11":[[203,"LOCAÇÃO DE SOFTWARES"]],"3.3.90.39.12":[[204,"LOCAÇÃO DE MÁQUINAS E EQUIPAMENTOS"]],"3.3.90.39.13":[[205,"PERÍCIAS TÉCNICAS JUSTIÇA GRATUITA"]],"3.3.90.39.14":[[206,"LOCAÇÃO BENS MÓVEIS E OUTRAS NATUREZAS E INTANGÍVEIS"]],"3.3.90.39.16":[[207,"MANUTENÇÃO E CONSERVAÇÃO DE BENS IMÓVEIS"]],"3.3.90.39.17":[[208,"MANUTENÇÃO E CONSERVAÇÃO DE MÁQUINAS E EQUIPAMENTOS"]],"3.3.90.39.19":[[209,"MANUTENÇÃO E CONSERVAÇÃO DE VEÍCULOS"]],"3.3.90.39.20":[[210,"MANUTENÇÃO E CONSERVAÇÃO DE BENS MÓVEIS DE OUTRAS NATUREZAS"]],"3.3.90.39.21":[[211,"MANUTENÇÃO E CONSERVAÇÃO DE ESTRADAS E VIAS"]],"3.3.90.39.22":[[212,"EXPOSIÇÕES, CONGRESSOS E CONFERÊNCIAS"]],"3.3.90.39.23":[[213,"FESTIVIDADES E HOMENAGENS"]],"3.3.90.39.29":[[214,"HONORÁRIOS ADVOCATÍCIOS - ÔNUS DA SUCUMBÊNCIA"]],"3.3.90.39.35":[[215,"MULTAS DEDUTÍVEIS"]],"3.3.90.39.36":[[216,"MULTAS INDEDUTÍVEIS"]],"3.3.90.39.37":[[217,"JUROS"]],"3.3.90.39.38":[[218,"ENCARGOS FINANCEIROS DEDUTÍVEIS"]],"3.3.90.39.39":[[219,"ENCARGOS FINANCEIROS INDEDUTÍVEIS"]],"3.3.90.39.40":[[220,"PROGRAMA DE ALIMENTAÇÃO DO TRABALHADOR"]],"3.3.90.39.41":[[221,"FORNECIMENTO DE ALIMENTAÇÃO"]],"3.3.90.39.42":[[222,"SERVIÇOS DE CARÁTER SECRETO OU RESERVADO"]],"3.3.90.39.43":[[223,"SERVIÇOS DE ENERGIA ELÉTRICA"]],"3.3.90.39.44":[[224,"SERVIÇOS DE ÁGUA E ESGOTO"]],"3.3.90.39.45":[[225,"SERVIÇOS DE GÁS"]],"3.3.90.39.46":[[226,"SERVIÇOS DOMÉSTICOS"]],"3.3.90.39.47":[[227,"SERVIÇOS DE COMUNICAÇÃO EM GERAL"]],"3.3.90.39.48":[[228,"SERVIÇO DE SELEÇÃO E TREINAMENTO"]],"3.3.90.39.49":[[229,"PRODUÇÕES JORNALÍSTICAS"]],"3.3.90.39.50":[[230,"SERVIÇO MÉDICO - HOSPITALAR, ODONTOLÓGICO E LABORATORIAL"]],"3.3.90.39.51":[[231,"SERVIÇOS DE ANÁLISES E PESQUISAS CIENTÍFICAS"]],"3.3.90.39.52":[[232,"SERVIÇOS DE REABILITAÇÃO PROFISSIONAL"]],"3.3.90.39.53":[[233,"SERVIÇOS DE ASSISTÊNCIA SOCIAL"]],"3.3.90.39.54":[[234,"SERVIÇOS DE CRECHES E ASSISTÊNCIA PRÉ-ESCOLAR"]],"3.3.90.39.56":[[235,"SERVIÇOS DE PERÍCIAS MÉDICAS PARA BENEFÍCIOS"]],"3.3.90.39.57":[[236,"SERVIÇOS DE PROCESSAMENTO DE DADOS"]],"3.3.90.39.58":[[237,"SERVIÇOS DE TELECOMUNICAÇÕES"]],"3.3.90.39.59":[[238,"SERVIÇOS DE ÁUDIO, VÍDEO E FOTO"]],"3.3.90.39.60":[[239,"SERVIÇOS DE MANOBRA E PATRULHAMENTO"]],"3.3.90.39.61":[[240,"SERVIÇOS DE SOCORRO E SALVAMENTO"]],"3.3.90.39.62":[[241,"SERVIÇOS DE PRODUÇÃO INDUSTRIAL"]],"3.3.90.39.63":[[242,"SERVIÇOS GRÁFICOS E EDITORIAIS"]],"3.3.90.39.65":[[243,"SERVIÇOS DE APOIO AO ENSINO"]],"3.3.90.39.66":[[244,"SERVIÇOS JUDICIÁRIOS"]],"3.3.90.39.67":[[245,"SERVIÇOS FUNERÁRIOS"]],"3.3.90.39.68":[[246,"SERVIÇO DE CONSERVAÇÃO E REBENEFICIAMENTO DE MERCADORIAS"]],"3.3.90.39.69":[[247,"SEGUROS EM GERAL"]],"3.3.90.39.70":[[248,"CONFECÇÃO DE UNIFORMES, BANDEIRAS E FLÂMULAS"]],"3.3.90.39.71":[[249,"CONFECÇÃO DE MATERIAL DE ACONDICIONAMENTO E EMBALAGEM"]],"3.3.90.39.72":[[250,"VALE-TRANSPORTE"]],"3.3.90.39.73":[[251,"TRANSPORTE DE SERVIDORES"]],"3.3.90.39.74":[[252,"FRETES E TRANSPORTES DE ENCOMENDAS"]],"3.3.90.39.75":[[253,"SERVIÇO DE INCINERAÇÃO/DESTRUIÇÃO DE MATERIAL"]],"3.3.90.39.76":[[254,"CLASSIFICAÇÃO DE PRODUTOS"]],"3.3.90.39.77":[[255,"VIGILÂNCIA OSTENSIVA/MONITORADA"]],"3.3.90.39.78":[[256,"LIMPEZA E CONSERVAÇÃO"]],"3.3.90.39.79":[[257,"SERVIÇO DE APOIO ADMINISTRATIVO, TÉCNICO E OPERACIONAL"]],"3.3.90.39.80":[[258,"HOSPEDAGENS"]],"3.3.90.39.81":[[259,"SERVIÇOS BANCÁRIOS"]],"3.3.90.39.82":[[260,"SERVIÇOS DE CONTROLE AMBIENTAL"]],"3.3.90.39.83":[[261,"SERVIÇOS DE CÓPIAS E REPRODUÇÃO DE DOCUMENTOS"]],"3.3.90.39.85":[[262,"SERVIÇOS EM ITENS REPARÁVEIS DE AVIAÇÃO"]],"3.3.90.39.87":[[263,"SERVIÇOS RELACIONADOS À INDUSTRIALIZAÇÃO AEROESPACIAL"]],"3.3.90.39.88":[[264,"SERVIÇOS DE PUBLICIDADE E PROPAGANDA"]],"3.3.90.39.89":[[265,"MANUTENÇÃO DE REPARTIÇÕES - SERVIÇO EXTERIOR"]],"3.3.90.39.90":[[266,"SERVIÇOS DE PUBLICIDADE LEGAL"]],"3.3.90.39.94":[[267,"AQUISIÇÃO DE SOFTWARES DE APLICAÇÃO"]],"3.3.90.39.95":[[268,"MANUTENÇÃO CONSERVAÇÃO DE EQUIPAMENTOS DE PROCESSAMENTO DE DADOS"]],"3.3.90.39.96":[[269,"OUTROS SERVIÇOS DE TERCEIROS PJ - PAGAMENTO ANTECIPADO"]],"3.3.90.39.97":[[270,"DESPESAS DE TELEPROCESSAMENTO"]],"3.3.90.39.99":[[271,"OUTROS SERVIÇOS DE TERCEIROS, PESSOA JURÍDICA"]],"3.3.90.46.00":[[272,"AUXÍLIO-ALIMENTAÇÃO"]],"3.3.90.46.01":[[273,"INDENIZAÇÃO AUXÍLIO-ALIMENTAÇÃO"]],"3.3.90.47.00":[[274,"OBRIGAÇÕES TRIBUTÁRIAS E CONTRIBUTIVAS"]],"3.3.90.47.10":[[275,"TAXAS"]],"3.3.90.47.12":[[276,"CONTRIBUIÇÃO PARA O PIS/PASEP"]],"3.3.90.47.15":[[277,"MULTAS"]],"3.3.90.47.16":[[278,"JUROS"]],"3.3.90.47.18":[[279,"CONTRIBUIÇÕES PREVIDENCIÁRIAS - SERVIÇOS DE TERCEIROS"]],"3.3.90.47.19":[[280,"INSS - DIÁRIAS"]],"3.3.90.47.22":[[281,"CONTRIBUIÇÃO PARA O CUSTEIO DA ILUMINAÇÃO PÚBLICA"]],"3.3.90.47.99":[[282,"OUTRAS OBRIGAÇÕES TRIBUTÁRIAS E CONTRIBUTIVAS"]],"3.3.90.48.00":[[283,"OUTROS AUXÍLIOS FINANCEIROS A PESSOAS FÍSICAS"]],"3.3.90.48.01":[[284,"AUXÍLIOS A PESSOAS FÍSICAS"]],"3.3.90.48.96":[[285,"AUXÍLIOS A PESSOAS FÍSICAS – PAGTO. ANTECIPADO"]],"3.3.90.49.00":[[286,"AUXÍLIO-TRANSPORTE"]],"3.3.90.49.01":[[287,"INDENIZAÇÃO AUXÍLIO-TRANSPORTE"]],"4.0.00.00.00":[[288,"DESPESAS DE CAPITAL"]],"4.4.00.00.00":[[289,"INVESTIMENTOS"]],"4.4.90.00.00":[[290,"APLICAÇÕES DIRETAS"]],"4.4.90.14.00":[[291,"DIÁRIAS - CIVIL"]],"4.4.90.20.00":[[292,"AUXÍLIO FINANCEIRO A PESQUISADORES"]],"4.4.90.30.00":[[293,"MATERIAL DE CONSUMO"]],"4.4.90.30.99":[[294,"OUTROS MATERIAIS DE CONSUMO"]],"4.4.90.33.00":[[295,"PASSAGENS E DESPESAS COM LOCOMOÇÃO"]],"4.4.90.35.00":[[296,"SERVIÇOS DE CONSULTORIA"]],"4.4.90.36.00":[[297,"OUTROS SERVIÇOS DE TERCEIROS - PESSOA FÍSICA"]],"4.4.90.36.99":[[298,"OUTROS SERVIÇOS DE PESSOA FÍSICA"]],"4.4.90.39.00":[[299,"OUTROS SERVIÇOS DE TERCEIROS - PESSOA JURÍDICA"]],"4.4.90.39.99":[[300,"OUTROS SERVIÇOS DE TERCEIROS, PESSOA JURÍDICA"]],"4.4.90.47.00":[[301,"OBRIGAÇÕES TRIBUTÁRIAS E CONTRIBUTIVAS"]],"4.4.90.47.01":[[302,"INSS SOBRE OUTROS SERVIÇOS DE TERCEIROS - PESSOA FÍSICA"]],"4.4.90.47.02":[[303,"INSS SOBRE OUTROS SERVIÇOS DE TERCEIROS - PESSOA JURÍDICA"]],"4.4.90.47.99":[[304,"OUTRAS OBRIGAÇÕES TRIBUTÁRIAS E CONTRIBUTIVAS"]],"4.4.90.51.00":[[305,"OBRAS E INSTALAÇÕES"]],"4.4.90.51.01":[[306,"CONSTR. INSTAL. AMPLIAÇ. E REFORMAS BENS PATRIM."]],"4.4.90.51.02":[[307,"CONSTR. INSTAL. AMPLIAÇ. E REFORMAS EM OBRAS DOM. PUBL."]],"4.4.90.51.91":[[308,"OBRAS EM ANDAMENTO"]],"4.4.90.51.92":[[309,"INSTALAÇÕES"]],"4.4.90.51.93":[[310,"BENFEITORIAS EM PROPRIEDADES DE TERCEIROS"]],"4.4.90.51.99":[[311,"OUTRAS OBRAS E INSTALAÇÕES"]],"4.4.90.52.00":[[312,"EQUIPAMENTOS E MATERIAL PERMANENTE"]],"4.4.90.52.02":[[313,"AERONAVES"]],"4.4.90.52.04":[[314,"APARELHOS DE MEDIÇÃO E ORIENTAÇÃO"]],"4.4.90.52.06":[[315,"APARELHOS E EQUIPAMENTOS DE COMUNICAÇÃO"]],"4.4.90.52.08":[[316,"APARELHOS, EQUIPAMENTOS, UTENSÍLIOS MÉDICO-ODONTOLÓGICO, LABORATORIAL E HOSPITALAR"]],"4.4.90.52.10":[[317,"APARELHOS E EQUIPAMENTOS PARA ESPORTES E DIVERSÕES"]],"4.4.90.52.12":[[318,"APARELHOS E UTENSÍLIOS DOMÉSTICOS"]],"4.4.90.52.14":[[319,"ARMAMENTOS"]],"4.4.90.52.18":[[320,"COLEÇÕES E MATERIAIS BIBLIOGRÁFICOS"]],"4.4.90.52.19":[[321,"DISCOTECAS E FILMOTECAS"]],"4.4.90.52.20":[[322,"EMBARCAÇÕES"]],"4.4.90.52.22":[[323,"EQUIPAMENTOS DE MANOBRA E PATRULHAMENTO"]],"4.4.90.52.24":[[324,"EQUIPAMENTO DE PROTEÇÃO, SEGURANÇA E SOCORRO"]],"4.4.90.52.26":[[325,"INSTRUMENTOS MUSICAIS E ARTÍSTICOS"]],"4.4.90.52.28":[[326,"MÁQUINAS E EQUIPAM. DE NATUREZA INDUSTRIAL"]],"4.4.90.52.30":[[327,"MÁQUINAS E EQUIPAMENTOS ENERGÉTICOS"]],"4.4.90.52.32":[[328,"MÁQUINAS E EQUIPAMENTOS GRÁFICOS"]],"4.4.90.52.33":[[329,"EQUIPAMENTOS PARA ÁUDIO, VÍDEO E FOTO"]],"4.4.90.52.34":[[330,"MÁQUINAS, UTENSÍLIOS E EQUIPAMENTOS DIVERSOS"]],"4.4.90.52.35":[[331,"EQUIPAMENTOS DE PROCESSAMENTO DE DADOS"]],"4.4.90.52.36":[[332,"MÁQUINAS, INSTALAÇÕES E UTENSÍLIOS DE ESCRITÓRIOS"]],"4.4.90.52.38":[[333,"MÁQUINAS, FERRAMENTAS E UTENSÍLIOS DE OFICINA"]],"4.4.90.52.39":[[334,"EQUIPAMENTOS E UTENSÍLIOS HIDRÁULICOS E ELÉTRICOS"]],"4.4.90.52.40":[[335,"MÁQUINAS E EQUIPAMENTOS AGRÍCOLAS E RODOVIÁRIOS"]],"4.4.90.52.42":[[336,"MOBILIÁRIO EM GERAL"]],"4.4.90.52.44":[[337,"OBRAS DE ARTE E PEÇAS PARA MUSEU"]],"4.4.90.52.46":[[338,"SEMOVENTES E EQUIPAMENTOS DE MONTARIA"]],"4.4.90.52.48":[[339,"VEÍCULOS DIVERSOS"]],"4.4.90.52.50":[[340,"VEÍCULOS FERROVIÁRIOS"]],"4.4.90.52.51":[[341,"PEÇAS NÃO INCORPORÁVEIS A IMÓVEIS"]],"4.4.90.52.52":[[342,"VEÍCULOS DE TRAÇÃO MECÂNICA"]],"4.4.90.52.53":[[343,"CARROS DE COMBATE"]],"4.4.90.52.54":[[344,"EQUIPAMENTOS, PEÇAS E ACESSÓRIOS AERONÁUTICOS"]],"4.4.90.52.56":[[345,"EQUIPAMENTOS, PEÇAS E ACESSÓRIOS DE PROTEÇÃO AO VÔO"]],"4.4.90.52.57":[[346,"ACESSÓRIOS PARA AUTOMÓVEIS"]],"4.4.90.52.58":[[347,"EQUIPAMENTOS DE MERGULHO E SALVAMENTO"]],"4.4.90.52.60":[[348,"EQUIPAMENTOS, PEÇAS E ACESSÓRIOS MARÍTIMOS"]],"4.4.90.52.83":[[349,"EQUIPAMENTOS E SISTEMA DE PROTEÇÃO E VIGILÂNCIA AMBIENTAL"]],"4.4.90.52.87":[[350,"MATERIAL DE CONSUMO DE USO DURADOURO"]],"4.4.90.52.89":[[351,"EQUIPAMENTOS, SOBRESSALENTES DE MÁQUINAS, MOTOR DE NAVIOS DE ESQUADRA"]],"4.4.90.52.96":[[352,"EQUIPAMENTOS E MATERIAL PERMANENTE - PGTO. ANTECIPADO"]],"4.4.90.52.99":[[353,"OUTROS MATERIAIS PERMANENTES"]],"4.4.90.61.00":[[354,"AQUISIÇÃO DE IMÓVEIS"]],"4.4.90.61.01":[[355,"EDIFÍCIOS"]],"4.4.90.61.03":[[356,"TERRENOS"]],"4.4.90.61.06":[[357,"SALAS E ESCRITÓRIOS"]],"4.4.90.61.07":[[358,"CASAS E APARTAMENTOS"]],"4.4.90.61.08":[[359,"ARMAZÉNS E SILOS"]],"4.4.90.61.99":[[360,"OUTROS BENS IMÓVEIS"]],"3.1.90.13.18":[[361,"CONTRIBUIÇÃO PARA O PIS/PASEP S/ A FOLHA DE PAGAMENTO"]],"3.3.90.37.08":[[362,"LOCAÇÃO DE MÃO DE OBRA PARA COLETA DE RESÍDUOS SÓLIDOS"]],"3.1.90.94.00":[[363,"INDENIZAÇÕES E RESTITUIÇÕES TRABALHISTAS"]],"3.3.90.40.00":[[364,"SERVIÇOS DE TECNOLOGIA DA INFORMAÇÃO E COMUNICAÇÃO -"]],"3.3.90.40.97":[[365,"PESSOA JURÍDICA DESPESAS DE TELEPROCESSAMENTO"]],"3.3.90.40.08":[[366,"MANUTENÇÃO DE SOFTWARES"]],"3.3.90.40.11":[[367,"LOCAÇÃO DE SOFTWARES"]],"3.3.90.40.57":[[368,"SERVIÇOS DE PROCESSAMENTO DE DADOS"]],"3.3.90.40.12":[[369,"LOCAÇÃO DE MÁQUINAS E EQUIPAMENTOS"]],"3.3.90.41.01":[[370,"AUXÍLIO A MUNICÍPIOS"]],"4.4.90.40.00":[[371,"SERVIÇOS DE TECNOLOGIA DA INFORMAÇÃO E COMUNICAÇÃO -"]],"3.1.90.67.00":[[372,"PESSOA JURÍDICA DEPÓSITOS COMPULSÓRIOS"]],"3.1.90.67.02":[[373,"DEPÓSITOS JUDICIAIS"]],"3.1.90.67.03":[[374,"DEPÓSITOS PARA RECURSOS"]],"3.1.90.91.02":[[375,"DESPESAS INCORPORAVEIS NO LIMITE DE GASTOS COM PESSOAL"]],"3.1.90.91.00":[[376,"SENTENÇAS JUDICIAIS"]],"3.3.90.91.00":[[378,"MANUTENÇÃO CONSERVAÇÃO DE EQUIPAMENTOS DE                                            3                    3            90         40           95 377 PROCESSAMENTO DE DADOS SENTENÇAS JUDICIAIS"]],"3.1.90.11.04":[[380,"ADICIONAL NOTURNO"]],"3.3.90.40.14":[[381,"TELEFONIA FIXA E MÓVEL - PACOTE DE COMUNICAÇÃO DE DADOS"]],"3.3.90.39.32":[[382,"TRANSPORTE ESCOLAR"]],"3.3.90.30.60":[[383,"MATERIAL DIDÁTICO"]],"3.3.90.40.06":[[384,"LOCAÇÕES DE SOFTWARES"]],"3.1.90.11.10":[[385,"ADICIONAL DE INSALUBRIDADE"]],"3.1.90.13.07":[[387,"OUTROS SERVIÇOS DE TECNOLOGIA DA INFORMAÇÃO E                                        3                    3            90         40           99 386 COMUNICAÇÃO - PESSOA JURÍDICA CONTRIBUIÇÃO AO INSS - CONTRATO POR TEMPO DETERMINADO"]],"3.3.90.48.99":[[388,"DEMAIS AUXÍLIOS FINANCEIROS A PESSOAS FÍSICAS"]],"3.1.90.08.56":[[389,"SALÁRIO FAMÍLIA"]],"3.1.90.08.00":[[390,"OUTROS BENEFÍCIOS ASSISTENCIAIS"]],"3.3.90.93.00":[[391,"INDENIZAÇÕES E RESTITUIÇÕES"]],"3.3.90.93.14":[[392,"RESSARCIMENTO DE PASSAGENS E DESPESAS COM LOCOMOÇÃO"]],"3.1.90.04.01":[[393,"SALÁRIO CONTRATO TEMPORÁRIO"]],"3.1.90.04.13":[[394,"13º SALÁRIO CONTRATO TEMPORÁRIO"]],"3.1.90.04.14":[[395,"FÉRIAS - ABONO CONSTITUCIONAL - CONTRATO TEMPORÁRIO"]]};
+  /** Classificação contábil "3.3.90.39.99 - Outros…" → [código do tipo de despesa do SIT, descrição] */
+  function tipoDespesaSit(classif) {
+    const m = String(classif || '').match(/(\d)\.(\d)\.(\d{2})\.(\d{2})(?:\.(\d{2}))?/);
+    if (!m) return null;
+    const lista = TP_DESPESA_SIT[`${m[1]}.${m[2]}.${m[3]}.${m[4]}.${m[5] || '00'}`];
+    if (!lista) return null;
+    if (lista.length === 1) return lista[0];
+    const pal = new Set(normTxt(classif).split(' ').filter(w => w.length > 3));   // mesmo código com 2 descrições: a mais parecida
+    return lista.map(x => [x, normTxt(x[1]).split(' ').filter(w => pal.has(w)).length]).sort((a, b) => b[1] - a[1])[0][0];
+  }
+  /** Tipo do documento da despesa (Apêndice A, tabela 16) */
+  function docDespesaSit(tipo) {
+    const t = semAcento(String(tipo || 'Nota fiscal'));
+    if (/rpa|autonomo/.test(t)) return [4, 'RPA'];
+    if (/cupom/.test(t)) return [2, 'Cupom Fiscal'];
+    if (/fatura/.test(t)) return [3, 'Fatura'];
+    if (/recibo/.test(t)) return [14, 'Recibo'];
+    if (/nota/.test(t)) return [1, 'Nota Fiscal'];
+    return null;
+  }
+  /** Tipo do documento de pagamento (tabela 18). Transferência = TED; boleto = débito em conta. */
+  function pagamentoSit(forma) {
+    const t = semAcento(String(forma || ''));
+    if (/pix/.test(t)) return [7, 'PIX'];
+    if (/ted|transfer/.test(t)) return [5, 'TED'];
+    if (/doc/.test(t)) return [4, 'DOC'];
+    if (/boleto|debito/.test(t)) return [6, 'Débito em Conta'];
+    if (/cheque/.test(t)) return [1, 'Cheque'];
+    return null;
+  }
+  const MODALIDADE_SIT = [101, 'Pesquisa de Preços'];
+  const semBarras = d => dataBr(d).replace(/\//g, '');
+  /** Processo de compra: nº = data da cotação sem barras; data = data do contrato (serviço) ou emissão da NF (compra) */
+  function processoSit(x) {
+    const nf = x.nf || {};
+    return { numero: x.data_cotacao ? semBarras(x.data_cotacao) : '', data: ehCompraC(x) ? nf.data_emissao : x.data_contrato };
+  }
+  /** Termo "558/2025" → número 558 e ano 2025 (sem barra: ano da celebração) */
+  function termoSit(pr) {
+    const t = String(pr.termo || '').trim(), m = t.match(/^(.*?)\s*\/\s*(\d{4})$/);
+    return { numero: m ? m[1] : t, ano: m ? m[2] : String(pr.data_celebracao || '').slice(0, 4) };
+  }
+  const cod = (par) => par ? cp(String(par[0]), par[0] + ' – ' + par[1]) : '<span style="color:var(--alerta)">⚠️ falta</span>';
+
   const cp = (v, mostrar) => (v === '' || v == null) ? '<span style="color:var(--suave)">—</span>'
     : `<span class="cp-sit" data-copiar="${esc(v)}" title="Clique para copiar">${esc(mostrar ?? v)}</span>`;
 
@@ -4011,24 +4074,33 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     divergentes.forEach(x => pend.push(`<b>${esc(x.contratado)}</b>: ⚠️ ${esc(x.nf.divergencias)}`));
     const semClass = lanc.filter(x => !x.classificacao_contabil), semDatas = lanc.filter(x => !x.data_cotacao || !x.data_contrato);
     if (semClass.length) pend.push(`<b>Classificação contábil</b> não preenchida na rubrica de: ${[...new Set(semClass.map(x => esc(x.rubrica)))].join(', ')} (preencha no Orçamento do projeto)`);
+    const semTipoSit = lanc.filter(x => x.classificacao_contabil && !tipoDespesaSit(x.classificacao_contabil));
+    if (semTipoSit.length) pend.push(`<b>Tipo de despesa do SIT</b> não encontrado para a classificação: ${[...new Set(semTipoSit.map(x => esc(x.classificacao_contabil)))].join(', ')} (confira o número da natureza, ex.: 3.3.90.39.99)`);
+    const semNumPg = lanc.filter(x => !(x.pagamento || {}).num_identificacao_pix);
+    if (semNumPg.length) pend.push(`<b>Nº do documento de pagamento</b> (o número do extrato) faltando em: ${[...new Set(semNumPg.map(x => esc(x.contratado)))].join(', ')}`);
     if (semDatas.length) pend.push(`<b>Data da cotação/contrato</b> faltando em: ${[...new Set(semDatas.map(x => esc(x.contratado)))].join(', ')} (preencha na contratação)`);
     lanc.filter(x => x.primeiro_pagamento === true).forEach(x => pend.push(`<b>${esc(x.contratado)}</b>: 1º pagamento — no SIT vai junto com as cotações, a NF e o comprovante`));
 
     const linhas = lanc.map(x => {
       const nf = x.nf || {}, pg = x.pagamento || {};
       const conf = idxSt(x.status) >= idxSt('Conferida'), lancada = x.status === 'Lançada no SIT';
+      const docFav = digitos(nf.cnpj_emitente || x.contratado_cnpj).length === 11 ? 'CPF' : 'CNPJ';
+      const tpSit = tipoDespesaSit(x.classificacao_contabil), proc = processoSit(x);
       return `<tr>
         <td>${ed && conf ? `<input type="checkbox" data-sitsel value="${esc(x.id_parcela)}" aria-label="Selecionar">` : ''}</td>
-        <td><b>${cp(nf.razao_social_emitente || x.contratado)}</b><br><small>${cp(nf.cnpj_emitente || x.contratado_cnpj)}</small><br><small>${esc(x.rubrica)}</small>
+        <td><b>${cp(nf.razao_social_emitente || x.contratado)}</b><br><small>${docFav}</small> <small>${cp(nf.cnpj_emitente || x.contratado_cnpj)}</small><br><small>${esc(x.rubrica)}</small>
           <br><small>parcela ${esc(x.num_parcela)}${x.total_parcelas ? '/' + esc(x.total_parcelas) : ''} · ${ehCompraC(x) ? 'compra de' : 'serviço de'} ${mesExt(x.competencia_mes)}</small>
           ${x.primeiro_pagamento === true ? '<br><span class="tag">1º pagamento</span>' : ''}</td>
-        <td>${esc(nf.tipo_documento || 'Nota fiscal')} nº ${cp(nf.numero)}<br><small>emissão</small> ${cp(dataBr(nf.data_emissao))}</td>
+        <td>${esc(nf.tipo_documento || 'Nota fiscal')} nº ${cp(nf.numero)}<br><small>emissão</small> ${cp(dataBr(nf.data_emissao))}<br><small>tipo SIT</small> ${cod(docDespesaSit(nf.tipo_documento))}</td>
         <td style="max-width:240px">${cp(nf.descricao)}</td>
-        <td>${x.classificacao_contabil ? cp(x.classificacao_contabil) : '<span style="color:var(--alerta)">⚠️ falta</span>'}</td>
-        <td style="white-space:nowrap"><small>cotação</small> ${x.data_cotacao ? cp(dataBr(x.data_cotacao)) : '<span style="color:var(--alerta)">⚠️</span>'}
-          <br><small>contrato</small> ${x.data_contrato ? cp(dataBr(x.data_contrato)) : '<span style="color:var(--alerta)">⚠️</span>'}</td>
+        <td>${x.classificacao_contabil ? cp(x.classificacao_contabil) : '<span style="color:var(--alerta)">⚠️ falta</span>'}
+          ${x.classificacao_contabil ? `<br><small>tipo de despesa SIT</small> ${cod(tpSit)}` : ''}</td>
+        <td style="white-space:nowrap"><small>modalidade</small> ${cod(MODALIDADE_SIT)}
+          <br><small>nº do processo</small> ${proc.numero ? cp(proc.numero) : '<span style="color:var(--alerta)">⚠️ falta cotação</span>'}
+          <br><small>data</small> ${proc.data ? cp(dataBr(proc.data)) : `<span style="color:var(--alerta)">⚠️ falta ${ehCompraC(x) ? 'emissão da NF' : 'data do contrato'}</span>`}
+          <br><small style="color:var(--suave)">${ehCompraC(x) ? 'compra: data = emissão da NF' : 'cotação ' + dataBr(x.data_cotacao) + ' · contrato'}</small></td>
         <td class="num">${cp(num2(nf.valor), brl(nf.valor))}</td>
-        <td>${esc(pg.forma_pagamento || '')} ${cp(pg.num_identificacao_pix)}<br><small>pagto</small> ${cp(dataBr(pg.data_pagamento))}<br><small>débito</small> ${cp(dataBr(pg.data_debito_conta))}</td>
+        <td>${esc(pg.forma_pagamento || '')} ${cp(pg.num_identificacao_pix)}<br><small>tipo SIT</small> ${pg.forma_pagamento ? cod(pagamentoSit(pg.forma_pagamento)) : '—'}<br><small>pagto</small> ${cp(dataBr(pg.data_pagamento))}<br><small>débito</small> ${cp(dataBr(pg.data_debito_conta))}</td>
         <td class="num">${cp(num2(pg.valor), brl(pg.valor))}</td>
         <td><span class="st ${lancada ? 'verde' : conf ? 'azul' : 'amarelo'}">${lancada ? '✓ Lançada' : conf ? 'Conferida' : esc(x.status)}</span></td>
         <td style="white-space:nowrap">${nf.url ? `<a href="${esc(nf.url)}" target="_blank" rel="noopener" title="Nota fiscal">📄</a>` : ''}
@@ -4037,7 +4109,18 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       </tr>`;
     }).join('');
 
-    $('sitCorpo').innerHTML = `
+    const pr = sit.projeto, ts = termoSit(pr);
+    const termoHtml = `<section class="painel sit-termo" style="margin-bottom:20px">
+      <div class="titulo-linha"><h2 style="font-size:16px">Dados do termo para o SIT</h2></div>
+      <div class="sit-termo-grade">
+        <div><small>Tipo do instrumento</small>${cp('9', '9 – Termo de Fomento')}</div>
+        <div><small>Nº do instrumento</small>${ts.numero ? cp(ts.numero) : '<span style="color:var(--alerta)">⚠️ preencha o termo no projeto</span>'}</div>
+        <div><small>Ano da transferência</small>${ts.ano ? cp(ts.ano) : '<span style="color:var(--alerta)">⚠️ falta</span>'}</div>
+        <div><small>Termo completo</small>${pr.termo ? cp(pr.termo) : '—'}</div>
+        <div><small>Órgão concedente</small>${pr.orgao ? cp(pr.orgao) : '—'}</div>
+        <div><small>CNPJ do concedente</small>${pr.cnpj_concedente ? cp(digitos(pr.cnpj_concedente), pr.cnpj_concedente) : '<span style="color:var(--alerta)">⚠️ preencha nos dados do projeto</span>'}</div>
+      </div></section>`;
+    $('sitCorpo').innerHTML = termoHtml + `
       <div class="resumo">
         ${kpi('Despesas no bimestre', brl(b.valor), `${b.qtd} lançamento(s) · ${periodoBim(b)}`)}
         ${kpi('Conferidas', `${b.conferidas} de ${b.qtd}`, 'dados do SIT revisados', b.qtd && b.conferidas === b.qtd ? 'ok' : '')}
@@ -4059,7 +4142,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
         </div>
         <p class="dica" style="margin-top:-6px">Entram aqui os pagamentos com <b>débito na conta</b> entre ${dataBr(b.inicio)} e ${dataBr(b.fim)}. Clique em qualquer dado para copiar e colar no SIT.</p>
         ${lanc.length ? `<div class="tabela-wrap"><table class="tab-sit">
-          <thead><tr><th>${ed ? '<input type="checkbox" id="sitTodos" aria-label="Selecionar todas">' : ''}</th><th>Favorecido</th><th>Documento</th><th>Descrição</th><th>Classificação contábil</th><th>Cotação / Contrato</th><th class="num">Valor NF</th><th>Pagamento</th><th class="num">Valor pago</th><th>Situação</th><th></th></tr></thead>
+          <thead><tr><th>${ed ? '<input type="checkbox" id="sitTodos" aria-label="Selecionar todas">' : ''}</th><th>Favorecido</th><th>Documento</th><th>Descrição</th><th>Classificação contábil</th><th>Processo de compra</th><th class="num">Valor NF</th><th>Pagamento</th><th class="num">Valor pago</th><th>Situação</th><th></th></tr></thead>
           <tbody>${linhas}</tbody>
           <tfoot><tr><td></td><td colspan="5">Total do bimestre</td><td class="num">${brl(lanc.reduce((s, x) => s + Number((x.nf || {}).valor || 0), 0))}</td><td></td><td class="num">${brl(b.valor)}</td><td colspan="2"></td></tr></tfoot>
         </table></div><div class="msg" id="msgSitLanc"></div>` : '<div class="vazio">Nenhum pagamento com débito neste bimestre.<br>Mesmo sem despesas, preencha abaixo o saldo, o repasse e os rendimentos para prestar contas do bimestre.</div>'}
@@ -4084,33 +4167,69 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
 
       <section class="painel">
         <div class="titulo-linha"><h2 style="font-size:16px">Dados do bimestre</h2>
-          ${enviado ? `<span class="st verde">✓ Enviado ao SIT em ${dataBr(b.enviado_cit_em)}</span>` : ''}</div>
-        <p class="dica" style="margin-top:-6px">Um mês por linha. Saldo inicial, despesas e saldo final são calculados; informe os rendimentos e, se houver, outros créditos.</p>
+          <div class="sit-acoes">
+            ${ed && b.extratos && Object.keys(b.extratos).length ? '<button class="btn-sec" id="btnBimExtratos" title="Preenche rendimento bruto, IR, ressarcimento de taxas e saldos com o que foi lido dos extratos anexados">⬇ Puxar dos extratos</button>' : ''}
+            ${enviado ? `<span class="st verde">✓ Enviado ao SIT em ${dataBr(b.enviado_cit_em)}</span>` : ''}</div></div>
+        <p class="dica" style="margin-top:-6px">Um mês por linha. Saldo inicial, rendimento líquido, despesas e saldo final são calculados.
+          Rendimento líquido = bruto − IR retido. Saldo final = saldo inicial + rendimento líquido + ressarcimento de taxas + recursos próprios + outros créditos − despesas${b.prestacao_final ? ' − devolução' : ''}.</p>
         ${(b.meses_mov || []).some(m => m.legado) ? '<div class="aviso" style="margin-bottom:12px">Este bimestre foi preenchido antes com os valores do bimestre inteiro (eles aparecem no 2º mês). Separe os rendimentos de cada mês e salve.</div>' : ''}
         <div class="tabela-wrap"><table class="tab-meses">
-          <thead><tr><th>Mês</th><th class="num">Saldo inicial</th><th class="num">Outros créditos</th><th class="num">Rendimentos</th><th class="num">Despesas do mês</th><th class="num">Saldo final</th></tr></thead>
-          <tbody>${(b.meses_mov || []).map((m, i) => `<tr data-mes="${esc(m.mes)}">
+          <thead><tr><th>Mês</th><th class="num">Saldo inicial</th><th class="num">Rendimento bruto</th><th class="num">IR retido</th><th class="num">Rendimento líquido</th>
+            <th class="num">Ressarcimento de taxas</th><th class="num">Recursos próprios</th><th class="num">Outros créditos</th><th class="num">Despesas do mês</th>
+            ${b.prestacao_final ? '<th class="num">Devolução</th>' : ''}<th class="num">Saldo final</th></tr></thead>
+          <tbody>${(b.meses_mov || []).map((m, i) => {
+            const v = x => (x === '' || x == null || Number(x) === 0) ? '' : num2(x);
+            const semBruto = (m.rendimento_bruto === '' || m.rendimento_bruto == null) && Number(m.rendimentos || 0) !== 0;
+            return `<tr data-mes="${esc(m.mes)}" data-rend-antigo="${semBruto ? esc(m.rendimentos) : ''}">
             <td><b>${mesExt(m.mes)}</b></td>
             <td class="num">${m.primeiro_mes
               ? `<input data-m="saldo_inicial" inputmode="decimal" value="${esc(num2(m.saldo_inicial))}" title="Primeiro mês do projeto: informe o saldo inicial">`
               : `<input data-m="saldo_inicial" class="calculado" readonly tabindex="-1" value="${esc(num2(m.saldo_inicial))}">`}</td>
-            <td class="num"><input data-m="outros_creditos" inputmode="decimal" placeholder="0,00" value="${esc(m.outros_creditos ? num2(m.outros_creditos) : '')}"></td>
-            <td class="num"><input data-m="rendimentos" inputmode="decimal" placeholder="0,00" value="${esc(m.rendimentos ? num2(m.rendimentos) : '')}"></td>
+            <td class="num"><input data-m="rendimento_bruto" inputmode="decimal" placeholder="0,00" value="${esc(v(m.rendimento_bruto))}"></td>
+            <td class="num"><input data-m="ir_retido" inputmode="decimal" placeholder="0,00" value="${esc(v(m.ir_retido))}"></td>
+            <td class="num"><input data-m="rendimentos" class="calculado" readonly tabindex="-1" value="${esc(num2(m.rendimentos))}"
+              ${semBruto ? 'title="Valor digitado antes (sem o bruto). Informe o rendimento bruto e o IR para a exportação ao SIT." style="border-color:var(--alerta)"' : ''}></td>
+            <td class="num"><input data-m="ressarcimento_taxas" inputmode="decimal" placeholder="0,00" value="${esc(v(m.ressarcimento_taxas))}"></td>
+            <td class="num"><input data-m="recursos_proprios" inputmode="decimal" placeholder="0,00" value="${esc(v(m.recursos_proprios))}"></td>
+            <td class="num"><input data-m="outros_creditos" inputmode="decimal" placeholder="0,00" value="${esc(v(m.outros_creditos))}" title="Não vai para o SIT (use os campos ao lado para rendimentos, ressarcimento e recursos próprios)"></td>
             <td class="num"><input data-m="despesas" class="calculado" readonly tabindex="-1" value="${esc(num2(m.despesas))}"></td>
+            ${b.prestacao_final ? `<td class="num"><input data-m="devolucao" class="calculado" readonly tabindex="-1" value="${esc(num2(m.devolucao || 0))}"></td>` : ''}
             <td class="num"><input data-m="saldo_final" class="calculado" readonly tabindex="-1" value="${esc(num2(m.saldo_final))}"></td>
-          </tr>`).join('')}</tbody>
-          <tfoot><tr><td>Bimestre</td><td class="num" id="bimTotIni"></td><td class="num" id="bimTotCred"></td><td class="num" id="bimTotRend"></td><td class="num" id="bimTotDesp"></td><td class="num" id="bimTotFim"></td></tr></tfoot>
+          </tr>`; }).join('')}</tbody>
+          <tfoot><tr><td>Bimestre</td><td class="num" id="bimTotIni"></td><td class="num" id="bimTotBruto"></td><td class="num" id="bimTotIr"></td><td class="num" id="bimTotRend"></td>
+            <td class="num" id="bimTotRess"></td><td class="num" id="bimTotProp"></td><td class="num" id="bimTotCred"></td><td class="num" id="bimTotDesp"></td>
+            ${b.prestacao_final ? '<td class="num" id="bimTotDev"></td>' : ''}<td class="num" id="bimTotFim"></td></tr></tfoot>
         </table></div>
+
+        <h3 style="font-size:14px;margin:20px 0 0">Saldo bancário no fim do bimestre</h3>
+        <div class="sit-sub">
+          <div><label for="bim_sb_data">Data do saldo</label><input id="bim_sb_data" type="date" value="${esc(r.data_saldo_bancario || b.fim)}"></div>
+          <div><label for="bim_sb_cc">Saldo da conta corrente</label><input id="bim_sb_cc" inputmode="decimal" placeholder="0,00" value="${esc(r.saldo_conta_corrente === '' || r.saldo_conta_corrente == null ? '' : num2(r.saldo_conta_corrente))}"></div>
+          <div><label for="bim_sb_ap">Saldo da conta de aplicação</label><input id="bim_sb_ap" inputmode="decimal" placeholder="0,00" value="${esc(r.saldo_conta_aplicacao === '' || r.saldo_conta_aplicacao == null ? '' : num2(r.saldo_conta_aplicacao))}"></div>
+          <div><label>Total (corrente + aplicação)</label><div id="bim_sb_tot" style="padding:9px 0;font-weight:700"></div></div>
+        </div>
+        <p class="dica" id="bim_sb_conf" style="margin-top:6px"></p>
+
+        ${b.prestacao_final ? `<h3 style="font-size:14px;margin:20px 0 0">Devolução de saldo <span class="tag">prestação final</span></h3>
+        <p class="dica" style="margin:4px 0 0">Preencha só se houve devolução do saldo ao final do projeto.</p>
+        <div class="sit-sub">
+          <div><label for="bim_dv_valor">Valor devolvido</label><input id="bim_dv_valor" inputmode="decimal" placeholder="0,00" value="${esc(r.devolucao_valor ? num2(r.devolucao_valor) : '')}"></div>
+          <div><label for="bim_dv_data">Data da devolução</label><input id="bim_dv_data" type="date" value="${esc(r.devolucao_data || '')}"></div>
+          <div><label for="bim_dv_forma">Forma de pagamento</label><select id="bim_dv_forma">${['', 'PIX', 'TED', 'DOC', 'Boleto', 'Transferência'].map(f => `<option ${String(r.devolucao_forma || '') === f ? 'selected' : ''}>${f}</option>`).join('')}</select></div>
+          <div><label for="bim_dv_doc">Nº do documento</label><input id="bim_dv_doc" maxlength="20" value="${esc(r.devolucao_documento || '')}"></div>
+          <div><label for="bim_dv_cred">Para crédito de</label><select id="bim_dv_cred">${['', 'Concedente', 'Tomador'].map(f => `<option ${String(r.devolucao_credito || '') === f ? 'selected' : ''}>${f}</option>`).join('')}</select></div>
+        </div>` : ''}
         <div class="form-grade" style="margin-top:14px">
           <div class="largo" style="grid-column:1/-1"><label for="bim_obs">Observações</label><textarea id="bim_obs" rows="2">${esc(r.observacoes || '')}</textarea></div>
         </div>
         <p class="dica" id="sitConta"></p>
         ${ed ? `<div class="form-acoes"><div class="msg" id="msgBim"></div>
           <button class="btn-sec" id="btnBimSalvar">Salvar dados</button>
+          <button class="btn-sec" id="btnBimExportar" title="Gera os arquivos .TXT no layout de importação do SIT (TCE-PR)">📤 Gerar arquivos do SIT</button>
           ${enviado ? '<button class="btn-link" id="btnBimReabrir">↩ Reabrir bimestre</button>' : '<button class="btn" id="btnBimEnviar">📤 Marcar bimestre como enviado</button>'}</div>` : ''}
       </section>`;
 
-    if (!ed) $('sitCorpo').querySelectorAll('.painel:last-child input, .painel:last-child textarea').forEach(el => el.disabled = true);
+    if (!ed) $('sitCorpo').querySelectorAll('.painel:last-child input, .painel:last-child textarea, .painel:last-child select').forEach(el => el.disabled = true);
     if (b.primeiro_bimestre && (b.meses_mov || [])[0] && b.meses_mov[0].primeiro_mes) {
       const d = document.createElement('div'); d.className = 'dica';
       d.textContent = 'Primeiro mês do projeto: o saldo inicial é digitado (valor recebido). Nos demais meses ele vem do saldo final anterior.';
@@ -4126,25 +4245,81 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     const r2 = v => Math.round(v * 100) / 100;
     const linhas = [...$('sitCorpo').querySelectorAll('tr[data-mes]')];
     if (!linhas.length) return;
-    let anterior = null, tot = { cred: 0, rend: 0, desp: 0 }, ini0 = 0, fimUlt = 0;
+    let anterior = null, ini0 = 0, fimUlt = 0;
+    const tot = { bruto: 0, ir: 0, rend: 0, ress: 0, prop: 0, cred: 0, desp: 0, dev: 0 };
+    const devTotal = $('bim_dv_valor') ? n($('bim_dv_valor').value) : 0;
+    const devData = $('bim_dv_data') ? String($('bim_dv_data').value || '').slice(0, 7) : '';
+    const mesesB = linhas.map(tr => tr.dataset.mes);
     linhas.forEach((tr, i) => {
       const campo = k => tr.querySelector(`[data-m="${k}"]`);
       if (i > 0) campo('saldo_inicial').value = num2(anterior);
-      const ini = n(campo('saldo_inicial').value), cred = n(campo('outros_creditos').value), rend = n(campo('rendimentos').value), desp = n(campo('despesas').value);
-      const fim = r2(ini + cred + rend - desp);
+      const ini = n(campo('saldo_inicial').value), brutoTxt = campo('rendimento_bruto').value.trim();
+      const bruto = n(brutoTxt), ir = n(campo('ir_retido').value);
+      // sem o bruto: mantém o rendimento digitado antes (líquido)
+      const rend = brutoTxt ? r2(bruto - ir) : n(tr.dataset.rendAntigo || 0);
+      campo('rendimentos').value = num2(rend);
+      campo('rendimentos').style.borderColor = !brutoTxt && rend ? 'var(--alerta)' : '';
+      const ress = n(campo('ressarcimento_taxas').value), prop = n(campo('recursos_proprios').value);
+      const cred = n(campo('outros_creditos').value), desp = n(campo('despesas').value);
+      const dev = devTotal && (devData === tr.dataset.mes || (!mesesB.includes(devData) && i === linhas.length - 1)) ? devTotal : 0;
+      if (campo('devolucao')) campo('devolucao').value = num2(dev);
+      const fim = r2(ini + rend + ress + prop + cred - desp - dev);
       campo('saldo_final').value = num2(fim);
       if (i === 0) ini0 = ini;
-      tot.cred += cred; tot.rend += rend; tot.desp += desp; anterior = fim; fimUlt = fim;
+      tot.bruto += bruto; tot.ir += ir; tot.rend += rend; tot.ress += ress; tot.prop += prop; tot.cred += cred; tot.desp += desp; tot.dev += dev;
+      anterior = fim; fimUlt = fim;
     });
-    $('bimTotIni').textContent = brl(ini0); $('bimTotCred').textContent = brl(tot.cred); $('bimTotRend').textContent = brl(tot.rend);
-    $('bimTotDesp').textContent = brl(tot.desp); $('bimTotFim').textContent = brl(fimUlt);
-    $('sitConta').textContent = `Bimestre: saldo inicial ${brl(ini0)}${tot.cred ? ' + outros créditos ' + brl(tot.cred) : ''} + rendimentos ${brl(tot.rend)} − despesas ${brl(tot.desp)} = saldo final ${brl(fimUlt)}`;
+    const put = (id, v) => { if ($(id)) $(id).textContent = brl(v); };
+    put('bimTotIni', ini0); put('bimTotBruto', tot.bruto); put('bimTotIr', tot.ir); put('bimTotRend', tot.rend); put('bimTotRess', tot.ress);
+    put('bimTotProp', tot.prop); put('bimTotCred', tot.cred); put('bimTotDesp', tot.desp); put('bimTotDev', tot.dev); put('bimTotFim', fimUlt);
+    $('sitConta').textContent = `Bimestre: saldo inicial ${brl(ini0)} + rendimento líquido ${brl(tot.rend)}` +
+      (tot.ress ? ` + ressarcimento de taxas ${brl(tot.ress)}` : '') + (tot.prop ? ` + recursos próprios ${brl(tot.prop)}` : '') +
+      (tot.cred ? ` + outros créditos ${brl(tot.cred)}` : '') + ` − despesas ${brl(tot.desp)}` + (tot.dev ? ` − devolução ${brl(tot.dev)}` : '') +
+      ` = saldo final ${brl(fimUlt)}`;
+    // Saldo bancário: conta corrente + aplicação deve bater com o saldo final calculado
+    if ($('bim_sb_cc')) {
+      const cc = $('bim_sb_cc').value.trim(), ap = $('bim_sb_ap').value.trim();
+      const soma = r2(n(cc) + n(ap));
+      $('bim_sb_tot').textContent = cc || ap ? brl(soma) : '—';
+      const dif = r2(soma - fimUlt);
+      $('bim_sb_conf').innerHTML = !cc && !ap ? 'Informe os saldos da conta corrente e da conta de aplicação no último dia do bimestre (estão nos extratos).'
+        : Math.abs(dif) < 0.01 ? '<span style="color:var(--verde)">✓ Confere com o saldo final calculado.</span>'
+        : `<span style="color:var(--alerta)">⚠️ Diferença de ${brl(dif)} em relação ao saldo final calculado (${brl(fimUlt)}). Confira rendimentos, taxas e despesas.</span>`;
+    }
   }
   function mesesDigitados() {
     return [...$('sitCorpo').querySelectorAll('tr[data-mes]')].map(tr => {
       const v = k => { const el = tr.querySelector(`[data-m="${k}"]`); return el ? el.value : ''; };
-      return { mes: tr.dataset.mes, saldo_inicial: v('saldo_inicial'), outros_creditos: v('outros_creditos'), rendimentos: v('rendimentos') };
+      const o = { mes: tr.dataset.mes, saldo_inicial: v('saldo_inicial'), outros_creditos: v('outros_creditos'),
+        rendimento_bruto: v('rendimento_bruto'), ir_retido: v('ir_retido'),
+        ressarcimento_taxas: v('ressarcimento_taxas'), recursos_proprios: v('recursos_proprios') };
+      o.rendimentos = v('rendimento_bruto').trim() ? v('rendimentos') : (tr.dataset.rendAntigo || '');
+      return o;
     });
+  }
+  function dadosExtrasBim() {
+    const o = {};
+    if ($('bim_sb_cc')) o.saldo_bancario = { data: $('bim_sb_data').value, conta_corrente: $('bim_sb_cc').value, conta_aplicacao: $('bim_sb_ap').value };
+    if ($('bim_dv_valor')) o.devolucao = { valor: $('bim_dv_valor').value, data: $('bim_dv_data').value, forma: $('bim_dv_forma').value,
+      documento: $('bim_dv_doc').value, credito: $('bim_dv_cred').value };
+    return o;
+  }
+  /** "Puxar dos extratos": rendimento bruto, IR, ressarcimento de taxas e saldos lidos dos extratos anexados */
+  function puxarExtratosBim() {
+    const ext = sitBim.extratos || {};
+    const temAlgo = [...$('sitCorpo').querySelectorAll('tr[data-mes] input:not([readonly])')].some(el => el.value.trim() && el.dataset.m !== 'saldo_inicial');
+    if (temAlgo && !confirm('Substituir os valores já digitados pelos lidos dos extratos?')) return;
+    let n = 0;
+    $('sitCorpo').querySelectorAll('tr[data-mes]').forEach(tr => {
+      const e = ext[tr.dataset.mes]; if (!e) return;
+      const set = (k, v) => { const el = tr.querySelector(`[data-m="${k}"]`); if (el) { el.value = Number(v) ? num2(v) : ''; n++; } };
+      set('rendimento_bruto', e.rendimento_bruto); set('ir_retido', e.ir_retido); set('ressarcimento_taxas', e.ressarcimento_taxas);
+    });
+    const ult = ext[sitBim.meses[1]] || {};
+    if (ult.saldo_cc !== undefined && ult.saldo_cc !== '') $('bim_sb_cc').value = num2(ult.saldo_cc);
+    if (ult.saldo_aplicacao !== undefined && ult.saldo_aplicacao !== '') $('bim_sb_ap').value = num2(ult.saldo_aplicacao);
+    contaBim();
+    toast(n ? 'Valores dos extratos preenchidos. Confira e salve.' : 'Não há valores lidos dos extratos para estes meses.');
   }
 
   function ligarBimestre() {
@@ -4160,7 +4335,9 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     on('btnSitLancar', 'click', () => marcarSit(false));
     on('btnSitDesfazer', 'click', () => marcarSit(true));
     on('btnSitCsv', 'click', baixarCsvSit);
-    $('sitCorpo').querySelectorAll('tr[data-mes] input').forEach(el => el.addEventListener('input', contaBim));
+    $('sitCorpo').querySelectorAll('tr[data-mes] input, #bim_sb_cc, #bim_sb_ap, #bim_dv_valor, #bim_dv_data').forEach(el => el.addEventListener('input', contaBim));
+    on('btnBimExtratos', 'click', puxarExtratosBim);
+    on('btnBimExportar', 'click', abrirExportacaoSit);
     on('btnBimSalvar', 'click', e => salvarBim(e));
     on('btnBimEnviar', 'click', e => {
       const pend = sitBim.qtd - sitBim.lancadas;
@@ -4202,7 +4379,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
   async function salvarBim(e, enviar) {
     const btn = e.currentTarget;
     const idp = sit.projeto.id_projeto, n = sitBim.numero;
-    const dados = { id_projeto: idp, numero: n, meses: mesesDigitados(), observacoes: $('bim_obs').value };
+    const dados = Object.assign({ id_projeto: idp, numero: n, meses: mesesDigitados(), observacoes: $('bim_obs').value }, dadosExtrasBim());
     const leit = ['obterBimestre', { id_projeto: idp, numero: n }], lista = ['listarBimestres', { id_projeto: idp }];
     const naTela = () => !$('viewSit').classList.contains('oculto') && sit && sit.projeto.id_projeto === idp && sitBim && sitBim.numero === n;
     if (enviar === undefined) {
@@ -4230,16 +4407,131 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     } catch (err) { msg('msgBim', err.message); btn.disabled = false; }
   }
 
+  // ---------- exportação no layout de importação do SIT (TCE-PR, "Definições dos layouts dos arquivos de importação", v1.994)
+  // Regras do layout: arquivo .TXT, um registro por linha, campos separados por "|", sem cabeçalho, na ordem do manual;
+  // valores com ponto e 2 casas (sem R$); datas DD-MM-AAAA; campo não obrigatório sem conteúdo fica vazio entre os "|" (sem NULL);
+  // campo de valor obrigatório sem valor = 0.00. Textos vão sem acento e sem "|" (evita problema de codificação na importação).
+  const sitTxt = (v, max) => String(v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[|\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max || 9999);
+  const sitVal = v => { const x = Number(v); return (isNaN(x) ? 0 : x).toFixed(2); };
+  const sitNum = v => (v === '' || v == null || isNaN(Number(v))) ? 0 : Number(v);
+  const sitData = d => { const m = String(d || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}-${m[2]}-${m[1]}` : ''; };
+  const ultimoDiaMes = ym => { const [a, m] = ym.split('-').map(Number); const d = new Date(a, m, 0); return `${a}-${String(m).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
+  function montarArquivosSit() {
+    const b = sitBim, pr = sit.projeto, ts = termoSit(pr), cnpjC = digitos(pr.cnpj_concedente);
+    const bloq = [], avisos = [];
+    if (cnpjC.length !== 14) bloq.push('CNPJ do órgão concedente não preenchido (ou inválido) nos dados do projeto.');
+    if (!ts.numero) bloq.push('Termo de fomento não preenchido nos dados do projeto.');
+    if (!/^\d{4}$/.test(ts.ano)) bloq.push('Ano da transferência não identificado (preencha o termo como "558/2025" ou a data da celebração).');
+    const chave = [cnpjC, '9', sitTxt(ts.numero, 20), ts.ano];
+    const linha = campos => chave.concat(campos).join('|');
+
+    // 14. Despesas — 24 campos
+    const desp = [];
+    b.lancamentos.forEach(x => {
+      const nf = x.nf || {}, pg = x.pagamento || {}, nome = nf.razao_social_emitente || x.contratado;
+      const doc = digitos(nf.cnpj_emitente || x.contratado_cnpj), tpDoc = doc.length === 11 ? 'CPF' : doc.length === 14 ? 'CNPJ' : '';
+      const tpS = tipoDespesaSit(x.classificacao_contabil), dS = docDespesaSit(nf.tipo_documento), pS = pagamentoSit(pg.forma_pagamento), proc = processoSit(x);
+      const f = [];
+      if (!tpS) f.push('tipo de despesa (classificação contábil)');
+      if (!tpDoc) f.push('CPF/CNPJ do favorecido');
+      if (!dS) f.push('tipo do documento da despesa');
+      if (!nf.numero) f.push('nº da NF'); else if (String(nf.numero).length > 10) f.push('nº da NF com mais de 10 caracteres');
+      if (!Number(nf.valor)) f.push('valor da NF');
+      if (!nf.data_emissao) f.push('data de emissão');
+      if (!proc.numero || !proc.data) f.push('processo de compra (data da cotação / ' + (ehCompraC(x) ? 'emissão' : 'contrato') + ')');
+      if (!pS) f.push('forma de pagamento');
+      if (!pg.num_identificacao_pix) f.push('nº do documento de pagamento'); else if (String(pg.num_identificacao_pix).length > 15) f.push('nº do documento de pagamento com mais de 15 caracteres');
+      if (!pg.data_pagamento) f.push('data do pagamento');
+      if (f.length) { bloq.push(`<b>${esc(nome)}</b> (NF ${esc(nf.numero || '—')}): falta ${f.join(', ')}.`); return; }
+      if (ehCompraC(x)) avisos.push(`<b>${esc(nome)}</b>: é compra — o arquivo de Bens Adquiridos ainda não é gerado; lance os itens direto no SIT.`);
+      desp.push(linha([tpS[0], tpDoc, doc, sitTxt(nome, 250), dS[0], sitTxt(nf.numero, 10), sitVal(nf.valor), sitData(nf.data_emissao),
+        '', '', '', '', MODALIDADE_SIT[0], sitTxt(proc.numero, 10), sitData(proc.data),
+        pS[0], sitTxt(pg.num_identificacao_pix, 15), sitData(pg.data_pagamento), sitData(pg.data_debito_conta), sitTxt(nf.descricao || x.descricao_servico || '', 2000)]));
+    });
+
+    // 15. Outras receitas — 3 = rendimento de aplicação (líquido, bruto, IR); 2 = depósito de recursos próprios (ressarcimento de taxas e recursos próprios)
+    const rec = [], meses = mesesDigitados();
+    meses.forEach(m => {
+      const dt = sitData(ultimoDiaMes(m.mes)), bruto = m.rendimento_bruto.trim();
+      if (bruto) {
+        const vb = sitNum(lerNumero(m.rendimento_bruto)), vi = sitNum(lerNumero(m.ir_retido)), vl = Math.round((vb - vi) * 100) / 100;
+        if (vl) rec.push(linha(['3', dt, vl.toFixed(2), vb.toFixed(2), vi.toFixed(2)]));
+      } else if (Number(m.rendimentos)) bloq.push(`Rendimento de ${mesExt(m.mes)}: informe o valor bruto e o IR retido (o SIT pede os três valores).`);
+      const ress = sitNum(lerNumero(m.ressarcimento_taxas)), prop = sitNum(lerNumero(m.recursos_proprios));
+      if (ress) rec.push(linha(['2', dt, ress.toFixed(2), '', '']));
+      if (prop) rec.push(linha(['2', dt, prop.toFixed(2), '', '']));
+      if (sitNum(lerNumero(m.outros_creditos))) avisos.push(`Outros créditos de ${mesExt(m.mes)} não entram na exportação (o SIT só aceita rendimentos, contrapartida, recursos próprios e saldo anterior).`);
+    });
+    if (rec.length) avisos.push('Outras receitas vão com a data do último dia de cada mês.');
+
+    // 16. Saldo bancário — conta corrente e conta de aplicação
+    const sal = [], ex = dadosExtrasBim(), sb = ex.saldo_bancario || {};
+    if (!String(sb.conta_corrente || '').trim() && !String(sb.conta_aplicacao || '').trim()) bloq.push('Saldo bancário do fim do bimestre não informado (conta corrente e aplicação).');
+    else if (!sb.data) bloq.push('Data do saldo bancário não informada.');
+    else sal.push(linha([sitData(sb.data), sitNum(lerNumero(sb.conta_corrente)).toFixed(2), sitNum(lerNumero(sb.conta_aplicacao)).toFixed(2)]));
+
+    // 17. Devolução de saldo (prestação final)
+    const dev = [], dv = ex.devolucao;
+    if (dv && sitNum(lerNumero(dv.valor))) {
+      const pS = pagamentoSit(dv.forma);
+      const f = [];
+      if (!pS) f.push('forma de pagamento'); if (!dv.documento) f.push('nº do documento'); if (!dv.data) f.push('data'); if (!dv.credito) f.push('"para crédito de"');
+      if (f.length) bloq.push('Devolução de saldo: falta ' + f.join(', ') + '.');
+      else dev.push(linha([pS[0], sitTxt(dv.documento, 20), sitData(dv.data), sitNum(lerNumero(dv.valor)).toFixed(2), dv.credito]));
+    }
+
+    const base = `${sitTxt(pr.sigla || pr.id_projeto).replace(/\s+/g, '_')}_${b.ordem}bim${b.ano}`;
+    const arquivos = [
+      { nome: `Despesas_${base}.txt`, titulo: '14. Despesas', linhas: desp },
+      { nome: `OutrasReceitas_${base}.txt`, titulo: '15. Outras Receitas', linhas: rec },
+      { nome: `SaldoBancario_${base}.txt`, titulo: '16. Saldo Bancário', linhas: sal },
+      { nome: `DevolucaoSaldo_${base}.txt`, titulo: '17. Devolução de Saldo', linhas: dev }
+    ].filter(a => a.linhas.length);
+    return { arquivos, bloq, avisos };
+  }
+
+  function baixarTxtSit(a) {
+    const el = document.createElement('a');
+    el.href = URL.createObjectURL(new Blob([a.linhas.join('\r\n') + '\r\n'], { type: 'text/plain;charset=utf-8' }));
+    el.download = a.nome; document.body.appendChild(el); el.click(); el.remove();
+    setTimeout(() => URL.revokeObjectURL(el.href), 2000);
+  }
+
+  function abrirExportacaoSit() {
+    const r = montarArquivosSit(), b = sitBim;
+    $('sitExpTitulo').textContent = `Arquivos para o SIT · ${b.rotulo}`;
+    $('sitExpCorpo').innerHTML =
+      (r.bloq.length ? `<div class="aviso" style="margin:0 0 14px"><b>Resolva antes de importar (estes itens ficaram fora dos arquivos):</b>
+        <ul style="margin:6px 0 0;padding-left:20px;line-height:1.6">${r.bloq.map(t => `<li>${t}</li>`).join('')}</ul></div>` : '') +
+      (r.avisos.length ? `<div class="dica" style="margin:0 0 14px"><ul style="margin:0;padding-left:20px;line-height:1.6">${[...new Set(r.avisos)].map(t => `<li>${t}</li>`).join('')}</ul></div>` : '') +
+      (r.arquivos.length ? r.arquivos.map((a, i) => `<div class="sit-arq"><div style="min-width:0"><b>${a.titulo}</b> · ${a.linhas.length} registro(s)<br><small>${esc(a.nome)}</small>
+          <pre>${esc(a.linhas.slice(0, 3).join('\n'))}${a.linhas.length > 3 ? '\n…' : ''}</pre></div>
+          <button type="button" class="btn-sec" data-sitarq="${i}">⬇ Baixar</button></div>`).join('')
+        : '<div class="vazio">Nenhum registro pronto para exportar.</div>') +
+      `<p class="dica" style="margin-top:14px">No SIT, importe as Despesas só depois que o Plano de Trabalho estiver fechado. Valores que ainda não foram salvos na tela também entram na exportação.</p>`;
+    $('sitExpCorpo').querySelectorAll('[data-sitarq]').forEach(bt => bt.addEventListener('click', () => baixarTxtSit(r.arquivos[Number(bt.dataset.sitarq)])));
+    $('btnSitExpTodos').disabled = !r.arquivos.length;
+    $('btnSitExpTodos').onclick = () => r.arquivos.forEach((a, i) => setTimeout(() => baixarTxtSit(a), i * 400));
+    $('dlgSitExp').showModal();
+  }
+
   function baixarCsvSit() {
     const b = sitBim, c = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const cab = ['Bimestre', 'Favorecido', 'CPF/CNPJ', 'Rubrica', 'Classificação contábil', 'Data cotação', 'Data contrato', 'Tipo documento', 'Nº documento', 'Data emissão', 'Descrição', 'Valor NF',
-                 'Forma pagamento', 'Nº identificação', 'Data pagamento', 'Data débito', 'Valor pago', 'Situação', 'Serviço de'];
+    const ts = termoSit(sit.projeto);
+    const cab = ['Bimestre', 'Nº do instrumento', 'Ano', 'Favorecido', 'Tipo doc. favorecido', 'CPF/CNPJ', 'Rubrica', 'Classificação contábil', 'Tipo de despesa SIT', 'Data cotação', 'Data contrato',
+                 'Tipo documento', 'Tipo doc. despesa SIT', 'Nº documento', 'Data emissão', 'Descrição', 'Valor NF',
+                 'Modalidade de compra SIT', 'Nº processo de compra', 'Data processo de compra',
+                 'Forma pagamento', 'Tipo doc. pagamento SIT', 'Nº documento pagamento', 'Data pagamento', 'Data débito', 'Valor pago', 'Situação', 'Serviço de'];
     const linhas = b.lancamentos.map(x => {
       const nf = x.nf || {}, pg = x.pagamento || {};
-      return [b.rotulo, nf.razao_social_emitente || x.contratado, nf.cnpj_emitente || x.contratado_cnpj, x.rubrica,
-        x.classificacao_contabil, dataBr(x.data_cotacao), dataBr(x.data_contrato),
-        nf.tipo_documento || 'Nota fiscal', nf.numero, dataBr(nf.data_emissao), nf.descricao, num2(nf.valor),
-        pg.forma_pagamento, pg.num_identificacao_pix, dataBr(pg.data_pagamento), dataBr(pg.data_debito_conta), num2(pg.valor),
+      const doc = nf.cnpj_emitente || x.contratado_cnpj, tpS = tipoDespesaSit(x.classificacao_contabil), dS = docDespesaSit(nf.tipo_documento),
+        pS = pagamentoSit(pg.forma_pagamento), proc = processoSit(x);
+      return [b.rotulo, ts.numero, ts.ano, nf.razao_social_emitente || x.contratado, digitos(doc).length === 11 ? 'CPF' : 'CNPJ', doc, x.rubrica,
+        x.classificacao_contabil, tpS ? tpS[0] : '', dataBr(x.data_cotacao), dataBr(x.data_contrato),
+        nf.tipo_documento || 'Nota fiscal', dS ? dS[0] : '', nf.numero, dataBr(nf.data_emissao), nf.descricao, num2(nf.valor),
+        MODALIDADE_SIT[0], proc.numero, dataBr(proc.data),
+        pg.forma_pagamento, pS ? pS[0] : '', pg.num_identificacao_pix, dataBr(pg.data_pagamento), dataBr(pg.data_debito_conta), num2(pg.valor),
         x.status, mesExt(x.competencia_mes)];
     });
     const csv = '﻿' + [cab].concat(linhas).map(l => l.map(c).join(';')).join('\r\n');
