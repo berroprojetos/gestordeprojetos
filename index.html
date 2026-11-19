@@ -242,17 +242,6 @@
   .copiar:hover { color: var(--azul); background: var(--azul-fundo); }
   .inst-rodape { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 14px 22px; border-top: 1px solid var(--borda); }
   .inst-rodape b { font-size: 11px; letter-spacing: .1em; color: var(--suave); margin-right: 4px; }
-  .inst-docs { padding: 14px 22px 18px; border-top: 1px solid var(--borda); }
-  .inst-docs-cab { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
-  .inst-docs-cab h5 { margin: 0; font-size: 11px; letter-spacing: .1em; color: var(--suave); text-transform: uppercase; font-weight: 800; }
-  .inst-docs-cab a { font-size: 13px; font-weight: 600; color: var(--azul); text-decoration: none; }
-  .doc-linha { display: grid; grid-template-columns: 24px 1fr auto auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--borda); font-size: 13px; }
-  .doc-linha:last-child { border-bottom: 0; }
-  .doc-linha .num { color: var(--azul); font-weight: 700; }
-  .doc-linha .st { justify-self: end; }
-  .doc-linha .st a { color: inherit; text-decoration: underline; }
-  .doc-linha .btn-sec { padding: 5px 12px; font-size: 12px; }
-  @media (max-width: 640px) { .doc-linha { grid-template-columns: 24px 1fr; } .doc-linha .st, .doc-linha .btn-sec { grid-column: 2; justify-self: start; } }
   .imp-form { border: 1px dashed var(--borda-forte); border-radius: var(--raio); padding: 14px 16px; background: var(--azul-fundo); }
   .imp-form .dica { margin: 8px 0 0; }
   .chip { border: 1px solid var(--borda); border-radius: 20px; padding: 6px 14px; background: #fff; font-size: 13px; font-weight: 500; }
@@ -3704,7 +3693,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       ['testemunha2_nome', 'Testemunha 2 – nome', 'largo'], ['testemunha2_cpf', 'Testemunha 2 – CPF']]]
   ];
   const PERFIS_CAD_INST = ['ADMIN', 'PRESTACAO_CONTAS'];
-  let listaInst = [], instEditando = null, instFormPasta = '', enviosForm = null, docsInst = null;
+  let listaInst = [], instEditando = null, instFormPasta = '', enviosForm = null;
   const CAMPOS_DATA_INST = SECOES_INST.flatMap(([, cs]) => cs).filter(c => c[3] === 'date').map(c => c[0]);
   const vigencia = i => i.representante_vigencia_de || i.representante_vigencia_ate
     ? `${i.representante_vigencia_de ? dataBr(i.representante_vigencia_de) : '…'} a ${i.representante_vigencia_ate ? dataBr(i.representante_vigencia_ate) : '…'}` : '';
@@ -3774,7 +3763,6 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
         </div>
         <div class="inst-colunas">${colunas.map(([tit, ls]) =>
           `<div class="inst-col"><h5>${tit}</h5>${ls.map(([r, v]) => linha(r, v)).join('')}</div>`).join('')}</div>
-        <div class="inst-docs" data-docsinst="${esc(i.id_instituicao)}"><div class="inst-docs-cab"><h5>Documentos</h5></div><span class="dica" style="margin:0">Carregando documentos…</span></div>
         <div class="inst-rodape"><b>PROJETOS</b>
           ${(i.projetos || []).map(p => `<button class="chip" data-abrirproj="${esc(p.id_projeto)}">${esc(p.sigla || p.nome_projeto)}${p.termo_fomento_cit ? ' (' + esc(p.termo_fomento_cit) + ')' : ''}</button>`).join('') || '<span class="dica" style="margin:0">nenhum projeto ainda</span>'}
         </div>
@@ -3791,55 +3779,6 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
         return v ? `${rot.replace(' *', '')}: ${v}` : '';
       }).filter(Boolean).join('\n')).join('\n\n'));
     }));
-    if (docsInst) renderDocsInst(); else carregarDocsInst();
-  }
-
-  // ---------- documentos da instituição (mesma pasta do formulário de Cadastro Institucional)
-  async function carregarDocsInst() {
-    try { await apiRapida('listarDocsInstituicoes', {}, d => { docsInst = d; renderDocsInst(); }); }
-    catch (err) {
-      document.querySelectorAll('[data-docsinst]').forEach(el =>
-        el.querySelector('.dica').textContent = 'Não foi possível carregar os documentos: ' + err.message);
-    }
-  }
-
-  function renderDocsInst() {
-    document.querySelectorAll('[data-docsinst]').forEach(el => {
-      const id = el.dataset.docsinst, d = docsInst && docsInst[id];
-      if (!d) return;
-      const pode = podeCadInst();
-      el.innerHTML = `<div class="inst-docs-cab"><h5>Documentos</h5>
-          ${d.pasta_url ? `<a href="${esc(d.pasta_url)}" target="_blank" rel="noopener">📁 Abrir pasta no Drive</a>` : '<span class="dica" style="margin:0">Pasta criada no primeiro envio</span>'}</div>
-        ${d.erro ? `<div class="aviso" style="margin:0 0 8px">${esc(d.erro)}</div>` : ''}
-        ${d.lista.map((x, k) => {
-          const a = d.docs[x.campo];
-          return `<div class="doc-linha"><span class="num">${k + 1}.</span><span>${esc(x.titulo)}</span>
-            <span class="st ${a ? 'verde' : ''}">${a ? `<a href="${esc(a.url)}" target="_blank" rel="noopener" title="${esc(a.nome)}">Abrir</a> · ${esc(a.atualizado_em)}` : 'não enviado'}</span>
-            ${pode ? `<button type="button" class="btn-sec" data-docenviar="${esc(x.campo)}">${a ? 'Substituir' : 'Enviar'}</button>` : '<span></span>'}</div>`;
-        }).join('')}`;
-      el.querySelectorAll('[data-docenviar]').forEach(b => b.addEventListener('click', () => escolherDocInst(id, b)));
-    });
-  }
-
-  function escolherDocInst(idInst, botao) {
-    const d = docsInst[idInst], campo = botao.dataset.docenviar;
-    const titulo = (d.lista.find(x => x.campo === campo) || {}).titulo || '';
-    if (d.docs[campo] && !confirm(`Substituir "${titulo}"?\n\nO arquivo atual vai para a lixeira do Drive (dá para recuperar por 30 dias).`)) return;
-    const inp = document.createElement('input');
-    inp.type = 'file'; inp.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
-    inp.addEventListener('change', async () => {
-      const original = botao.textContent;
-      botao.disabled = true; botao.textContent = 'Enviando…';
-      try {
-        const arquivo = await lerArquivo(inp.files[0]);
-        docsInst[idInst] = await api('enviarDocInstituicao', { id_instituicao: idInst, campo, arquivo });
-        renderDocsInst(); toast('Documento salvo ✓');
-      } catch (err) {
-        botao.disabled = false; botao.textContent = original;
-        toastAcao(err.message, 'Tentar de novo', () => escolherDocInst(idInst, botao));
-      }
-    });
-    inp.click();
   }
 
   // ---------- importar do formulário de Cadastro Institucional
@@ -3915,7 +3854,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     try {
       listaInst = await api('salvarInstituicao', dados);
       instituicoes = await api('listarInstituicoes');
-      $('dlgInst').close(); docsInst = null; renderInstituicoes(); toast('Instituição salva ✓');
+      $('dlgInst').close(); renderInstituicoes(); toast('Instituição salva ✓');
     } catch (err) { msg('msgInst', err.message); }
     btn.disabled = false;
   });
