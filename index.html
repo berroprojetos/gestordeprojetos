@@ -700,7 +700,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.19-b</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.19-c</span></span></div>
   </div>
 </section>
 
@@ -4176,7 +4176,8 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
         <div class="tabela-wrap"><table class="tab-meses">
           <thead><tr><th>Mês</th><th class="num">Saldo inicial</th><th class="num">Rendimento bruto</th><th class="num">IR retido</th><th class="num">Rendimento líquido</th>
             <th class="num">Ressarcimento de taxas</th><th class="num">Recursos próprios</th><th class="num">Outros créditos</th><th class="num">Despesas do mês</th>
-            ${b.prestacao_final ? '<th class="num">Devolução</th>' : ''}<th class="num">Saldo final</th></tr></thead>
+            ${b.prestacao_final ? '<th class="num">Devolução</th>' : ''}<th class="num">Saldo final</th>
+            <th class="num" title="Saldo do extrato da conta corrente no último dia do mês">Saldo conta corrente</th><th class="num" title="Saldo do extrato da poupança/aplicação no último dia do mês">Saldo conta aplicação</th></tr></thead>
           <tbody>${(b.meses_mov || []).map((m, i) => {
             const v = x => (x === '' || x == null || Number(x) === 0) ? '' : num2(x);
             const semBruto = (m.rendimento_bruto === '' || m.rendimento_bruto == null) && Number(m.rendimentos || 0) !== 0;
@@ -4195,20 +4196,15 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
             <td class="num"><input data-m="despesas" class="calculado" readonly tabindex="-1" value="${esc(num2(m.despesas))}"></td>
             ${b.prestacao_final ? `<td class="num"><input data-m="devolucao" class="calculado" readonly tabindex="-1" value="${esc(num2(m.devolucao || 0))}"></td>` : ''}
             <td class="num"><input data-m="saldo_final" class="calculado" readonly tabindex="-1" value="${esc(num2(m.saldo_final))}"></td>
+            <td class="num"><input data-m="saldo_conta_corrente" inputmode="decimal" placeholder="0,00" value="${esc(m.saldo_conta_corrente === '' || m.saldo_conta_corrente == null ? '' : num2(m.saldo_conta_corrente))}"></td>
+            <td class="num"><input data-m="saldo_conta_aplicacao" inputmode="decimal" placeholder="0,00" value="${esc(m.saldo_conta_aplicacao === '' || m.saldo_conta_aplicacao == null ? '' : num2(m.saldo_conta_aplicacao))}"></td>
           </tr>`; }).join('')}</tbody>
           <tfoot><tr><td>Bimestre</td><td class="num" id="bimTotIni"></td><td class="num" id="bimTotBruto"></td><td class="num" id="bimTotIr"></td><td class="num" id="bimTotRend"></td>
             <td class="num" id="bimTotRess"></td><td class="num" id="bimTotProp"></td><td class="num" id="bimTotCred"></td><td class="num" id="bimTotDesp"></td>
-            ${b.prestacao_final ? '<td class="num" id="bimTotDev"></td>' : ''}<td class="num" id="bimTotFim"></td></tr></tfoot>
+            ${b.prestacao_final ? '<td class="num" id="bimTotDev"></td>' : ''}<td class="num" id="bimTotFim"></td><td></td><td></td></tr></tfoot>
         </table></div>
 
-        <h3 style="font-size:14px;margin:20px 0 0">Saldo bancário no fim do bimestre</h3>
-        <div class="sit-sub">
-          <div><label for="bim_sb_data">Data do saldo</label><input id="bim_sb_data" type="date" value="${esc(r.data_saldo_bancario || b.fim)}"></div>
-          <div><label for="bim_sb_cc">Saldo da conta corrente</label><input id="bim_sb_cc" inputmode="decimal" placeholder="0,00" value="${esc(r.saldo_conta_corrente === '' || r.saldo_conta_corrente == null ? '' : num2(r.saldo_conta_corrente))}"></div>
-          <div><label for="bim_sb_ap">Saldo da conta de aplicação</label><input id="bim_sb_ap" inputmode="decimal" placeholder="0,00" value="${esc(r.saldo_conta_aplicacao === '' || r.saldo_conta_aplicacao == null ? '' : num2(r.saldo_conta_aplicacao))}"></div>
-          <div><label>Total (corrente + aplicação)</label><div id="bim_sb_tot" style="padding:9px 0;font-weight:700"></div></div>
-        </div>
-        <p class="dica" id="bim_sb_conf" style="margin-top:6px"></p>
+        <p class="dica" id="bim_sb_conf" style="margin-top:8px"></p>
 
         ${b.prestacao_final ? `<h3 style="font-size:14px;margin:20px 0 0">Devolução de saldo <span class="tag">prestação final</span></h3>
         <p class="dica" style="margin:4px 0 0">Preencha só se houve devolução do saldo ao final do projeto.</p>
@@ -4276,30 +4272,31 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       (tot.ress ? ` + ressarcimento de taxas ${brl(tot.ress)}` : '') + (tot.prop ? ` + recursos próprios ${brl(tot.prop)}` : '') +
       (tot.cred ? ` + outros créditos ${brl(tot.cred)}` : '') + ` − despesas ${brl(tot.desp)}` + (tot.dev ? ` − devolução ${brl(tot.dev)}` : '') +
       ` = saldo final ${brl(fimUlt)}`;
-    // Saldo bancário: conta corrente + aplicação deve bater com o saldo final calculado
-    if ($('bim_sb_cc')) {
-      const cc = $('bim_sb_cc').value.trim(), ap = $('bim_sb_ap').value.trim();
-      const soma = r2(n(cc) + n(ap));
-      $('bim_sb_tot').textContent = cc || ap ? brl(soma) : '—';
-      const dif = r2(soma - fimUlt);
-      $('bim_sb_conf').innerHTML = !cc && !ap ? 'Informe os saldos da conta corrente e da conta de aplicação no último dia do bimestre (estão nos extratos).'
-        : Math.abs(dif) < 0.01 ? '<span style="color:var(--verde)">✓ Confere com o saldo final calculado.</span>'
-        : `<span style="color:var(--alerta)">⚠️ Diferença de ${brl(dif)} em relação ao saldo final calculado (${brl(fimUlt)}). Confira rendimentos, taxas e despesas.</span>`;
-    }
+    // Saldo bancário de cada mês: conta corrente + aplicação deve bater com o saldo final calculado do mês
+    const conf = linhas.map(tr => {
+      const campo = k => tr.querySelector(`[data-m="${k}"]`);
+      const cc = campo('saldo_conta_corrente').value.trim(), ap = campo('saldo_conta_aplicacao').value.trim();
+      if (!cc && !ap) return `${mesExt(tr.dataset.mes)}: informe os saldos da conta corrente e da conta de aplicação do último dia do mês.`;
+      const dif = r2(n(cc) + n(ap) - n(campo('saldo_final').value));
+      [campo('saldo_conta_corrente'), campo('saldo_conta_aplicacao')].forEach(el => { el.style.borderColor = Math.abs(dif) < 0.01 ? '' : 'var(--alerta)'; });
+      return Math.abs(dif) < 0.01 ? `<span style="color:var(--verde)">✓ ${mesExt(tr.dataset.mes)}: saldos conferem com o saldo final calculado.</span>`
+        : `<span style="color:var(--alerta)">⚠️ ${mesExt(tr.dataset.mes)}: conta corrente + aplicação = ${brl(n(cc) + n(ap))}, diferença de ${brl(dif)} em relação ao saldo final calculado.</span>`;
+    });
+    if ($('bim_sb_conf')) $('bim_sb_conf').innerHTML = conf.join('<br>');
   }
   function mesesDigitados() {
     return [...$('sitCorpo').querySelectorAll('tr[data-mes]')].map(tr => {
       const v = k => { const el = tr.querySelector(`[data-m="${k}"]`); return el ? el.value : ''; };
       const o = { mes: tr.dataset.mes, saldo_inicial: v('saldo_inicial'), outros_creditos: v('outros_creditos'),
         rendimento_bruto: v('rendimento_bruto'), ir_retido: v('ir_retido'),
-        ressarcimento_taxas: v('ressarcimento_taxas'), recursos_proprios: v('recursos_proprios') };
+        ressarcimento_taxas: v('ressarcimento_taxas'), recursos_proprios: v('recursos_proprios'),
+        saldo_conta_corrente: v('saldo_conta_corrente'), saldo_conta_aplicacao: v('saldo_conta_aplicacao') };
       o.rendimentos = v('rendimento_bruto').trim() ? v('rendimentos') : (tr.dataset.rendAntigo || '');
       return o;
     });
   }
   function dadosExtrasBim() {
     const o = {};
-    if ($('bim_sb_cc')) o.saldo_bancario = { data: $('bim_sb_data').value, conta_corrente: $('bim_sb_cc').value, conta_aplicacao: $('bim_sb_ap').value };
     if ($('bim_dv_valor')) o.devolucao = { valor: $('bim_dv_valor').value, data: $('bim_dv_data').value, forma: $('bim_dv_forma').value,
       documento: $('bim_dv_doc').value, credito: $('bim_dv_cred').value };
     return o;
@@ -4314,10 +4311,9 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       const e = ext[tr.dataset.mes]; if (!e) return;
       const set = (k, v) => { const el = tr.querySelector(`[data-m="${k}"]`); if (el) { el.value = Number(v) ? num2(v) : ''; n++; } };
       set('rendimento_bruto', e.rendimento_bruto); set('ir_retido', e.ir_retido); set('ressarcimento_taxas', e.ressarcimento_taxas);
+      const setSaldo = (k, v) => { const el = tr.querySelector(`[data-m="${k}"]`); if (el && v !== undefined && v !== '') { el.value = num2(v); n++; } };
+      setSaldo('saldo_conta_corrente', e.saldo_cc); setSaldo('saldo_conta_aplicacao', e.saldo_aplicacao);
     });
-    const ult = ext[sitBim.meses[1]] || {};
-    if (ult.saldo_cc !== undefined && ult.saldo_cc !== '') $('bim_sb_cc').value = num2(ult.saldo_cc);
-    if (ult.saldo_aplicacao !== undefined && ult.saldo_aplicacao !== '') $('bim_sb_ap').value = num2(ult.saldo_aplicacao);
     contaBim();
     toast(n ? 'Valores dos extratos preenchidos. Confira e salve.' : 'Não há valores lidos dos extratos para estes meses.');
   }
@@ -4335,7 +4331,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     on('btnSitLancar', 'click', () => marcarSit(false));
     on('btnSitDesfazer', 'click', () => marcarSit(true));
     on('btnSitCsv', 'click', baixarCsvSit);
-    $('sitCorpo').querySelectorAll('tr[data-mes] input, #bim_sb_cc, #bim_sb_ap, #bim_dv_valor, #bim_dv_data').forEach(el => el.addEventListener('input', contaBim));
+    $('sitCorpo').querySelectorAll('tr[data-mes] input, #bim_dv_valor, #bim_dv_data').forEach(el => el.addEventListener('input', contaBim));
     on('btnBimExtratos', 'click', puxarExtratosBim);
     on('btnBimExportar', 'click', abrirExportacaoSit);
     on('btnBimSalvar', 'click', e => salvarBim(e));
@@ -4465,11 +4461,13 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     });
     if (rec.length) avisos.push('Outras receitas vão com a data do último dia de cada mês.');
 
-    // 16. Saldo bancário — conta corrente e conta de aplicação
-    const sal = [], ex = dadosExtrasBim(), sb = ex.saldo_bancario || {};
-    if (!String(sb.conta_corrente || '').trim() && !String(sb.conta_aplicacao || '').trim()) bloq.push('Saldo bancário do fim do bimestre não informado (conta corrente e aplicação).');
-    else if (!sb.data) bloq.push('Data do saldo bancário não informada.');
-    else sal.push(linha([sitData(sb.data), sitNum(lerNumero(sb.conta_corrente)).toFixed(2), sitNum(lerNumero(sb.conta_aplicacao)).toFixed(2)]));
+    // 16. Saldo bancário — um registro por mês (último dia do mês), conta corrente e conta de aplicação separados
+    const sal = [], ex = dadosExtrasBim();
+    meses.forEach(m => {
+      const cc = String(m.saldo_conta_corrente || '').trim(), ap = String(m.saldo_conta_aplicacao || '').trim();
+      if (!cc && !ap) { bloq.push(`Saldo bancário de ${mesExt(m.mes)} não informado (conta corrente e conta de aplicação).`); return; }
+      sal.push(linha([sitData(ultimoDiaMes(m.mes)), sitNum(lerNumero(cc)).toFixed(2), sitNum(lerNumero(ap)).toFixed(2)]));
+    });
 
     // 17. Devolução de saldo (prestação final)
     const dev = [], dv = ex.devolucao;
