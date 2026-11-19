@@ -89,6 +89,7 @@
   .lateral-rotulo { font-size: 10px; letter-spacing: .18em; font-weight: 700; color: var(--suave-2); margin: 34px 10px 12px; }
   .nav { display: flex; flex-direction: column; gap: 4px; }
   .nav-item { white-space: nowrap; display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 12px; border: 0; background: none; border-radius: 11px; color: var(--texto); font-size: 15px; font-weight: 500; text-align: left; transition: background .15s, color .15s; }
+  a.nav-item { text-decoration: none; cursor: pointer; box-sizing: border-box; }
   .nav-item svg { width: 20px; height: 20px; stroke: currentColor; flex-shrink: 0; opacity: .8; }
   .nav-item:hover { background: #f0ebe3; }
   .nav-item.ativo { background: var(--azul-fundo); color: var(--azul-escuro); font-weight: 700; }
@@ -381,13 +382,13 @@
     <div class="marca"><div class="marca-icone">g</div><div><div class="marca-nome">gestor</div><div class="marca-sub">PRESTAÇÃO DE CONTAS</div></div></div>
     <div class="lateral-rotulo">EXECUÇÃO DE PROJETOS</div>
     <nav class="nav" aria-label="Menu principal">
-      <button class="nav-item ativo" id="navProjetos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Projetos</button>
-      <button class="nav-item" id="btnInstituicoes"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6M9 11h.01M15 11h.01"/></svg>Instituições</button>
-      <button class="nav-item" id="navPagamentos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>Pagamentos</button>
-      <button class="nav-item" id="navSit"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Prestação SIT</button>
-      <button class="nav-item" id="navExt"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>Extratos</button>
-      <button class="nav-item oculto" id="navForn"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Fornecedores</button>
-      <button class="nav-item oculto" id="navConfig"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</button>
+      <a class="nav-item ativo" id="navProjetos" href="#projetos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Projetos</a>
+      <a class="nav-item" id="btnInstituicoes" href="#instituicoes"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6M9 11h.01M15 11h.01"/></svg>Instituições</a>
+      <a class="nav-item" id="navPagamentos" href="#pagamentos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>Pagamentos</a>
+      <a class="nav-item" id="navSit" href="#sit"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Prestação SIT</a>
+      <a class="nav-item" id="navExt" href="#extratos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>Extratos</a>
+      <a class="nav-item oculto" id="navForn" href="#fornecedores"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Fornecedores</a>
+      <a class="nav-item oculto" id="navConfig" href="#config"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a>
     </nav>
     <div class="lateral-rodape">
       <div class="lema"><div class="ponto">Gestor de Projetos</div>Do edital à prestação de contas, tudo num lugar só.</div>
@@ -690,7 +691,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.18-d</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.19-a</span></span></div>
   </div>
 </section>
 
@@ -1594,6 +1595,51 @@
     if (rota.tipo === 'extratos' && pode('extratos')) return abrirExtratos(rota.id);
     return mostrarLista();
   }
+  // ---------- abrir em nova aba (Ctrl/⌘ + clique, botão do meio do mouse ou "Abrir link em nova aba")
+  // Menus são links de verdade (<a href="#rota">); cartões de projeto e abas do projeto também aceitam.
+  function rotaNovaAba(el) {
+    const id = el.id;
+    if (id === 'navProjetos') return 'projetos';
+    if (id === 'btnInstituicoes') return 'instituicoes';
+    if (id === 'navPagamentos') return 'pagamentos';
+    if (id === 'navSit') return 'sit/' + (($('sitProjeto') && $('sitProjeto').value) || '');
+    if (id === 'navExt') return 'extratos/' + (($('extProjeto') && $('extProjeto').value) || '');
+    if (id === 'navForn') return 'fornecedores';
+    if (id === 'navConfig') return 'config';
+    if (el.classList.contains('projeto') && el.dataset.id) return 'projeto/' + el.dataset.id + '/dados';
+    if (el.matches('#viewDetalhe .aba[data-aba]') && atual && atual.projeto && atual.projeto.id_projeto) return 'projeto/' + atual.projeto.id_projeto + '/' + el.dataset.aba;
+    return '';
+  }
+  const SEL_NOVA_ABA = 'a.nav-item, #listaProjetos .projeto, #viewDetalhe .aba[data-aba]';
+  const urlRota = r => location.pathname + location.search + '#' + r;
+  // Mantém o href dos menus atualizado (para o botão do meio e o "Abrir link em nova aba" do botão direito)
+  ['mousedown', 'focusin', 'mouseover'].forEach(ev => document.addEventListener(ev, e => {
+    const a = e.target.closest && e.target.closest('a.nav-item');
+    if (a) { const r = rotaNovaAba(a); if (r) a.setAttribute('href', '#' + r); }
+  }, true));
+  document.addEventListener('click', e => {
+    const el = e.target.closest && e.target.closest(SEL_NOVA_ABA);
+    if (!el) return;
+    const novaAba = e.ctrlKey || e.metaKey || e.shiftKey;
+    if (el.tagName === 'A') {
+      if (novaAba) { e.stopPropagation(); return; }   // o navegador abre a nova aba; esta aba fica como está
+      e.preventDefault(); return;                       // clique normal: a própria tela cuida da navegação
+    }
+    if (novaAba) {
+      const r = rotaNovaAba(el);
+      if (r) { e.stopPropagation(); e.preventDefault(); window.open(urlRota(r), '_blank'); }
+    }
+  }, true);
+  document.addEventListener('auxclick', e => {
+    if (e.button !== 1) return;
+    const el = e.target.closest && e.target.closest(SEL_NOVA_ABA);
+    if (!el || el.tagName === 'A') return;              // link: o próprio navegador abre
+    const r = rotaNovaAba(el);
+    if (r) { e.preventDefault(); window.open(urlRota(r), '_blank'); }
+  }, true);
+  // Botão do meio sobre cartão/aba: evita a rolagem automática do navegador
+  document.addEventListener('mousedown', e => { if (e.button === 1 && e.target.closest && e.target.closest('#listaProjetos .projeto, #viewDetalhe .aba[data-aba]')) e.preventDefault(); }, true);
+
   // Botões voltar/avançar do navegador (e do mouse)
   window.addEventListener('popstate', () => { if (usuario && sessao.get()) irParaRota(lerRota()); });
 
