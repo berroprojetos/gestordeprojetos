@@ -700,7 +700,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.19-d</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.19-f</span></span></div>
   </div>
 </section>
 
@@ -717,6 +717,8 @@
           <select id="r_tipo_despesa"><option value="">—</option></select></div>
         <div><label for="r_classificacao_contabil">Classificação contábil (SIT)</label><select id="r_classificacao_contabil"><option value="">—</option></select>
           <div class="dica oculto" id="r_classif_dica" style="margin:4px 0 0">Cadastre as classificações em Configurações → Listas.</div></div>
+        <div class="largo"><label for="r_tipo_despesa_sit">Tipo de despesa no SIT (código)</label><select id="r_tipo_despesa_sit"></select>
+          <div class="dica" style="margin:4px 0 0">Use o mesmo código do item no <b>Plano de Aplicação</b> do SIT. Em "Automático", o código sai da classificação contábil.</div></div>
         <div><label for="r_unidade">Unidade</label><input id="r_unidade" placeholder="un, mês, pacote…"></div>
         <div><label for="r_quantidade">Quantidade *</label><input id="r_quantidade" inputmode="decimal" required></div>
         <div><label for="r_valor_unitario_max">Valor unitário máximo (R$) *</label><input id="r_valor_unitario_max" inputmode="decimal" required></div>
@@ -1941,7 +1943,7 @@
   const calcRubrica = r => Number(r.quantidade || 0) * Number(r.valor_unitario_max || 0) * (Number(r.meses) > 0 ? Number(r.meses) : 1);
   const totalNaoBate = r => Math.abs(calcRubrica(r) - Number(r.valor_total_orcado || 0)) > 0.01;
 
-  const CAMPOS_RUB = ['codigo', 'descricao', 'carga_horaria', 'tipo_despesa', 'classificacao_contabil', 'unidade', 'quantidade', 'valor_unitario_max', 'meses', 'observacoes'];
+  const CAMPOS_RUB = ['codigo', 'descricao', 'carga_horaria', 'tipo_despesa', 'classificacao_contabil', 'tipo_despesa_sit', 'unidade', 'quantidade', 'valor_unitario_max', 'meses', 'observacoes'];
   let rubricaEditando = null;
 
   function abrirRubrica(r) {
@@ -1953,6 +1955,7 @@
     $('r_tipo_despesa').innerHTML = opcoes(TIPOS, r && r.tipo_despesa);
     $('r_classificacao_contabil').innerHTML = opcoes(CLASSIFICACOES, r && r.classificacao_contabil);
     $('r_classif_dica').classList.toggle('oculto', CLASSIFICACOES.length > 0);
+    montarOpcoesTipoSit(r && r.classificacao_contabil);
     CAMPOS_RUB.forEach(c => {
       let v = r ? (r[c] ?? '') : '';
       if (c === 'valor_unitario_max') v = num2(v);
@@ -1972,6 +1975,16 @@
       + (m > 0 ? `  (${numBr(q || 0)} × ${brl(v || 0)} × ${m} meses)` : '');
   }
   ['r_quantidade', 'r_valor_unitario_max', 'r_meses'].forEach(id => $(id).addEventListener('input', atualizarTotalRubrica));
+  /** Lista dos 395 tipos de despesa do SIT (Apêndice A, tabela 12); a 1ª opção é o automático pela classificação */
+  function montarOpcoesTipoSit(classif) {
+    const sel = $('r_tipo_despesa_sit'), atualV = sel.value;
+    const auto = tipoDespesaSit(classif);
+    const todos = Object.entries(TP_DESPESA_SIT).flatMap(([nat, l]) => l.map(x => [x[0], x[1], nat])).sort((a, b) => a[0] - b[0]);
+    sel.innerHTML = `<option value="">Automático${auto ? ` (${auto[0]} – ${esc(auto[1])})` : ' (classificação sem código)'}</option>` +
+      todos.map(x => `<option value="${x[0]}">${x[0]} – ${esc(x[1])} (${x[2]})</option>`).join('');
+    sel.value = atualV;
+  }
+  $('r_classificacao_contabil').addEventListener('change', () => montarOpcoesTipoSit($('r_classificacao_contabil').value));
 
   $('btnNovaRubrica').addEventListener('click', () => abrirRubrica(null));
 
@@ -4015,6 +4028,15 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
   // ---------- códigos do SIT (manual de importação do TCE-PR, v1.994, Apêndice A)
   const TP_DESPESA_SIT = {"3.0.00.00.00":[[1,"DESPESAS CORRENTES"]],"3.1.00.00.00":[[2,"PESSOAL E ENCARGOS SOCIAIS"]],"3.1.90.00.00":[[3,"APLICAÇÕES DIRETAS"]],"3.1.90.04.00":[[4,"CONTRATAÇÃO POR TEMPO DETERMINADO"]],"3.1.90.11.00":[[5,"VENCIMENTOS E VANTAGENS FIXAS - PESSOAL CIVIL"]],"3.1.90.11.01":[[6,"VENCIMENTOS E SALÁRIOS"]],"3.1.90.11.05":[[7,"INCORPORAÇÕES"]],"3.1.90.11.07":[[8,"ABONO PERMANÊNCIA"]],"3.1.90.11.31":[[9,"GRATIFICAÇÃO POR EXERCÍCIO DE CARGOS"]],"3.1.90.11.33":[[10,"GRATIFICAÇÃO POR EXERCÍCIO DE FUNÇÕES"]],"3.1.90.11.37":[[11,"GRATIFICAÇÃO POR TEMPO DE SERVIÇO"]],"3.1.90.11.42":[[12,"FÉRIAS INDENIZADAS"]],"3.1.90.11.43":[[13,"13º SALÁRIO"]],"3.1.90.11.44":[[14,"FÉRIAS - ABONO PECUNIÁRIO"]],"3.1.90.11.45":[[15,"FÉRIAS - ABONO CONSTITUCIONAL"]],"3.1.90.11.46":[[16,"FÉRIAS - PAGAMENTO ANTECIPADO"]],"3.1.90.11.47":[[17,"LICENÇA-PRÊMIO"]],"3.1.90.11.49":[[18,"LICENÇA CAPACITAÇÃO"]],"3.1.90.11.99":[[19,"OUTRAS DESPESAS FIXAS - PESSOAL CIVIL"]],"3.1.90.13.00":[[20,"OBRIGAÇÕES PATRONAIS"]],"3.1.90.13.01":[[21,"FGTS"]],"3.1.90.13.02":[[22,"CONTRIBUIÇÕES PREVIDENCIÁRIAS - INSS"]],"3.1.90.13.05":[[23,"CONTRIBUIÇÕES AO INSS - AGENTES POLÍTICOS E EQUIPARADOS"]],"3.1.90.13.10":[[24,"CONTRIBUIÇÕES AO INSS - COMISSIONADOS NÃO DETENTORES DE CARGO EFETIVO"]],"3.1.90.13.16":[[25,"INSS - REMUNERAÇÃO DOS CONSELHEIROS TUTELARES"]],"3.1.90.13.99":[[26,"OUTRAS OBRIGAÇÕES PATRONAIS"]],"3.1.90.16.00":[[27,"OUTRAS DESPESAS VARIÁVEIS - PESSOAL CIVIL"]],"3.1.90.16.01":[[28,"SESSÕES EXTRAORDINÁRIAS DOS VEREADORES"]],"3.1.90.16.06":[[29,"ABONOS PAGOS C/RECURSOS DO FUNDEB"]],"3.1.90.16.32":[[30,"SUBSTITUIÇÕES"]],"3.1.90.16.44":[[31,"HORAS EXTRAS E SERVIÇOS EXTRAORDINÁRIOS"]],"3.1.90.16.99":[[32,"OUTRAS DESPESAS VARIÁVEIS - PESSOAL CIVIL"]],"3.1.90.34.00":[[33,"OUTRAS DESPESAS DE PESSOAL DECORRENTES DE CONTRATOS DE TERCEIRIZAÇÃO"]],"3.1.90.34.01":[[34,"OUTRAS DESP.C/PESSOAL DECOR.TERCEIR.DE MÃO-DE-OBRA (PROGRAMAS EDUCACIONAIS)"]],"3.1.90.34.02":[[35,"OUTRAS DESP.C/PESSOAL DECOR.TERCEIR.DE MÃO-DE-OBRA (PROGRAMAS DE SAÚDE)"]],"3.1.90.34.03":[[36,"OUTRAS DESP.C/PESSOAL DECOR.TERCEIR.DE MÃO-DE-OBRA (OUTRAS OCUPAÇÕES)"]],"3.1.90.46.00":[[37,"AUXÍLIO-ALIMENTAÇÃO"]],"3.1.90.47.00":[[38,"OBRIGAÇÕES TRIBUTÁRIAS E CONTRIBUTIVAS"]],"3.1.90.47.01":[[39,"INSS SOBRE OUTRAS DESPESAS DE PESSOAL DECORRENTES DE CONTRATOS DE TERCEIRIZAÇÃO E SERVIÇOS"]],"3.1.90.47.99":[[40,"OUTRAS OBRIGAÇÕES TRIBUTÁRIAS E CONTRIBUTIVAS"]],"3.1.90.49.00":[[41,"AUXÍLIO-TRANSPORTE"]],"3.3.00.00.00":[[42,"OUTRAS DESPESAS CORRENTES"]],"3.3.90.00.00":[[43,"APLICAÇÕES DIRETAS"]],"3.3.90.14.00":[[44,"DIÁRIAS - PESSOAL CIVIL"]],"3.3.90.14.14":[[45,"DIÁRIAS NO PAÍS"]],"3.3.90.14.16":[[46,"DIÁRIAS NO EXTERIOR"]],"3.3.90.18.00":[[47,"AUXÍLIO FINANCEIRO A ESTUDANTES"]],"3.3.90.18.04":[[48,"AUXÍLIOS PARA DESENV. DE ESTUDOS E PESQUISAS"]],"3.3.90.18.05":[[49,"AUXÍLIOS FINAN. P/BOLSA AGENTE JOVEM E PETI"]],"3.3.90.18.96":[[50,"AUXÍLIO FINANCEIRO A ESTUDANTES - PAGAMENTO ANTECIPADO"]],"3.3.90.18.99":[[51,"OUTROS AUXÍLIOS FINANCEIROS A ESTUDANTES"]],"3.3.90.20.00":[[52,"AUXÍLIO FINANCEIRO A PESQUISADORES"]],"3.3.90.30.00":[[53,"MATERIAL DE CONSUMO"]],"3.3.90.30.01":[[54,"COMBUSTÍVEIS E LUBRIFICANTES AUTOMOTIVOS"]],"3.3.90.30.02":[[55,"COMBUSTÍVEIS E LUBRIFICANTES DE AVIAÇÃO"]],"3.3.90.30.03":[[56,"COMBUSTÍVEIS E LUBRIFICANTES PARA OUTRAS FINALIDADES"]],"3.3.90.30.04":[[57,"GÁS E OUTROS MATERIAIS ENGARRAFADOS"]],"3.3.90.30.05":[[58,"EXPLOSIVOS E MUNIÇÕES"]],"3.3.90.30.06":[[59,"ALIMENTOS PARA ANIMAIS"]],"3.3.90.30.07":[[60,"GÊNEROS DE ALIMENTAÇÃO"]],"3.3.90.30.08":[[61,"ANIMAIS PARA PESQUISA E ABATE"]],"3.3.90.30.09":[[62,"MATERIAL FARMACOLÓGICO"]],"3.3.90.30.10":[[63,"MATERIAL ODONTOLÓGICO"]],"3.3.90.30.11":[[64,"MATERIAL QUÍMICO"]],"3.3.90.30.12":[[65,"MATERIAL DE COUDELARIA OU DE USO ZOOTÉCNICO"]],"3.3.90.30.13":[[66,"MATERIAL DE CAÇA E PESCA"]],"3.3.90.30.14":[[67,"MATERIAL EDUCATIVO E ESPORTIVO"]],"3.3.90.30.15":[[68,"MATERIAL PARA FESTIVIDADES E HOMENAGENS"]],"3.3.90.30.16":[[69,"MATERIAL DE EXPEDIENTE"]],"3.3.90.30.17":[[70,"MATERIAL DE PROCESSAMENTO DE DADOS"]],"3.3.90.30.18":[[71,"MATERIAIS E MEDICAMENTOS PARA USO VETERINÁRIO"]],"3.3.90.30.19":[[72,"MATERIAL DE ACONDICIONAMENTO E EMBALAGEM"]],"3.3.90.30.20":[[73,"MATERIAL DE CAMA, MESA E BANHO"]],"3.3.90.30.21":[[74,"MATERIAL DE COPA E COZINHA"],[379,"MATERIAIS DE LIMPEZA E PRODUTOS DE HIGIENIZAÇÃO"]],"3.3.90.30.22":[[75,"MATERIAL DE LIMPEZA E PRODUTOS DE HIGIENIZAÇÃO"]],"3.3.90.30.23":[[76,"UNIFORMES, TECIDOS E AVIAMENTOS"]],"3.3.90.30.24":[[77,"MATERIAL PARA MANUTENÇÃO DE BENS IMÓVEIS"]],"3.3.90.30.25":[[78,"MATERIAL PARA MANUTENÇÃO DE BENS MÓVEIS"]],"3.3.90.30.26":[[79,"MATERIAL ELÉTRICO E ELETRÔNICO"]],"3.3.90.30.27":[[80,"MATERIAL DE MANOBRA E PATRULHAMENTO"]],"3.3.90.30.28":[[81,"MATERIAL DE PROTEÇÃO E SEGURANÇA"]],"3.3.90.30.29":[[82,"MATERIAL PARA ÁUDIO, VÍDEO E FOTO"]],"3.3.90.30.30":[[83,"MATERIAL PARA COMUNICAÇÕES"]],"3.3.90.30.31":[[84,"SEMENTES, MUDAS DE PLANTAS E INSUMOS"]],"3.3.90.30.32":[[85,"SUPRIMENTO DE AVIAÇÃO"]],"3.3.90.30.33":[[86,"MATERIAL PARA PRODUÇÃO INDUSTRIAL"]],"3.3.90.30.34":[[87,"SOBRESSALENTES, MÁQUINAS E MOTORES DE NAVIOS E EMBARCACÕES"]],"3.3.90.30.35":[[88,"MATERIAL LABORATORIAL"]],"3.3.90.30.36":[[89,"MATERIAL HOSPITALAR"]],"3.3.90.30.37":[[90,"SOBRESSALENTES DE ARMAMENTO"]],"3.3.90.30.38":[[91,"SUPRIMENTO DE PROTEÇÃO AO VÔO"]],"3.3.90.30.39":[[92,"MATERIAL PARA MANUTENÇÃO DE VEÍCULOS"]],"3.3.90.30.40":[[93,"MATERIAL BIOLÓGICO"]],"3.3.90.30.41":[[94,"MATERIAL PARA UTILIZAÇÃO EM GRÁFICA"]],"3.3.90.30.42":[[95,"FERRAMENTAS"]],"3.3.90.30.43":[[96,"MATERIAL PARA REABILITAÇÃO PROFISSIONAL"]],"3.3.90.30.44":[[97,"MATERIAL DE SINALIZAÇÃO VISUAL E AFINS"]],"3.3.90.30.45":[[98,"MATERIAL TÉCNICO PARA SELEÇÃO E TREINAMENTO"]],"3.3.90.30.46":[[99,"MATERIAL BIBLIOGRÁFICO NÃO IMOBILIZÁVEL"]],"3.3.90.30.47":[[100,"AQUISIÇÃO DE SOFTWARES DE BASE"]],"3.3.90.30.48":[[101,"BENS MÓVEIS NÃO ATIVÁVEIS"]],"3.3.90.30.49":[[102,"BILHETES DE PASSAGEM"]],"3.3.90.30.50":[[103,"BANDEIRAS, FLÂMULAS E INSÍGNIAS"]],"3.3.90.30.51":[[104,"DISCOTECAS E FILMOTECAS NÃO IMOBILIZÁVEL"]],"3.3.90.30.52":[[105,"MATERIAL DE CARÁTER SECRETO OU RESERVADO"]],"3.3.90.30.53":[[106,"MATERIAL METEOROLÓGICO"]],"3.3.90.30.54":[[107,"MATERIAL P/MANUT.CONSERV.DE ESTRADAS E VIAS"]],"3.3.90.30.96":[[108,"MATERIAL DECONSUMO - PAGAMENTO ANTECIPADO"]],"3.3.90.30.99":[[109,"OUTROS MATERIAIS DE CONSUMO"]],"3.3.90.31.00":[[110,"PREM. CULTURAIS, ARTÍSTICAS, CIENTIF. DESPORT. E OUTRAS"]],"3.3.90.31.01":[[111,"PREMIAÇÕES CULTURAIS"]],"3.3.90.31.02":[[112,"PREMIAÇÕES ARTÍSTICAS"]],"3.3.90.31.03":[[113,"PREMIAÇÕES CIENTÍFICAS"]],"3.3.90.31.04":[[114,"PREMIAÇÕES DESPORTIVAS"]],"3.3.90.31.05":[[115,"ORDENS HONORÍFICAS"]],"3.3.90.31.99":[[116,"OUTRAS PREMIAÇÕES"]],"3.3.90.32.00":[[117,"MATERIAL, BEM OU SERVIÇO PARA DISTRIBUIÇÃO GRATUITA"]],"3.3.90.32.01":[[118,"MATERIAIS ESPORTIVOS PARA DISTRIBUIÇÃO GRATUITA"]],"3.3.90.32.02":[[119,"MATERIAIS DE EDUCAÇÃO PARA DISTRIBUIÇÃO GRATUITA"]],"3.3.90.32.03":[[120,"MATERIAIS DE SAÚDE PARA DISTRIBUIÇÃO GRATUITA"]],"3.3.90.32.04":[[121,"MAT. P/DISTRIB. GRATUITA EM PROGR. DE ASSIST. SOCIAL"]],"3.3.90.32.05":[[122,"MERENDA ESCOLAR"]],"3.3.90.32.99":[[123,"OUTROS MATERIAIS PARA DISTRIBUIÇÃO GRATUITA"]],"3.3.90.33.00":[[124,"PASSAGENS E DESPESAS COM LOCOMOÇÃO"]],"3.3.90.33.01":[[125,"PASSAGENS PARA O PAÍS"]],"3.3.90.33.02":[[126,"PASSAGENS PARA O EXTERIOR"]],"3.3.90.33.03":[[127,"DESPESAS COM TRANSPORTE ESCOLAR"]],"3.3.90.33.05":[[128,"LOCOMOÇÃO URBANA"]],"3.3.90.33.06":[[129,"LOCAÇÃO DE VEÍCULOS PARA LOCOMOÇÃO"]],"3.3.90.33.99":[[130,"OUTRAS DESPESAS DE LOCOMOÇÃO"]],"3.3.90.35.00":[[131,"SERVIÇOS DE CONSULTORIA"]],"3.3.90.35.01":[[132,"ASSESSORIA E CONSULTORIA TÉCNICA OU JURÍDICA"]],"3.3.90.35.02":[[133,"AUDITORIA EXTERNA"]],"3.3.90.35.99":[[134,"OUTROS SERVIÇOS DE CONSULTORIA"]],"3.3.90.36.00":[[135,"OUTROS SERVIÇOS DE TERCEIROS - PESSOA FÍSICA"]],"3.3.90.36.01":[[136,"CONDOMÍNIOS"]],"3.3.90.36.02":[[137,"DIÁRIAS A COLABORADORES EVENTUAIS NO PAÍS"]],"3.3.90.36.03":[[138,"DIÁRIAS A COLABORADORES EVENTUAIS NO EXTERIOR"]],"3.3.90.36.04":[[139,"COMISSÕES E CORRETAGENS"]],"3.3.90.36.05":[[140,"DIREITOS AUTORAIS"]],"3.3.90.36.06":[[141,"SERVIÇOS TÉCNICOS PROFISSIONAIS"]],"3.3.90.36.07":[[142,"ESTAGIÁRIOS"]],"3.3.90.36.09":[[143,"SALÁRIOS DE INTERNOS EM PENITENCIÁRIAS"]],"3.3.90.36.10":[[144,"PERÍCIAS TÉCNICAS JUSTIÇA GRATUITA"]],"3.3.90.36.11":[[145,"PRÓ-LABORE A CONSULTORES EVENTUAIS"]],"3.3.90.36.12":[[146,"CAPATAZIA, ESTIVA E PESAGEM"]],"3.3.90.36.13":[[147,"CONFERÊNCIAS, EXPOSIÇÕES E ESPETÁCULOS"]],"3.3.90.36.14":[[148,"ARMAZENAGEM"]],"3.3.90.36.15":[[149,"LOCAÇÃO DE IMÓVEIS"]],"3.3.90.36.16":[[150,"LOCAÇÃO DE BENS MÓVEIS E INTANGÍVEIS"]],"3.3.90.36.18":[[151,"MANUTENÇÃO E CONSERVAÇÃO DE EQUIPAMENTOS"]],"3.3.90.36.20":[[152,"MANUTENÇÃO E CONSERVAÇÃO DE VEÍCULOS"]],"3.3.90.36.21":[[153,"MANUTENÇÃO E CONSERVAÇÃO DE BENS MÓVEIS DE OUTRAS NATUREZAS"]],"3.3.90.36.22":[[154,"MANUTENÇÃO E CONSERVAÇÃO DE BENS IMÓVEIS"]],"3.3.90.36.23":[[155,"FORNECIMENTO DE ALIMENTAÇÃO"]],"3.3.90.36.24":[[156,"SERVIÇOS DE CARÁTER SECRETO OU RESERVADO"]],"3.3.90.36.25":[[157,"SERVIÇOS DE LIMPEZA E CONSERVAÇÃO"]],"3.3.90.36.26":[[158,"SERVIÇOS DOMÉSTICOS"]],"3.3.90.36.27":[[159,"SERVIÇOS DE COMUNICAÇÃO EM GERAL"]],"3.3.90.36.28":[[160,"SERVIÇO DE SELEÇÃO E TREINAMENTO"]],"3.3.90.36.29":[[161,"HONORÁRIOS ADVOCATÍCIOS - ÔNUS DA SUCUMBÊNCIA"]],"3.3.90.36.30":[[162,"SERVIÇOS MÉDICOS E ODONTOLÓGICOS"]],"3.3.90.36.31":[[163,"SERVIÇOS DE REABILITAÇÃO PROFISSIONAL"]],"3.3.90.36.32":[[164,"SERVIÇOS DE ASSISTÊNCIA SOCIAL"]],"3.3.90.36.34":[[165,"SERVIÇOS DE PERÍCIAS MÉDICAS POR BENEFÍCIOS"]],"3.3.90.36.35":[[166,"SERVIÇO DE APOIO ADMINISTRATIVO, TÉCNICO E OPERACIONAL"]],"3.3.90.36.36":[[167,"SERVIÇO DE CONSERVAÇÃO E REBENEFICIAMENTO DE MERCADORIAS"]],"3.3.90.36.37":[[168,"CONFECÇÃO DE MATERIAL DE ACONDICIONAMENTO E EMBALAGEM"]],"3.3.90.36.38":[[169,"CONFECÇÃO DE UNIFORMES, BANDEIRAS E FLÂMULAS"]],"3.3.90.36.39":[[170,"FRETES E TRANSPORTES DE ENCOMENDAS"]],"3.3.90.36.40":[[171,"ENCARGOS FINANCEIROS DEDUTÍVEIS"]],"3.3.90.36.41":[[172,"MULTAS DEDUTÍVEIS"]],"3.3.90.36.42":[[173,"JUROS"]],"3.3.90.36.43":[[174,"ENCARGOS FINANCEIROS INDEDUTÍVEIS"]],"3.3.90.36.44":[[175,"MULTAS INDEDUTÍVEIS"]],"3.3.90.36.45":[[176,"JETONS A CONSELHEIROS"]],"3.3.90.36.46":[[177,"DIÁRIAS A CONSELHEIROS"]],"3.3.90.36.59":[[178,"SERVIÇOS DE ÁUDIO, VÍDEO E FOTO"]],"3.3.90.36.66":[[179,"SERVIÇOS JUDICIÁRIOS"]],"3.3.90.36.89":[[180,"MANUTENÇÃO DE REPARTIÇÕES, SERVIÇO EXTERIOR"]],"3.3.90.36.96":[[181,"OUTROS SERVIÇOS DE TERCEIROS PF - PAGAMENTO ANTECIPADO"]],"3.3.90.36.99":[[182,"OUTROS SERVIÇOS DE PESSOA FÍSICA"]],"3.3.90.37.00":[[183,"LOCAÇÃO DE MÃO-DE-OBRA"]],"3.3.90.37.01":[[184,"APOIO ADMINISTRATIVO, TÉCNICO E OPERACIONAL"]],"3.3.90.37.02":[[185,"LIMPEZA E CONSERVAÇÃO"]],"3.3.90.37.03":[[186,"VIGILÂNCIA OSTENSIVA"]],"3.3.90.37.04":[[187,"MANUTENÇÃO E CONSERVAÇÃO DE BENS IMÓVEIS"]],"3.3.90.37.05":[[188,"SERVIÇOS DE COPA E COZINHA"]],"3.3.90.37.06":[[189,"MANUTENÇÃO E CONSERVAÇÃO DE BENS MÓVEIS"]],"3.3.90.37.07":[[190,"LOCAÇÃO DE MÃO-DE-OBRA DE LIMPEZA PÚBLICA"]],"3.3.90.37.99":[[191,"OUTRAS LOCAÇOES DE MÃO-DE-OBRA"]],"3.3.90.39.00":[[192,"OUTROS SERVIÇOS DE TERCEIROS - PESSOA JURÍDICA"]],"3.3.90.39.01":[[193,"ASSINATURAS DE PERIÓDICOS E ANUIDADES"]],"3.3.90.39.02":[[194,"CONDOMÍNIOS"]],"3.3.90.39.03":[[195,"COMISSÕES, CORRETAGENS E CUSTÓDIA"]],"3.3.90.39.04":[[196,"DIREITOS AUTORAIS"]],"3.3.90.39.05":[[197,"SERVIÇOS TÉCNICOS PROFISSIONAIS"]],"3.3.90.39.06":[[198,"CAPATAZIA, ESTIVA E PESAGEM"]],"3.3.90.39.07":[[199,"DESCONTOS FINANCEIROS CONCEDIDOS"]],"3.3.90.39.08":[[200,"MANUTENÇÃO DE SOFTWARE"]],"3.3.90.39.09":[[201,"ARMAZENAGEM"]],"3.3.90.39.10":[[202,"LOCAÇÃO DE IMÓVEIS"]],"3.3.90.39.11":[[203,"LOCAÇÃO DE SOFTWARES"]],"3.3.90.39.12":[[204,"LOCAÇÃO DE MÁQUINAS E EQUIPAMENTOS"]],"3.3.90.39.13":[[205,"PERÍCIAS TÉCNICAS JUSTIÇA GRATUITA"]],"3.3.90.39.14":[[206,"LOCAÇÃO BENS MÓVEIS E OUTRAS NATUREZAS E INTANGÍVEIS"]],"3.3.90.39.16":[[207,"MANUTENÇÃO E CONSERVAÇÃO DE BENS IMÓVEIS"]],"3.3.90.39.17":[[208,"MANUTENÇÃO E CONSERVAÇÃO DE MÁQUINAS E EQUIPAMENTOS"]],"3.3.90.39.19":[[209,"MANUTENÇÃO E CONSERVAÇÃO DE VEÍCULOS"]],"3.3.90.39.20":[[210,"MANUTENÇÃO E CONSERVAÇÃO DE BENS MÓVEIS DE OUTRAS NATUREZAS"]],"3.3.90.39.21":[[211,"MANUTENÇÃO E CONSERVAÇÃO DE ESTRADAS E VIAS"]],"3.3.90.39.22":[[212,"EXPOSIÇÕES, CONGRESSOS E CONFERÊNCIAS"]],"3.3.90.39.23":[[213,"FESTIVIDADES E HOMENAGENS"]],"3.3.90.39.29":[[214,"HONORÁRIOS ADVOCATÍCIOS - ÔNUS DA SUCUMBÊNCIA"]],"3.3.90.39.35":[[215,"MULTAS DEDUTÍVEIS"]],"3.3.90.39.36":[[216,"MULTAS INDEDUTÍVEIS"]],"3.3.90.39.37":[[217,"JUROS"]],"3.3.90.39.38":[[218,"ENCARGOS FINANCEIROS DEDUTÍVEIS"]],"3.3.90.39.39":[[219,"ENCARGOS FINANCEIROS INDEDUTÍVEIS"]],"3.3.90.39.40":[[220,"PROGRAMA DE ALIMENTAÇÃO DO TRABALHADOR"]],"3.3.90.39.41":[[221,"FORNECIMENTO DE ALIMENTAÇÃO"]],"3.3.90.39.42":[[222,"SERVIÇOS DE CARÁTER SECRETO OU RESERVADO"]],"3.3.90.39.43":[[223,"SERVIÇOS DE ENERGIA ELÉTRICA"]],"3.3.90.39.44":[[224,"SERVIÇOS DE ÁGUA E ESGOTO"]],"3.3.90.39.45":[[225,"SERVIÇOS DE GÁS"]],"3.3.90.39.46":[[226,"SERVIÇOS DOMÉSTICOS"]],"3.3.90.39.47":[[227,"SERVIÇOS DE COMUNICAÇÃO EM GERAL"]],"3.3.90.39.48":[[228,"SERVIÇO DE SELEÇÃO E TREINAMENTO"]],"3.3.90.39.49":[[229,"PRODUÇÕES JORNALÍSTICAS"]],"3.3.90.39.50":[[230,"SERVIÇO MÉDICO - HOSPITALAR, ODONTOLÓGICO E LABORATORIAL"]],"3.3.90.39.51":[[231,"SERVIÇOS DE ANÁLISES E PESQUISAS CIENTÍFICAS"]],"3.3.90.39.52":[[232,"SERVIÇOS DE REABILITAÇÃO PROFISSIONAL"]],"3.3.90.39.53":[[233,"SERVIÇOS DE ASSISTÊNCIA SOCIAL"]],"3.3.90.39.54":[[234,"SERVIÇOS DE CRECHES E ASSISTÊNCIA PRÉ-ESCOLAR"]],"3.3.90.39.56":[[235,"SERVIÇOS DE PERÍCIAS MÉDICAS PARA BENEFÍCIOS"]],"3.3.90.39.57":[[236,"SERVIÇOS DE PROCESSAMENTO DE DADOS"]],"3.3.90.39.58":[[237,"SERVIÇOS DE TELECOMUNICAÇÕES"]],"3.3.90.39.59":[[238,"SERVIÇOS DE ÁUDIO, VÍDEO E FOTO"]],"3.3.90.39.60":[[239,"SERVIÇOS DE MANOBRA E PATRULHAMENTO"]],"3.3.90.39.61":[[240,"SERVIÇOS DE SOCORRO E SALVAMENTO"]],"3.3.90.39.62":[[241,"SERVIÇOS DE PRODUÇÃO INDUSTRIAL"]],"3.3.90.39.63":[[242,"SERVIÇOS GRÁFICOS E EDITORIAIS"]],"3.3.90.39.65":[[243,"SERVIÇOS DE APOIO AO ENSINO"]],"3.3.90.39.66":[[244,"SERVIÇOS JUDICIÁRIOS"]],"3.3.90.39.67":[[245,"SERVIÇOS FUNERÁRIOS"]],"3.3.90.39.68":[[246,"SERVIÇO DE CONSERVAÇÃO E REBENEFICIAMENTO DE MERCADORIAS"]],"3.3.90.39.69":[[247,"SEGUROS EM GERAL"]],"3.3.90.39.70":[[248,"CONFECÇÃO DE UNIFORMES, BANDEIRAS E FLÂMULAS"]],"3.3.90.39.71":[[249,"CONFECÇÃO DE MATERIAL DE ACONDICIONAMENTO E EMBALAGEM"]],"3.3.90.39.72":[[250,"VALE-TRANSPORTE"]],"3.3.90.39.73":[[251,"TRANSPORTE DE SERVIDORES"]],"3.3.90.39.74":[[252,"FRETES E TRANSPORTES DE ENCOMENDAS"]],"3.3.90.39.75":[[253,"SERVIÇO DE INCINERAÇÃO/DESTRUIÇÃO DE MATERIAL"]],"3.3.90.39.76":[[254,"CLASSIFICAÇÃO DE PRODUTOS"]],"3.3.90.39.77":[[255,"VIGILÂNCIA OSTENSIVA/MONITORADA"]],"3.3.90.39.78":[[256,"LIMPEZA E CONSERVAÇÃO"]],"3.3.90.39.79":[[257,"SERVIÇO DE APOIO ADMINISTRATIVO, TÉCNICO E OPERACIONAL"]],"3.3.90.39.80":[[258,"HOSPEDAGENS"]],"3.3.90.39.81":[[259,"SERVIÇOS BANCÁRIOS"]],"3.3.90.39.82":[[260,"SERVIÇOS DE CONTROLE AMBIENTAL"]],"3.3.90.39.83":[[261,"SERVIÇOS DE CÓPIAS E REPRODUÇÃO DE DOCUMENTOS"]],"3.3.90.39.85":[[262,"SERVIÇOS EM ITENS REPARÁVEIS DE AVIAÇÃO"]],"3.3.90.39.87":[[263,"SERVIÇOS RELACIONADOS À INDUSTRIALIZAÇÃO AEROESPACIAL"]],"3.3.90.39.88":[[264,"SERVIÇOS DE PUBLICIDADE E PROPAGANDA"]],"3.3.90.39.89":[[265,"MANUTENÇÃO DE REPARTIÇÕES - SERVIÇO EXTERIOR"]],"3.3.90.39.90":[[266,"SERVIÇOS DE PUBLICIDADE LEGAL"]],"3.3.90.39.94":[[267,"AQUISIÇÃO DE SOFTWARES DE APLICAÇÃO"]],"3.3.90.39.95":[[268,"MANUTENÇÃO CONSERVAÇÃO DE EQUIPAMENTOS DE PROCESSAMENTO DE DADOS"]],"3.3.90.39.96":[[269,"OUTROS SERVIÇOS DE TERCEIROS PJ - PAGAMENTO ANTECIPADO"]],"3.3.90.39.97":[[270,"DESPESAS DE TELEPROCESSAMENTO"]],"3.3.90.39.99":[[271,"OUTROS SERVIÇOS DE TERCEIROS, PESSOA JURÍDICA"]],"3.3.90.46.00":[[272,"AUXÍLIO-ALIMENTAÇÃO"]],"3.3.90.46.01":[[273,"INDENIZAÇÃO AUXÍLIO-ALIMENTAÇÃO"]],"3.3.90.47.00":[[274,"OBRIGAÇÕES TRIBUTÁRIAS E CONTRIBUTIVAS"]],"3.3.90.47.10":[[275,"TAXAS"]],"3.3.90.47.12":[[276,"CONTRIBUIÇÃO PARA O PIS/PASEP"]],"3.3.90.47.15":[[277,"MULTAS"]],"3.3.90.47.16":[[278,"JUROS"]],"3.3.90.47.18":[[279,"CONTRIBUIÇÕES PREVIDENCIÁRIAS - SERVIÇOS DE TERCEIROS"]],"3.3.90.47.19":[[280,"INSS - DIÁRIAS"]],"3.3.90.47.22":[[281,"CONTRIBUIÇÃO PARA O CUSTEIO DA ILUMINAÇÃO PÚBLICA"]],"3.3.90.47.99":[[282,"OUTRAS OBRIGAÇÕES TRIBUTÁRIAS E CONTRIBUTIVAS"]],"3.3.90.48.00":[[283,"OUTROS AUXÍLIOS FINANCEIROS A PESSOAS FÍSICAS"]],"3.3.90.48.01":[[284,"AUXÍLIOS A PESSOAS FÍSICAS"]],"3.3.90.48.96":[[285,"AUXÍLIOS A PESSOAS FÍSICAS – PAGTO. ANTECIPADO"]],"3.3.90.49.00":[[286,"AUXÍLIO-TRANSPORTE"]],"3.3.90.49.01":[[287,"INDENIZAÇÃO AUXÍLIO-TRANSPORTE"]],"4.0.00.00.00":[[288,"DESPESAS DE CAPITAL"]],"4.4.00.00.00":[[289,"INVESTIMENTOS"]],"4.4.90.00.00":[[290,"APLICAÇÕES DIRETAS"]],"4.4.90.14.00":[[291,"DIÁRIAS - CIVIL"]],"4.4.90.20.00":[[292,"AUXÍLIO FINANCEIRO A PESQUISADORES"]],"4.4.90.30.00":[[293,"MATERIAL DE CONSUMO"]],"4.4.90.30.99":[[294,"OUTROS MATERIAIS DE CONSUMO"]],"4.4.90.33.00":[[295,"PASSAGENS E DESPESAS COM LOCOMOÇÃO"]],"4.4.90.35.00":[[296,"SERVIÇOS DE CONSULTORIA"]],"4.4.90.36.00":[[297,"OUTROS SERVIÇOS DE TERCEIROS - PESSOA FÍSICA"]],"4.4.90.36.99":[[298,"OUTROS SERVIÇOS DE PESSOA FÍSICA"]],"4.4.90.39.00":[[299,"OUTROS SERVIÇOS DE TERCEIROS - PESSOA JURÍDICA"]],"4.4.90.39.99":[[300,"OUTROS SERVIÇOS DE TERCEIROS, PESSOA JURÍDICA"]],"4.4.90.47.00":[[301,"OBRIGAÇÕES TRIBUTÁRIAS E CONTRIBUTIVAS"]],"4.4.90.47.01":[[302,"INSS SOBRE OUTROS SERVIÇOS DE TERCEIROS - PESSOA FÍSICA"]],"4.4.90.47.02":[[303,"INSS SOBRE OUTROS SERVIÇOS DE TERCEIROS - PESSOA JURÍDICA"]],"4.4.90.47.99":[[304,"OUTRAS OBRIGAÇÕES TRIBUTÁRIAS E CONTRIBUTIVAS"]],"4.4.90.51.00":[[305,"OBRAS E INSTALAÇÕES"]],"4.4.90.51.01":[[306,"CONSTR. INSTAL. AMPLIAÇ. E REFORMAS BENS PATRIM."]],"4.4.90.51.02":[[307,"CONSTR. INSTAL. AMPLIAÇ. E REFORMAS EM OBRAS DOM. PUBL."]],"4.4.90.51.91":[[308,"OBRAS EM ANDAMENTO"]],"4.4.90.51.92":[[309,"INSTALAÇÕES"]],"4.4.90.51.93":[[310,"BENFEITORIAS EM PROPRIEDADES DE TERCEIROS"]],"4.4.90.51.99":[[311,"OUTRAS OBRAS E INSTALAÇÕES"]],"4.4.90.52.00":[[312,"EQUIPAMENTOS E MATERIAL PERMANENTE"]],"4.4.90.52.02":[[313,"AERONAVES"]],"4.4.90.52.04":[[314,"APARELHOS DE MEDIÇÃO E ORIENTAÇÃO"]],"4.4.90.52.06":[[315,"APARELHOS E EQUIPAMENTOS DE COMUNICAÇÃO"]],"4.4.90.52.08":[[316,"APARELHOS, EQUIPAMENTOS, UTENSÍLIOS MÉDICO-ODONTOLÓGICO, LABORATORIAL E HOSPITALAR"]],"4.4.90.52.10":[[317,"APARELHOS E EQUIPAMENTOS PARA ESPORTES E DIVERSÕES"]],"4.4.90.52.12":[[318,"APARELHOS E UTENSÍLIOS DOMÉSTICOS"]],"4.4.90.52.14":[[319,"ARMAMENTOS"]],"4.4.90.52.18":[[320,"COLEÇÕES E MATERIAIS BIBLIOGRÁFICOS"]],"4.4.90.52.19":[[321,"DISCOTECAS E FILMOTECAS"]],"4.4.90.52.20":[[322,"EMBARCAÇÕES"]],"4.4.90.52.22":[[323,"EQUIPAMENTOS DE MANOBRA E PATRULHAMENTO"]],"4.4.90.52.24":[[324,"EQUIPAMENTO DE PROTEÇÃO, SEGURANÇA E SOCORRO"]],"4.4.90.52.26":[[325,"INSTRUMENTOS MUSICAIS E ARTÍSTICOS"]],"4.4.90.52.28":[[326,"MÁQUINAS E EQUIPAM. DE NATUREZA INDUSTRIAL"]],"4.4.90.52.30":[[327,"MÁQUINAS E EQUIPAMENTOS ENERGÉTICOS"]],"4.4.90.52.32":[[328,"MÁQUINAS E EQUIPAMENTOS GRÁFICOS"]],"4.4.90.52.33":[[329,"EQUIPAMENTOS PARA ÁUDIO, VÍDEO E FOTO"]],"4.4.90.52.34":[[330,"MÁQUINAS, UTENSÍLIOS E EQUIPAMENTOS DIVERSOS"]],"4.4.90.52.35":[[331,"EQUIPAMENTOS DE PROCESSAMENTO DE DADOS"]],"4.4.90.52.36":[[332,"MÁQUINAS, INSTALAÇÕES E UTENSÍLIOS DE ESCRITÓRIOS"]],"4.4.90.52.38":[[333,"MÁQUINAS, FERRAMENTAS E UTENSÍLIOS DE OFICINA"]],"4.4.90.52.39":[[334,"EQUIPAMENTOS E UTENSÍLIOS HIDRÁULICOS E ELÉTRICOS"]],"4.4.90.52.40":[[335,"MÁQUINAS E EQUIPAMENTOS AGRÍCOLAS E RODOVIÁRIOS"]],"4.4.90.52.42":[[336,"MOBILIÁRIO EM GERAL"]],"4.4.90.52.44":[[337,"OBRAS DE ARTE E PEÇAS PARA MUSEU"]],"4.4.90.52.46":[[338,"SEMOVENTES E EQUIPAMENTOS DE MONTARIA"]],"4.4.90.52.48":[[339,"VEÍCULOS DIVERSOS"]],"4.4.90.52.50":[[340,"VEÍCULOS FERROVIÁRIOS"]],"4.4.90.52.51":[[341,"PEÇAS NÃO INCORPORÁVEIS A IMÓVEIS"]],"4.4.90.52.52":[[342,"VEÍCULOS DE TRAÇÃO MECÂNICA"]],"4.4.90.52.53":[[343,"CARROS DE COMBATE"]],"4.4.90.52.54":[[344,"EQUIPAMENTOS, PEÇAS E ACESSÓRIOS AERONÁUTICOS"]],"4.4.90.52.56":[[345,"EQUIPAMENTOS, PEÇAS E ACESSÓRIOS DE PROTEÇÃO AO VÔO"]],"4.4.90.52.57":[[346,"ACESSÓRIOS PARA AUTOMÓVEIS"]],"4.4.90.52.58":[[347,"EQUIPAMENTOS DE MERGULHO E SALVAMENTO"]],"4.4.90.52.60":[[348,"EQUIPAMENTOS, PEÇAS E ACESSÓRIOS MARÍTIMOS"]],"4.4.90.52.83":[[349,"EQUIPAMENTOS E SISTEMA DE PROTEÇÃO E VIGILÂNCIA AMBIENTAL"]],"4.4.90.52.87":[[350,"MATERIAL DE CONSUMO DE USO DURADOURO"]],"4.4.90.52.89":[[351,"EQUIPAMENTOS, SOBRESSALENTES DE MÁQUINAS, MOTOR DE NAVIOS DE ESQUADRA"]],"4.4.90.52.96":[[352,"EQUIPAMENTOS E MATERIAL PERMANENTE - PGTO. ANTECIPADO"]],"4.4.90.52.99":[[353,"OUTROS MATERIAIS PERMANENTES"]],"4.4.90.61.00":[[354,"AQUISIÇÃO DE IMÓVEIS"]],"4.4.90.61.01":[[355,"EDIFÍCIOS"]],"4.4.90.61.03":[[356,"TERRENOS"]],"4.4.90.61.06":[[357,"SALAS E ESCRITÓRIOS"]],"4.4.90.61.07":[[358,"CASAS E APARTAMENTOS"]],"4.4.90.61.08":[[359,"ARMAZÉNS E SILOS"]],"4.4.90.61.99":[[360,"OUTROS BENS IMÓVEIS"]],"3.1.90.13.18":[[361,"CONTRIBUIÇÃO PARA O PIS/PASEP S/ A FOLHA DE PAGAMENTO"]],"3.3.90.37.08":[[362,"LOCAÇÃO DE MÃO DE OBRA PARA COLETA DE RESÍDUOS SÓLIDOS"]],"3.1.90.94.00":[[363,"INDENIZAÇÕES E RESTITUIÇÕES TRABALHISTAS"]],"3.3.90.40.00":[[364,"SERVIÇOS DE TECNOLOGIA DA INFORMAÇÃO E COMUNICAÇÃO -"]],"3.3.90.40.97":[[365,"PESSOA JURÍDICA DESPESAS DE TELEPROCESSAMENTO"]],"3.3.90.40.08":[[366,"MANUTENÇÃO DE SOFTWARES"]],"3.3.90.40.11":[[367,"LOCAÇÃO DE SOFTWARES"]],"3.3.90.40.57":[[368,"SERVIÇOS DE PROCESSAMENTO DE DADOS"]],"3.3.90.40.12":[[369,"LOCAÇÃO DE MÁQUINAS E EQUIPAMENTOS"]],"3.3.90.41.01":[[370,"AUXÍLIO A MUNICÍPIOS"]],"4.4.90.40.00":[[371,"SERVIÇOS DE TECNOLOGIA DA INFORMAÇÃO E COMUNICAÇÃO -"]],"3.1.90.67.00":[[372,"PESSOA JURÍDICA DEPÓSITOS COMPULSÓRIOS"]],"3.1.90.67.02":[[373,"DEPÓSITOS JUDICIAIS"]],"3.1.90.67.03":[[374,"DEPÓSITOS PARA RECURSOS"]],"3.1.90.91.02":[[375,"DESPESAS INCORPORAVEIS NO LIMITE DE GASTOS COM PESSOAL"]],"3.1.90.91.00":[[376,"SENTENÇAS JUDICIAIS"]],"3.3.90.91.00":[[378,"MANUTENÇÃO CONSERVAÇÃO DE EQUIPAMENTOS DE                                            3                    3            90         40           95 377 PROCESSAMENTO DE DADOS SENTENÇAS JUDICIAIS"]],"3.1.90.11.04":[[380,"ADICIONAL NOTURNO"]],"3.3.90.40.14":[[381,"TELEFONIA FIXA E MÓVEL - PACOTE DE COMUNICAÇÃO DE DADOS"]],"3.3.90.39.32":[[382,"TRANSPORTE ESCOLAR"]],"3.3.90.30.60":[[383,"MATERIAL DIDÁTICO"]],"3.3.90.40.06":[[384,"LOCAÇÕES DE SOFTWARES"]],"3.1.90.11.10":[[385,"ADICIONAL DE INSALUBRIDADE"]],"3.1.90.13.07":[[387,"OUTROS SERVIÇOS DE TECNOLOGIA DA INFORMAÇÃO E                                        3                    3            90         40           99 386 COMUNICAÇÃO - PESSOA JURÍDICA CONTRIBUIÇÃO AO INSS - CONTRATO POR TEMPO DETERMINADO"]],"3.3.90.48.99":[[388,"DEMAIS AUXÍLIOS FINANCEIROS A PESSOAS FÍSICAS"]],"3.1.90.08.56":[[389,"SALÁRIO FAMÍLIA"]],"3.1.90.08.00":[[390,"OUTROS BENEFÍCIOS ASSISTENCIAIS"]],"3.3.90.93.00":[[391,"INDENIZAÇÕES E RESTITUIÇÕES"]],"3.3.90.93.14":[[392,"RESSARCIMENTO DE PASSAGENS E DESPESAS COM LOCOMOÇÃO"]],"3.1.90.04.01":[[393,"SALÁRIO CONTRATO TEMPORÁRIO"]],"3.1.90.04.13":[[394,"13º SALÁRIO CONTRATO TEMPORÁRIO"]],"3.1.90.04.14":[[395,"FÉRIAS - ABONO CONSTITUCIONAL - CONTRATO TEMPORÁRIO"]]};
   /** Classificação contábil "3.3.90.39.99 - Outros…" → [código do tipo de despesa do SIT, descrição] */
+  /** Código do SIT do lançamento: o escolhido na rubrica ou, se não houver, o da classificação contábil */
+  function tipoSitDe(x) {
+    const c = Number(x && x.tipo_despesa_sit);
+    if (c) {
+      for (const l of Object.values(TP_DESPESA_SIT)) { const a = l.find(y => y[0] === c); if (a) return a; }
+      return [c, 'código escolhido na rubrica'];
+    }
+    return tipoDespesaSit(x && x.classificacao_contabil);
+  }
   function tipoDespesaSit(classif) {
     const m = String(classif || '').match(/(\d)\.(\d)\.(\d{2})\.(\d{2})(?:\.(\d{2}))?/);
     if (!m) return null;
@@ -4074,7 +4096,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     divergentes.forEach(x => pend.push(`<b>${esc(x.contratado)}</b>: ⚠️ ${esc(x.nf.divergencias)}`));
     const semClass = lanc.filter(x => !x.classificacao_contabil), semDatas = lanc.filter(x => !x.data_cotacao || !x.data_contrato);
     if (semClass.length) pend.push(`<b>Classificação contábil</b> não preenchida na rubrica de: ${[...new Set(semClass.map(x => esc(x.rubrica)))].join(', ')} (preencha no Orçamento do projeto)`);
-    const semTipoSit = lanc.filter(x => x.classificacao_contabil && !tipoDespesaSit(x.classificacao_contabil));
+    const semTipoSit = lanc.filter(x => x.classificacao_contabil && !tipoSitDe(x));
     if (semTipoSit.length) pend.push(`<b>Tipo de despesa do SIT</b> não encontrado para a classificação: ${[...new Set(semTipoSit.map(x => esc(x.classificacao_contabil)))].join(', ')} (confira o número da natureza, ex.: 3.3.90.39.99)`);
     const semNumPg = lanc.filter(x => !(x.pagamento || {}).num_identificacao_pix);
     if (semNumPg.length) pend.push(`<b>Nº do documento de pagamento</b> (o número do extrato) faltando em: ${[...new Set(semNumPg.map(x => esc(x.contratado)))].join(', ')}`);
@@ -4085,7 +4107,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       const nf = x.nf || {}, pg = x.pagamento || {};
       const conf = idxSt(x.status) >= idxSt('Conferida'), lancada = x.status === 'Lançada no SIT';
       const docFav = digitos(nf.cnpj_emitente || x.contratado_cnpj).length === 11 ? 'CPF' : 'CNPJ';
-      const tpSit = tipoDespesaSit(x.classificacao_contabil), proc = processoSit(x);
+      const tpSit = tipoSitDe(x), proc = processoSit(x);
       return `<tr>
         <td>${ed && conf ? `<input type="checkbox" data-sitsel value="${esc(x.id_parcela)}" aria-label="Selecionar">` : ''}</td>
         <td><b>${cp(nf.razao_social_emitente || x.contratado)}</b><br><small>${docFav}</small> <small>${cp(nf.cnpj_emitente || x.contratado_cnpj)}</small><br><small>${esc(x.rubrica)}</small>
@@ -4165,6 +4187,8 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
         </table></div>
       </section>
 
+      <section class="painel" id="sitExtratos">${htmlExtratosSit(b, ed)}</section>
+
       <section class="painel">
         <div class="titulo-linha"><h2 style="font-size:16px">Dados do bimestre</h2>
           <div class="sit-acoes">
@@ -4236,6 +4260,63 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
 
   // Recalcula na hora: saldo final do mês = inicial + outros créditos + rendimentos − despesas;
   // o saldo final do 1º mês vira o saldo inicial do 2º.
+  // ---------- extratos bancários anexados no bimestre (um mês por linha; CC, aplicação e BB Rende Mais)
+  const TIPOS_EXT_SIT = [['CC', 'Extrato conta corrente'], ['APLIC', 'Extrato aplicação'], ['RENDE', 'Extrato BB Rende Mais']];
+  function htmlExtratosSit(b, ed) {
+    const anexos = b.extratos_anexos || {};
+    const cel = (mes, tipo) => {
+      const a = (anexos[mes] || {})[tipo];
+      if (a) return `<div style="display:flex;flex-direction:column;gap:3px">
+          <span style="font-size:12px;word-break:break-word" title="${esc(a.nome)}">📄 ${esc(a.nome)}</span>
+          <span style="font-size:13px"><a href="https://drive.google.com/file/d/${esc(a.drive_file_id)}/view" target="_blank" rel="noopener">👁 Abrir</a>
+          · <a href="https://drive.google.com/uc?export=download&id=${esc(a.drive_file_id)}">⬇ Baixar</a>
+          ${ed ? ` · <button type="button" class="btn-link" data-extsit-trocar="${esc(mes)}|${tipo}">Substituir</button>
+          · <button type="button" class="btn-link" style="color:var(--alerta)" data-extsit-excluir="${esc(a.id_documento)}" data-extsit-mes="${esc(mes)}">Excluir</button>` : ''}</span>
+          <small class="dica" style="margin:0">anexado em ${dataBr(a.enviado_em)}</small></div>`;
+      return ed ? `<button type="button" class="btn-sec" style="padding:5px 12px" data-extsit-trocar="${esc(mes)}|${tipo}">📎 Anexar</button>`
+        : '<span class="dica" style="margin:0">não anexado</span>';
+    };
+    return `<div class="titulo-linha"><h2 style="font-size:16px">Extratos bancários do bimestre</h2></div>
+      <p class="dica" style="margin-top:-6px">Anexe os extratos de cada mês (PDF ou imagem). Os arquivos vão para a pasta “03 Extratos bancários” do projeto no Drive,
+        com o nome no padrão “Mês/Ano termo Extrato … - Agencia … Conta …”. Anexar de novo no mesmo campo substitui o arquivo.</p>
+      <div class="tabela-wrap"><table>
+        <thead><tr><th>Mês</th>${TIPOS_EXT_SIT.map(t => `<th>${t[1]}</th>`).join('')}</tr></thead>
+        <tbody>${b.meses.map(m => `<tr data-extsit-linha="${esc(m)}"><td style="white-space:nowrap"><b>${mesExt(m)}</b></td>
+          ${TIPOS_EXT_SIT.map(t => `<td style="min-width:220px">${cel(m, t[0])}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table></div>
+      <input type="file" id="extSitArquivo" accept=".pdf,image/*" class="oculto">`;
+  }
+  function ligarExtratosSit() {
+    const caixa = $('sitExtratos'); if (!caixa) return;
+    const ed = !!(sit && sit.pode_editar);
+    const redesenhar = (mes, anexosMes) => {
+      sitBim.extratos_anexos = sitBim.extratos_anexos || {};
+      sitBim.extratos_anexos[mes] = anexosMes || {};
+      caixa.innerHTML = htmlExtratosSit(sitBim, ed); ligarExtratosSit();
+    };
+    caixa.querySelectorAll('[data-extsit-trocar]').forEach(bt => bt.addEventListener('click', () => {
+      const [mes, tipo] = bt.dataset.extsitTrocar.split('|');
+      const inp = $('extSitArquivo'); inp.value = '';
+      inp.onchange = async () => {
+        const f = inp.files[0]; if (!f) return;
+        const ja = ((sitBim.extratos_anexos || {})[mes] || {})[tipo];
+        if (ja && !confirm('Substituir o extrato já anexado? O arquivo atual vai para a lixeira do Drive (dá para recuperar por 30 dias).')) return;
+        const td = bt.closest('td'); td.innerHTML = '<span class="dica" style="margin:0">Enviando…</span>';
+        try {
+          const arquivo = await lerArquivo(f);
+          const r = await api('anexarExtratoSIT', { id_projeto: sit.projeto.id_projeto, mes, tipo, arquivo });
+          redesenhar(mes, r); toast('Extrato anexado.');
+        } catch (err) { alert(err.message); redesenhar(mes, (sitBim.extratos_anexos || {})[mes]); }
+      };
+      inp.click();
+    }));
+    caixa.querySelectorAll('[data-extsit-excluir]').forEach(bt => bt.addEventListener('click', async () => {
+      if (!confirm('Excluir este extrato? O arquivo vai para a lixeira do Drive (dá para recuperar por 30 dias).')) return;
+      try { const r = await api('excluirExtratoSIT', { id_documento: bt.dataset.extsitExcluir }); redesenhar(bt.dataset.extsitMes, r); toast('Extrato excluído.'); }
+      catch (err) { alert(err.message); }
+    }));
+  }
+
   function contaBim() {
     const n = v => { const x = lerNumero(v); return isNaN(x) || x === '' ? 0 : Number(x); };
     const r2 = v => Math.round(v * 100) / 100;
@@ -4321,6 +4402,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     on('btnSitCsv', 'click', baixarCsvSit);
     $('sitCorpo').querySelectorAll('tr[data-mes] input, #bim_dv_valor, #bim_dv_data').forEach(el => el.addEventListener('input', contaBim));
     on('btnBimExtratos', 'click', puxarExtratosBim);
+    ligarExtratosSit();
     on('btnBimExportar', 'click', abrirExportacaoSit);
     on('btnBimSalvar', 'click', e => salvarBim(e));
     on('btnBimEnviar', 'click', e => {
@@ -4411,11 +4493,11 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     const linha = campos => chave.concat(campos).join('|');
 
     // 14. Despesas — 24 campos
-    const desp = [];
+    const desp = [], rotDesp = [];
     b.lancamentos.forEach(x => {
       const nf = x.nf || {}, pg = x.pagamento || {}, nome = nf.razao_social_emitente || x.contratado;
       const doc = digitos(nf.cnpj_emitente || x.contratado_cnpj), tpDoc = doc.length === 11 ? 'CPF' : doc.length === 14 ? 'CNPJ' : '';
-      const tpS = tipoDespesaSit(x.classificacao_contabil), dS = docDespesaSit(nf.tipo_documento), pS = pagamentoSit(pg.forma_pagamento), proc = processoSit(x);
+      const tpS = tipoSitDe(x), dS = docDespesaSit(nf.tipo_documento), pS = pagamentoSit(pg.forma_pagamento), proc = processoSit(x);
       const f = [];
       if (!tpS) f.push('tipo de despesa (classificação contábil)');
       if (!tpDoc) f.push('CPF/CNPJ do favorecido');
@@ -4429,6 +4511,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       if (!pg.data_pagamento) f.push('data do pagamento');
       if (f.length) { bloq.push(`<b>${esc(nome)}</b> (NF ${esc(nf.numero || '—')}): falta ${f.join(', ')}.`); return; }
       if (ehCompraC(x)) avisos.push(`<b>${esc(nome)}</b>: é compra — o arquivo de Bens Adquiridos ainda não é gerado; lance os itens direto no SIT.`);
+      rotDesp.push(`${esc(nome)} · NF ${esc(nf.numero)} · ${brl(nf.valor)} · tipo de despesa <b>${tpS[0]}</b> (${esc(tpS[1])}) · rubrica ${esc(x.rubrica || '—')}`);
       desp.push(linha([tpS[0], tpDoc, doc, sitTxt(nome, 250), dS[0], sitTxt(nf.numero, 10), sitVal(nf.valor), sitData(nf.data_emissao),
         '', '', '', '', MODALIDADE_SIT[0], sitTxt(proc.numero, 10), sitData(proc.data),
         pS[0], sitTxt(pg.num_identificacao_pix, 15), sitData(pg.data_pagamento), sitData(pg.data_debito_conta), sitTxt(nf.descricao || x.descricao_servico || '', 2000)]));
@@ -4469,7 +4552,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
 
     const base = `${sitTxt(pr.sigla || pr.id_projeto).replace(/\s+/g, '_')}_${b.ordem}bim${b.ano}`;
     const arquivos = [
-      { nome: `Despesas_${base}.txt`, titulo: '14. Despesas', linhas: desp },
+      { nome: `Despesas_${base}.txt`, titulo: '14. Despesas', linhas: desp, rotulos: rotDesp },
       { nome: `OutrasReceitas_${base}.txt`, titulo: '15. Outras Receitas', linhas: rec },
       { nome: `SaldoBancario_${base}.txt`, titulo: '16. Saldo Bancário', linhas: sal },
       { nome: `DevolucaoSaldo_${base}.txt`, titulo: '17. Devolução de Saldo', linhas: dev }
@@ -4492,7 +4575,9 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
         <ul style="margin:6px 0 0;padding-left:20px;line-height:1.6">${r.bloq.map(t => `<li>${t}</li>`).join('')}</ul></div>` : '') +
       (r.avisos.length ? `<div class="dica" style="margin:0 0 14px"><ul style="margin:0;padding-left:20px;line-height:1.6">${[...new Set(r.avisos)].map(t => `<li>${t}</li>`).join('')}</ul></div>` : '') +
       (r.arquivos.length ? r.arquivos.map((a, i) => `<div class="sit-arq"><div style="min-width:0"><b>${a.titulo}</b> · ${a.linhas.length} registro(s)<br><small>${esc(a.nome)}</small>
-          <pre>${esc(a.linhas.slice(0, 3).join('\n'))}${a.linhas.length > 3 ? '\n…' : ''}</pre></div>
+          <pre>${esc(a.linhas.slice(0, 3).join('\n'))}${a.linhas.length > 3 ? '\n…' : ''}</pre>
+          ${a.rotulos ? `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12px">Ver as ${a.linhas.length} linhas numeradas (para achar a linha de um erro do SIT)</summary>
+            <ol style="margin:6px 0 0;padding-left:26px;font-size:12px;line-height:1.6">${a.rotulos.map(t => `<li>${t}</li>`).join('')}</ol></details>` : ''}</div>
           <button type="button" class="btn-sec" data-sitarq="${i}">⬇ Baixar</button></div>`).join('')
         : '<div class="vazio">Nenhum registro pronto para exportar.</div>') +
       `<p class="dica" style="margin-top:14px">No SIT, importe as Despesas só depois que o Plano de Trabalho estiver fechado. Valores que ainda não foram salvos na tela também entram na exportação.</p>`;
@@ -4511,7 +4596,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
                  'Forma pagamento', 'Tipo doc. pagamento SIT', 'Nº documento pagamento', 'Data pagamento', 'Data débito', 'Valor pago', 'Situação', 'Serviço de'];
     const linhas = b.lancamentos.map(x => {
       const nf = x.nf || {}, pg = x.pagamento || {};
-      const doc = nf.cnpj_emitente || x.contratado_cnpj, tpS = tipoDespesaSit(x.classificacao_contabil), dS = docDespesaSit(nf.tipo_documento),
+      const doc = nf.cnpj_emitente || x.contratado_cnpj, tpS = tipoSitDe(x), dS = docDespesaSit(nf.tipo_documento),
         pS = pagamentoSit(pg.forma_pagamento), proc = processoSit(x);
       return [b.rotulo, ts.numero, ts.ano, nf.razao_social_emitente || x.contratado, digitos(doc).length === 11 ? 'CPF' : 'CNPJ', doc, x.rubrica,
         x.classificacao_contabil, tpS ? tpS[0] : '', dataBr(x.data_cotacao), dataBr(x.data_contrato),
