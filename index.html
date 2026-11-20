@@ -700,7 +700,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.19-f</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.19-g</span></span></div>
   </div>
 </section>
 
@@ -4264,27 +4264,29 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
   const TIPOS_EXT_SIT = [['CC', 'Extrato conta corrente'], ['APLIC', 'Extrato aplicação'], ['RENDE', 'Extrato BB Rende Mais']];
   function htmlExtratosSit(b, ed) {
     const anexos = b.extratos_anexos || {};
+    // Campo de arquivo visível (aceita arrastar e soltar do computador) + botão Anexar/Trocar, como na NF
+    const envio = (mes, tipo, troca) => `<div style="display:flex;gap:8px;align-items:center;margin-top:${troca ? '6px' : '0'}">
+        <input type="file" accept=".pdf,image/*" data-extsit-inp="${esc(mes)}|${tipo}" style="flex:1;min-width:0;font-size:12px" aria-label="${troca ? 'Trocar' : 'Anexar'} extrato">
+        <button type="button" class="btn" style="padding:7px 14px;white-space:nowrap" data-extsit-env="${esc(mes)}|${tipo}">📎 ${troca ? 'Trocar' : 'Anexar'}</button></div>`;
     const cel = (mes, tipo) => {
       const a = (anexos[mes] || {})[tipo];
       if (a) return `<div style="display:flex;flex-direction:column;gap:3px">
           <span style="font-size:12px;word-break:break-word" title="${esc(a.nome)}">📄 ${esc(a.nome)}</span>
           <span style="font-size:13px"><a href="https://drive.google.com/file/d/${esc(a.drive_file_id)}/view" target="_blank" rel="noopener">👁 Abrir</a>
           · <a href="https://drive.google.com/uc?export=download&id=${esc(a.drive_file_id)}">⬇ Baixar</a>
-          ${ed ? ` · <button type="button" class="btn-link" data-extsit-trocar="${esc(mes)}|${tipo}">Substituir</button>
-          · <button type="button" class="btn-link" style="color:var(--alerta)" data-extsit-excluir="${esc(a.id_documento)}" data-extsit-mes="${esc(mes)}">Excluir</button>` : ''}</span>
-          <small class="dica" style="margin:0">anexado em ${dataBr(a.enviado_em)}</small></div>`;
-      return ed ? `<button type="button" class="btn-sec" style="padding:5px 12px" data-extsit-trocar="${esc(mes)}|${tipo}">📎 Anexar</button>`
-        : '<span class="dica" style="margin:0">não anexado</span>';
+          ${ed ? ` · <button type="button" class="btn-link" style="color:var(--alerta)" data-extsit-excluir="${esc(a.id_documento)}" data-extsit-mes="${esc(mes)}">Excluir</button>` : ''}</span>
+          <small class="dica" style="margin:0">anexado em ${dataBr(a.enviado_em)}</small>
+          ${ed ? `<small style="margin-top:6px;color:var(--suave)">Trocar arquivo do extrato</small>${envio(mes, tipo, true)}` : ''}</div>`;
+      return ed ? envio(mes, tipo, false) : '<span class="dica" style="margin:0">não anexado</span>';
     };
     return `<div class="titulo-linha"><h2 style="font-size:16px">Extratos bancários do bimestre</h2></div>
-      <p class="dica" style="margin-top:-6px">Anexe os extratos de cada mês (PDF ou imagem). Os arquivos vão para a pasta “03 Extratos bancários” do projeto no Drive,
-        com o nome no padrão “Mês/Ano termo Extrato … - Agencia … Conta …”. Anexar de novo no mesmo campo substitui o arquivo.</p>
+      <p class="dica" style="margin-top:-6px">Anexe os extratos de cada mês (PDF ou imagem): escolha o arquivo ou arraste do computador para o campo e clique em Anexar. Os arquivos vão para a pasta “03 Extratos bancários” do projeto no Drive,
+        com o nome no padrão “Mês/Ano termo Extrato … - Agencia … Conta …”. Trocar substitui o arquivo.</p>
       <div class="tabela-wrap"><table>
         <thead><tr><th>Mês</th>${TIPOS_EXT_SIT.map(t => `<th>${t[1]}</th>`).join('')}</tr></thead>
         <tbody>${b.meses.map(m => `<tr data-extsit-linha="${esc(m)}"><td style="white-space:nowrap"><b>${mesExt(m)}</b></td>
-          ${TIPOS_EXT_SIT.map(t => `<td style="min-width:220px">${cel(m, t[0])}</td>`).join('')}</tr>`).join('')}</tbody>
-      </table></div>
-      <input type="file" id="extSitArquivo" accept=".pdf,image/*" class="oculto">`;
+          ${TIPOS_EXT_SIT.map(t => `<td style="min-width:260px">${cel(m, t[0])}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table></div>`;
   }
   function ligarExtratosSit() {
     const caixa = $('sitExtratos'); if (!caixa) return;
@@ -4294,21 +4296,19 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       sitBim.extratos_anexos[mes] = anexosMes || {};
       caixa.innerHTML = htmlExtratosSit(sitBim, ed); ligarExtratosSit();
     };
-    caixa.querySelectorAll('[data-extsit-trocar]').forEach(bt => bt.addEventListener('click', () => {
-      const [mes, tipo] = bt.dataset.extsitTrocar.split('|');
-      const inp = $('extSitArquivo'); inp.value = '';
-      inp.onchange = async () => {
-        const f = inp.files[0]; if (!f) return;
-        const ja = ((sitBim.extratos_anexos || {})[mes] || {})[tipo];
-        if (ja && !confirm('Substituir o extrato já anexado? O arquivo atual vai para a lixeira do Drive (dá para recuperar por 30 dias).')) return;
-        const td = bt.closest('td'); td.innerHTML = '<span class="dica" style="margin:0">Enviando…</span>';
-        try {
-          const arquivo = await lerArquivo(f);
-          const r = await api('anexarExtratoSIT', { id_projeto: sit.projeto.id_projeto, mes, tipo, arquivo });
-          redesenhar(mes, r); toast('Extrato anexado.');
-        } catch (err) { alert(err.message); redesenhar(mes, (sitBim.extratos_anexos || {})[mes]); }
-      };
-      inp.click();
+    caixa.querySelectorAll('[data-extsit-env]').forEach(bt => bt.addEventListener('click', async () => {
+      const [mes, tipo] = bt.dataset.extsitEnv.split('|');
+      const inp = caixa.querySelector(`[data-extsit-inp="${bt.dataset.extsitEnv}"]`);
+      const f = inp && inp.files[0];
+      if (!f) { alert('Escolha o arquivo do extrato (ou arraste do computador para o campo) e clique em ' + (bt.textContent.includes('Trocar') ? 'Trocar.' : 'Anexar.')); return; }
+      const ja = ((sitBim.extratos_anexos || {})[mes] || {})[tipo];
+      if (ja && !confirm('Trocar o extrato já anexado? O arquivo atual vai para a lixeira do Drive (dá para recuperar por 30 dias).')) return;
+      bt.disabled = true; bt.textContent = 'Enviando…';
+      try {
+        const arquivo = await lerArquivo(f);
+        const r = await api('anexarExtratoSIT', { id_projeto: sit.projeto.id_projeto, mes, tipo, arquivo });
+        redesenhar(mes, r); toast('Extrato anexado.');
+      } catch (err) { alert(err.message); redesenhar(mes, (sitBim.extratos_anexos || {})[mes]); }
     }));
     caixa.querySelectorAll('[data-extsit-excluir]').forEach(bt => bt.addEventListener('click', async () => {
       if (!confirm('Excluir este extrato? O arquivo vai para a lixeira do Drive (dá para recuperar por 30 dias).')) return;
