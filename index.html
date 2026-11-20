@@ -700,7 +700,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.20-a</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.20-b</span></span></div>
   </div>
 </section>
 
@@ -5915,6 +5915,19 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       if (nf) add(nf); else avisos.push(`<b>${quem}</b>: nota fiscal não anexada.`);
       if (!nfUnif) { if (a.comprovante) add(a.comprovante); else avisos.push(`<b>${quem}</b>: comprovante de pagamento não anexado.`); }
       if (partes.length) saida.push({ nome: a.nome, partes, quem, tipo: a.primeiro ? 'Cotação + NF + comprovante' : 'NF + comprovante' });
+    });
+    // Extratos bancários anexados no bimestre (conta corrente, aplicação, BB Rende Mais), com o nome padrão.
+    // "/" não pode ir em nome de arquivo no computador: "Outubro/2026" vira "Outubro-2026".
+    const anexos = b.extratos_anexos || {};
+    b.meses.forEach(m => {
+      const doMes = anexos[m] || {};
+      const tipos = TIPOS_EXT_SIT.filter(t => doMes[t[0]]);
+      if (!tipos.length) avisos.push(`<b>${mesExt(m)}</b>: nenhum extrato anexado no bimestre.`);
+      tipos.forEach(t => {
+        const e = doMes[t[0]];
+        const nome = String(e.nome || t[1]).replace(/\//g, '-').replace(/\.[a-z0-9]{2,4}$/i, '') + '.pdf';
+        saida.push({ nome, partes: [{ id: e.drive_file_id, nome: e.nome }], quem: 'Extrato', tipo: t[1] });
+      });
     });
     return { saida, avisos };
   }
