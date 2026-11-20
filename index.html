@@ -700,7 +700,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.19-g</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.20-a</span></span></div>
   </div>
 </section>
 
@@ -4159,6 +4159,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
           <h2 style="font-size:16px">Lançamentos do bimestre</h2>
           <div class="sit-acoes">
             ${lanc.length ? '<button class="btn-sec" id="btnSitCsv">⬇️ Baixar planilha</button>' : ''}
+            ${lanc.length ? '<button class="btn-sec" id="btnSitDocs" title="Junta contrato, cotação, NF e comprovante de cada pagamento no padrão de anexos do SIT e baixa um .zip">📦 Baixar documentos para o SIT</button>' : ''}
             ${ed && lanc.length ? '<button class="btn-sec" id="btnSitDesfazer">↩ Desmarcar lançadas</button><button class="btn" id="btnSitLancar">✓ Marcar como lançadas no SIT</button>' : ''}
           </div>
         </div>
@@ -4404,6 +4405,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     on('btnBimExtratos', 'click', puxarExtratosBim);
     ligarExtratosSit();
     on('btnBimExportar', 'click', abrirExportacaoSit);
+    on('btnSitDocs', 'click', abrirDocsSit);
     on('btnBimSalvar', 'click', e => salvarBim(e));
     on('btnBimEnviar', 'click', e => {
       const pend = sitBim.qtd - sitBim.lancadas;
@@ -5880,6 +5882,118 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       }
     } finally { await worker.terminate(); }
     return texto;
+  }
+
+  // ---------- documentos para anexar no SIT: um PDF por pagamento (cotação + NF + comprovante), contrato à parte no 1º pagamento
+  const libsCarregadas = {};
+  function carregarLib(url, global) {
+    if (window[global]) return Promise.resolve(window[global]);
+    if (libsCarregadas[url]) return libsCarregadas[url];
+    return (libsCarregadas[url] = new Promise((ok, falha) => {
+      const sc = document.createElement('script'); sc.src = url;
+      sc.onload = () => ok(window[global]);
+      sc.onerror = () => { delete libsCarregadas[url]; falha(new Error('Não consegui carregar uma biblioteca (' + global + '). Verifique a internet e tente de novo.')); };
+      document.head.appendChild(sc);
+    }));
+  }
+  const jaUnificado = n => /comp\.?\s*pagto/i.test(String(n || ''));
+  /** Partes de cada arquivo, sem repetir o mesmo arquivo do Drive */
+  function planoDocsSit() {
+    const b = sitBim, mapa = b.arquivos_sit || {}, saida = [], avisos = [];
+    b.lancamentos.forEach(x => {
+      const a = mapa[x.id_parcela]; if (!a) return;
+      const quem = esc(a.contratado || x.contratado);
+      if (a.contrato) saida.push({ nome: a.contrato.nome_sit, partes: [a.contrato], quem, tipo: 'Contrato' });
+      else if (a.primeiro && !x.eh_compra) avisos.push(`<b>${quem}</b>: 1º pagamento, mas o contrato assinado não está anexado na contratação.`);
+      const partes = [], vistos = new Set();
+      const add = p => { if (p && !vistos.has(p.id)) { vistos.add(p.id); partes.push(p); } };
+      const nf = a.nf, nfUnif = nf && jaUnificado(nf.nome);
+      if (a.primeiro && !(nfUnif && /cota[cç][aã]o/i.test(nf.nome))) {
+        if (a.cotacoes && a.cotacoes.length) a.cotacoes.forEach(add);
+        else avisos.push(`<b>${quem}</b>: 1º pagamento, mas não achei a cotação anexada.`);
+      }
+      if (nf) add(nf); else avisos.push(`<b>${quem}</b>: nota fiscal não anexada.`);
+      if (!nfUnif) { if (a.comprovante) add(a.comprovante); else avisos.push(`<b>${quem}</b>: comprovante de pagamento não anexado.`); }
+      if (partes.length) saida.push({ nome: a.nome, partes, quem, tipo: a.primeiro ? 'Cotação + NF + comprovante' : 'NF + comprovante' });
+    });
+    return { saida, avisos };
+  }
+  function abrirDocsSit() {
+    const pl = planoDocsSit(), b = sitBim;
+    $('sitExpTitulo').textContent = `Documentos para anexar no SIT · ${b.rotulo}`;
+    $('sitExpCorpo').innerHTML =
+      (pl.avisos.length ? `<div class="aviso" style="margin:0 0 14px"><b>Faltando no sistema (fica de fora do .zip):</b>
+        <ul style="margin:6px 0 0;padding-left:20px;line-height:1.6">${pl.avisos.map(t => `<li>${t}</li>`).join('')}</ul></div>` : '') +
+      `<p class="dica" style="margin:0 0 10px">${pl.saida.length} arquivo(s). O sistema baixa os documentos do Drive, junta na ordem e entrega um .zip — nada é salvo de novo no Drive.</p>
+      <ol style="margin:0;padding-left:22px;line-height:1.5;font-size:13px">${pl.saida.map(o => `<li style="margin-bottom:6px"><b>${esc(o.nome)}</b>
+        <br><small class="dica" style="margin:0">${o.quem} · ${o.partes.length} parte(s): ${o.partes.map(p => esc(p.nome)).join(' + ')}</small></li>`).join('')}</ol>
+      <div id="sitDocsProg" class="dica" style="margin-top:12px"></div>`;
+    $('btnSitExpTodos').disabled = !pl.saida.length;
+    $('btnSitExpTodos').textContent = '📦 Montar e baixar .zip';
+    $('btnSitExpTodos').onclick = () => montarZipSit(pl);
+    $('dlgSitExp').showModal();
+    // o diálogo é compartilhado com a exportação .TXT: volta o rótulo ao fechar
+    $('dlgSitExp').addEventListener('close', () => { $('btnSitExpTodos').textContent = '⬇ Baixar todos'; }, { once: true });
+  }
+  async function montarZipSit(pl) {
+    const bt = $('btnSitExpTodos'), prog = $('sitDocsProg');
+    bt.disabled = true;
+    try {
+      prog.textContent = 'Carregando bibliotecas…';
+      const PDFLib = await carregarLib('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js', 'PDFLib');
+      const JSZip = await carregarLib('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip');
+      // baixa cada arquivo uma vez só (3 de cada vez)
+      const ids = [...new Set(pl.saida.flatMap(o => o.partes.map(p => p.id)))], bytes = {}, erros = [];
+      let feitos = 0;
+      const fila = ids.slice();
+      const trabalhador = async () => {
+        while (fila.length) {
+          const id = fila.shift();
+          try {
+            const r = await api('baixarArquivo', { id });
+            const bin = atob(r.base64), u8 = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+            bytes[id] = { u8, mime: r.mime || '', nome: r.nome || '' };
+          } catch (err) { erros.push(err.message); }
+          prog.textContent = `Baixando do Drive: ${++feitos} de ${ids.length}…`;
+        }
+      };
+      await Promise.all([trabalhador(), trabalhador(), trabalhador()]);
+      const zip = new JSZip(), problemas = [];
+      for (const [i, o] of pl.saida.entries()) {
+        prog.textContent = `Juntando ${i + 1} de ${pl.saida.length}: ${o.nome}`;
+        const doc = await PDFLib.PDFDocument.create();
+        for (const p of o.partes) {
+          const f = bytes[p.id];
+          if (!f) { problemas.push(`${o.nome}: não consegui baixar "${p.nome}".`); continue; }
+          const ehPdf = /pdf/i.test(f.mime) || (f.u8[0] === 0x25 && f.u8[1] === 0x50);
+          try {
+            if (ehPdf) {
+              const src = await PDFLib.PDFDocument.load(f.u8, { ignoreEncryption: true });
+              (await doc.copyPages(src, src.getPageIndices())).forEach(pg => doc.addPage(pg));
+            } else if (/image\/(png|jpe?g)/i.test(f.mime)) {
+              const img = /png/i.test(f.mime) ? await doc.embedPng(f.u8) : await doc.embedJpg(f.u8);
+              const w = 595.28, h = 841.89, esc2 = Math.min((w - 40) / img.width, (h - 40) / img.height, 1);
+              const pg = doc.addPage([w, h]);
+              pg.drawImage(img, { x: (w - img.width * esc2) / 2, y: (h - img.height * esc2) / 2, width: img.width * esc2, height: img.height * esc2 });
+            } else {
+              zip.file(o.nome.replace(/\.pdf$/i, '') + ' - ' + (f.nome || p.nome), f.u8);
+              problemas.push(`${o.nome}: "${p.nome}" não é PDF nem imagem — foi para o .zip separado.`);
+            }
+          } catch (err) { problemas.push(`${o.nome}: não consegui juntar "${p.nome}" (${err.message}).`); }
+        }
+        if (doc.getPageCount()) zip.file(o.nome, await doc.save());
+      }
+      prog.textContent = 'Gerando o .zip…';
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const nomeZip = `Documentos SIT - ${sit.projeto.sigla || sit.projeto.id_projeto} - ${sitBim.rotulo.replace('/', ' ')}.zip`.replace(/[\\/:*?"<>|]+/g, ' ');
+      const el = document.createElement('a'); el.href = URL.createObjectURL(blob); el.download = nomeZip;
+      document.body.appendChild(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(el.href), 60000);
+      const todos = erros.map(e => 'Erro ao baixar: ' + e).concat(problemas);
+      prog.innerHTML = `<span style="color:var(--verde)">✓ ${esc(nomeZip)} baixado.</span>` +
+        (todos.length ? `<div class="aviso" style="margin-top:8px"><ul style="margin:0;padding-left:20px">${todos.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>` : '');
+    } catch (err) { prog.innerHTML = `<span style="color:var(--alerta)">${esc(err.message)}</span>`; }
+    bt.disabled = false;
   }
 
   let pdfjsPronto = null;
