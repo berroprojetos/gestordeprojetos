@@ -700,7 +700,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.20-b</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.20-c</span></span></div>
   </div>
 </section>
 
@@ -719,10 +719,11 @@
           <div class="dica oculto" id="r_classif_dica" style="margin:4px 0 0">Cadastre as classificações em Configurações → Listas.</div></div>
         <div class="largo"><label for="r_tipo_despesa_sit">Tipo de despesa no SIT (código)</label><select id="r_tipo_despesa_sit"></select>
           <div class="dica" style="margin:4px 0 0">Use o mesmo código do item no <b>Plano de Aplicação</b> do SIT. Em "Automático", o código sai da classificação contábil.</div></div>
-        <div><label for="r_unidade">Unidade</label><input id="r_unidade" placeholder="un, mês, pacote…"></div>
+        <div><label for="r_unidade">Unidade</label><input id="r_unidade" placeholder="mês, un, pacote…"></div>
+        <div><label for="r_valor_total_orcado">Valor total da rubrica (R$) *</label><input id="r_valor_total_orcado" inputmode="decimal" required placeholder="como no plano de trabalho"></div>
         <div><label for="r_quantidade">Quantidade *</label><input id="r_quantidade" inputmode="decimal" required></div>
-        <div><label for="r_valor_unitario_max">Valor unitário máximo (R$) *</label><input id="r_valor_unitario_max" inputmode="decimal" required></div>
         <div><label for="r_meses">Nº de meses</label><input id="r_meses" inputmode="numeric" placeholder="vazio = compra única"></div>
+        <div><label for="r_valor_unitario_max">Valor unitário (R$) <span class="dica" style="display:inline">· calculado</span></label><input id="r_valor_unitario_max" inputmode="decimal" readonly tabindex="-1" style="background:var(--fundo-suave, #f3f4f6)"></div>
         <div class="largo"><label for="r_observacoes">Observações</label><input id="r_observacoes"></div>
       </div>
       <div class="total-preview" id="r_total">Total orçado: R$ 0,00</div>
@@ -1007,6 +1008,7 @@
         <div class="so-mensal"><label for="c_fim_execucao">Fim da execução</label><input id="c_fim_execucao" type="date">
           <div class="dica" id="c_fim_dica" style="margin:4px 0 0"></div></div>
         <div class="so-mensal"><label for="c_num_parcelas">Nº de parcelas *</label><input id="c_num_parcelas" inputmode="numeric" required></div>
+        <div class="so-mensal"><label for="c_valor_total">Valor total do contrato (R$)</label><input id="c_valor_total" inputmode="decimal" placeholder="calcula a parcela"></div>
         <div class="so-mensal"><label for="c_valor_parcela">Valor da parcela (R$) *</label><input id="c_valor_parcela" inputmode="decimal" required></div>
         <div class="so-mensal"><label for="c_carga_horaria_mensal">Carga horária mensal (h)</label><input id="c_carga_horaria_mensal" inputmode="numeric" placeholder="ex.: 60"></div>
         <div><label for="c_data_cotacao">Data da cotação</label><input id="c_data_cotacao" type="date"></div>
@@ -1941,9 +1943,10 @@
   }
   const calcQtdRubrica = r => Number(r.quantidade || 0) * (Number(r.meses) > 0 ? Number(r.meses) : 1);
   const calcRubrica = r => Number(r.quantidade || 0) * Number(r.valor_unitario_max || 0) * (Number(r.meses) > 0 ? Number(r.meses) : 1);
-  const totalNaoBate = r => Math.abs(calcRubrica(r) - Number(r.valor_total_orcado || 0)) > 0.01;
+  // Tolerância: o unitário é arredondado em centavos (total ÷ qtd ÷ meses), então pode faltar/sobrar meio centavo por unidade
+  const totalNaoBate = r => Math.abs(calcRubrica(r) - Number(r.valor_total_orcado || 0)) > Math.max(0.01, 0.005 * calcQtdRubrica(r) + 0.001);
 
-  const CAMPOS_RUB = ['codigo', 'descricao', 'carga_horaria', 'tipo_despesa', 'classificacao_contabil', 'tipo_despesa_sit', 'unidade', 'quantidade', 'valor_unitario_max', 'meses', 'observacoes'];
+  const CAMPOS_RUB = ['codigo', 'descricao', 'carga_horaria', 'tipo_despesa', 'classificacao_contabil', 'tipo_despesa_sit', 'unidade', 'valor_total_orcado', 'quantidade', 'valor_unitario_max', 'meses', 'observacoes'];
   let rubricaEditando = null;
 
   function abrirRubrica(r) {
@@ -1958,7 +1961,7 @@
     montarOpcoesTipoSit(r && r.classificacao_contabil);
     CAMPOS_RUB.forEach(c => {
       let v = r ? (r[c] ?? '') : '';
-      if (c === 'valor_unitario_max') v = num2(v);
+      if (c === 'valor_unitario_max' || c === 'valor_total_orcado') v = v === '' ? '' : num2(v);
       else if (c === 'quantidade') v = numBr(v);
       else if (c === 'carga_horaria') v = v === '' || v == null ? '' : numBr(v);
       $('r_' + c).value = v;
@@ -1967,14 +1970,19 @@
     $('dlgRubrica').showModal();
   }
 
+  // Lançamento pelo valor total: unitário = total ÷ (quantidade × meses). O total fica exato;
+  // quando a divisão não fecha em centavos, a diferença vai para a última parcela do contrato.
   function atualizarTotalRubrica() {
-    const q = lerNumero($('r_quantidade').value), v = lerNumero($('r_valor_unitario_max').value);
-    const m = lerNumero($('r_meses').value);
-    const t = (q || 0) * (v || 0) * (m > 0 ? m : 1);
-    $('r_total').textContent = 'Total orçado: ' + (isNaN(t) ? '—' : brl(t))
-      + (m > 0 ? `  (${numBr(q || 0)} × ${brl(v || 0)} × ${m} meses)` : '');
+    const t = lerNumero($('r_valor_total_orcado').value) || 0, q = lerNumero($('r_quantidade').value) || 0;
+    const m = lerNumero($('r_meses').value), mm = m > 0 ? m : 1;
+    const vu = t > 0 && q > 0 ? Math.round(t / (q * mm) * 100) / 100 : 0;
+    $('r_valor_unitario_max').value = vu ? num2(vu) : '';
+    if (!(t > 0) || !(q > 0)) { $('r_total').textContent = 'Total orçado: ' + brl(t) + ' · informe a quantidade para calcular o valor unitário'; return; }
+    const dif = Math.round((t - vu * q * mm) * 100) / 100;
+    $('r_total').textContent = 'Total orçado: ' + brl(t) + `  ·  valor unitário ${brl(vu)} (${brl(t)} ÷ ${numBr(q)}${m > 0 ? ` ÷ ${m} meses` : ''})`
+      + (Math.abs(dif) >= 0.01 ? `  ·  a divisão não é exata: ${dif > 0 ? 'sobram' : 'faltam'} ${brl(Math.abs(dif))}, que entram na última parcela do contrato` : '');
   }
-  ['r_quantidade', 'r_valor_unitario_max', 'r_meses'].forEach(id => $(id).addEventListener('input', atualizarTotalRubrica));
+  ['r_valor_total_orcado', 'r_quantidade', 'r_meses'].forEach(id => $(id).addEventListener('input', atualizarTotalRubrica));
   /** Lista dos 395 tipos de despesa do SIT (Apêndice A, tabela 12); a 1ª opção é o automático pela classificação */
   function montarOpcoesTipoSit(classif) {
     const sel = $('r_tipo_despesa_sit'), atualV = sel.value;
@@ -2215,6 +2223,12 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     ['objeto', 'inicio_execucao', 'fim_execucao', 'data_cotacao', 'data_assinatura_contrato', 'observacoes', 'num_parcelas', 'carga_horaria_mensal', 'descricao_nf']
       .forEach(k => $('c_' + k).value = c[k] ?? '');
     $('c_valor_parcela').value = num2(c.valor_parcela ?? '');
+    {
+      const tot = c.modalidade !== 'Por demanda' && Number(c.valor_total_contratado) > 0 ? Number(c.valor_total_contratado)
+        : (pre && Number(pre.valor_liberado) > 0 ? Number(pre.valor_liberado)
+        : (Number(c.num_parcelas) > 0 && Number(c.valor_parcela) > 0 ? Number(c.num_parcelas) * Number(c.valor_parcela) : 0));
+      $('c_valor_total').value = tot ? num2(tot) : '';
+    }
     $('c_modalidade').value = c.modalidade === 'Por demanda' ? 'Por demanda' : 'Mensal';
     $('c_unidade_execucao').value = c.unidade_execucao || '';
     $('c_valor_unitario').value = c.valor_unitario ? num2(c.valor_unitario) : '';
@@ -2295,7 +2309,26 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       return;
     }
     const n = parseInt($('c_num_parcelas').value, 10) || 0, v = lerNumero($('c_valor_parcela').value) || 0;
-    $('c_total').textContent = `Total do contrato: ${brl(n * v)}` + (n > 1 ? `  (${n} × ${brl(v)})` : '');
+    const ult = ultimaParcelaForm(), t = ult ? (n - 1) * v + ult : n * v;
+    $('c_total').textContent = `Total do contrato: ${brl(t)}` + (n > 1 ? (ult ? `  (${n - 1} × ${brl(v)} + última parcela de ${brl(ult)} com o ajuste de centavos)` : `  (${n} × ${brl(v)})`) : '');
+  }
+  /** Última parcela com o ajuste de centavos (0 quando todas são iguais): total − (n − 1) × parcela */
+  function ultimaParcelaForm() {
+    const n = parseInt($('c_num_parcelas').value, 10) || 0, v = lerNumero($('c_valor_parcela').value) || 0, t = lerNumero($('c_valor_total').value) || 0;
+    if (!(n > 1) || !(v > 0) || !(t > 0)) return 0;
+    const ult = Math.round((t - (n - 1) * v) * 100) / 100;
+    return Math.abs(ult - v) >= 0.005 && ult > 0 ? ult : 0;
+  }
+  // Total digitado → parcela = total ÷ nº de parcelas (centavos na última). Parcela digitada → total = nº × parcela.
+  function parcelaDoTotalCtr() {
+    const n = parseInt($('c_num_parcelas').value, 10) || 0, t = lerNumero($('c_valor_total').value) || 0;
+    if (n > 0 && t > 0) $('c_valor_parcela').value = num2(Math.round(t / n * 100) / 100);
+    atualizarTotalCtr();
+  }
+  function totalDaParcelaCtr() {
+    const n = parseInt($('c_num_parcelas').value, 10) || 0, v = lerNumero($('c_valor_parcela').value) || 0;
+    $('c_valor_total').value = n > 0 && v > 0 ? num2(Math.round(n * v * 100) / 100) : '';
+    atualizarTotalCtr();
   }
 
   $('c_id_rubrica').addEventListener('change', () => {
@@ -2304,7 +2337,10 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     if (r && !ctrEditando && !$('c_num_parcelas').value && !$('c_valor_parcela').value) {
       const meses = Number(r.meses) > 0 ? Number(r.meses) : 0;
       $('c_num_parcelas').value = meses || 1;
-      $('c_valor_parcela').value = num2(meses ? Number(r.quantidade) * Number(r.valor_unitario_max) : Number(r.valor_total_orcado));
+      // 1 pessoa/item na rubrica: o total do contrato é o total da rubrica (os centavos vão para a última parcela)
+      const totSug = Number(r.quantidade) === 1 || !meses ? Number(r.valor_total_orcado) : Number(r.valor_unitario_max) * meses;
+      $('c_valor_total').value = num2(Math.round(totSug * 100) / 100);
+      parcelaDoTotalCtr();
       if (!$('c_objeto').value) $('c_objeto').value = r.descricao;
       calcularFimCtr();
     }
@@ -2312,7 +2348,9 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     if (r && Number(r.carga_horaria) > 0 && !$('c_carga_horaria_mensal').value) $('c_carga_horaria_mensal').value = String(r.carga_horaria).replace('.', ',');
     atualizarSaldoCtr(); atualizarTotalCtr();
   });
-  ['c_num_parcelas', 'c_valor_parcela'].forEach(id => $(id).addEventListener('input', atualizarTotalCtr));
+  $('c_valor_total').addEventListener('input', parcelaDoTotalCtr);
+  $('c_num_parcelas').addEventListener('input', () => (lerNumero($('c_valor_total').value) > 0 ? parcelaDoTotalCtr() : atualizarTotalCtr()));
+  $('c_valor_parcela').addEventListener('input', totalDaParcelaCtr);
 
   // Fim da execução calculado: início + nº de parcelas (meses) − 1 dia. Ex.: 01/03/2025 + 19 → 30/09/2026
   function calcularFimCtr() {
@@ -2401,8 +2439,9 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     }
     // Valor da parcela mudou e há parcelas já lançadas com o valor antigo: pergunta se corrige também nelas
     let revalorar = false;
-    const novoValor = lerNumero($('c_valor_parcela').value);
-    const difs = trav.filter(p => novoValor > 0 && Math.abs(Number(p.valor_previsto || 0) - novoValor) > 0.009);
+    const novoValor = lerNumero($('c_valor_parcela').value), nForm = parseInt($('c_num_parcelas').value, 10) || 0, ultForm = ultimaParcelaForm();
+    const esperado = p => Number(p.num_parcela) === nForm && ultForm ? ultForm : novoValor;
+    const difs = trav.filter(p => novoValor > 0 && Math.abs(Number(p.valor_previsto || 0) - esperado(p)) > 0.009);
     if (difs.length && $('c_modalidade').value !== 'Por demanda') {
       revalorar = confirm(`O valor da parcela agora é ${brl(novoValor)}, mas ${difs.length} parcela(s) já lançada(s) estão com outro valor previsto ` +
         `(${[...new Set(difs.map(p => brl(Number(p.valor_previsto || 0))))].join(', ')}).\n\n` +
@@ -2412,7 +2451,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     const btn = e.submitter; btn.disabled = true; msg('msgCtr', 'Salvando… (na primeira vez o sistema cria as parcelas e a pasta no Drive)', 'ok');
     const dados = { id_projeto: atual.projeto.id_projeto, id_contratacao: ctrEditando ? ctrEditando.id_contratacao : '',
                     id_processo_cotacao: ctrEditando ? '' : procParaContratar, fornecedor: {} };
-    ['id_rubrica', 'objeto', 'inicio_execucao', 'fim_execucao', 'num_parcelas', 'valor_parcela', 'data_cotacao',
+    ['id_rubrica', 'objeto', 'inicio_execucao', 'fim_execucao', 'num_parcelas', 'valor_parcela', 'valor_total', 'data_cotacao',
      'data_assinatura_contrato', 'status', 'observacoes', 'carga_horaria_mensal', 'descricao_nf',
      'modalidade', 'unidade_execucao', 'valor_unitario', 'quantidade_contratada'].forEach(k => dados[k] = $('c_' + k).value);
     dados.fornecedor = dadosContratadoDoForm();
@@ -2902,7 +2941,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     $('c_id_rubrica').value = p.id_rubrica;
     $('c_objeto').value = 'prestação de serviços de ' + String(p.funcao || '').toLowerCase();
     $('c_num_parcelas').value = p.meses; calcularFimCtr();
-    $('c_valor_parcela').value = num2(v.valor_unitario_mensal);
+    $('c_valor_parcela').value = num2(v.valor_unitario_mensal); totalDaParcelaCtr();
     $('c_carga_horaria_mensal').value = p.horas_mensais || '';
     $('c_data_cotacao').value = p.data_cotacao || '';
     const docCot = digitos(v.cnpj), pre = { cnpj: docCot.length === 14 ? v.cnpj : '', cpf: docCot.length === 11 ? v.cnpj : (v.resp_cpf || ''),
