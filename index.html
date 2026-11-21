@@ -530,6 +530,7 @@
         </div>
         <p class="dica" style="margin-top:0">Todo mês, anexe o <b>PDF da conta corrente</b> e o <b>PDF da poupança</b> baixados do internet banking do Banco do Brasil (o arquivo original, não escaneado). O <b>BB Rende Fácil</b> só se o projeto tiver. Clique em <b>Anexar</b> ou arraste o arquivo para a célula do mês.
           O sistema lê o PDF e soma as <b>taxas cobradas</b> (tarifa Pix, cesta, pacote de serviços…). Os extratos vão automaticamente para a <b>Prestação SIT</b>, no bimestre do mês, já com o nome padrão.</p>
+        <div id="extLeitura" class="aviso oculto" style="margin:0 0 12px"></div>
         <div id="extTabela"></div>
       </section>
     </div>
@@ -702,7 +703,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.21-c</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.21-d</span></span></div>
   </div>
 </section>
 
@@ -6408,7 +6409,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     if (alertas.length && !confirm(`Atenção: ${alertas.join(' e ')}, mas você está anexando em ${mesTitulo(mes)} · ${rot}.\n\nAnexar mesmo assim?`)) return null;
     aviso && aviso('enviando…');
     const arquivo = await lerArquivo(file);
-    const { competencia, conta, ocr, ...leitura } = lei;
+    const { ocr, ...leitura } = lei;
     return api(acao, { id_projeto: idProjeto, mes, tipo, arquivo, leitura });
   }
 
@@ -6424,6 +6425,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       }
       gravarRota('extratos/' + idProjeto);
       await apiRapida('obterExtratosMes', { id_projeto: idProjeto }, d => { extM = d; renderExtratos(); });
+      lerPendentesExt();
     } catch (err) { erroComRepetir($('extTabela'), err, () => abrirExtratos(idProjeto)); }
   }
 
@@ -6434,7 +6436,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     $('extSub').innerHTML = `${esc(pr.nome_projeto)}${pr.agencia || pr.conta ? ` · ${esc(pr.banco || 'Banco do Brasil')} · ag. ${esc(pr.agencia)} · c/c ${esc(pr.conta)}` : ''}`;
     $('extResumo').innerHTML = `
       <div class="kpi ${t.pendentes ? 'alerta' : 'ok'}"><span>Extratos pendentes</span><strong>${t.pendentes ? t.pendentes + ' mês(es)' : 'em dia'}</strong><small>meses fechados sem conta corrente nem poupança</small></div>
-      <div class="kpi"><span>Taxas cobradas</span><strong>${brl(t.cobradas)}</strong><small>${t.sem_leitura ? `⚠️ ${t.sem_leitura} mês(es) com PDF não lido` : 'lidas dos extratos anexados'}</small></div>
+      <div class="kpi"><span>Taxas cobradas</span><strong>${brl(t.cobradas)}</strong><small>${t.a_ler ? `⏳ lendo ${t.a_ler} PDF(s) já anexados…` : t.sem_leitura ? `⚠️ ${t.sem_leitura} mês(es) com PDF não lido` : 'lidas dos extratos anexados'}</small></div>
       <div class="kpi ok"><span>Taxas ressarcidas</span><strong>${brl(t.ressarcidas)}</strong><small>devolvidas à conta do projeto</small></div>
       <div class="kpi ${t.a_ressarcir > 0.004 ? 'alerta' : 'ok'}"><span>Saldo a ressarcir</span><strong>${brl(t.a_ressarcir)}</strong><small>taxas cobradas − ressarcidas</small></div>`;
     const celula = (m, tp) => {
@@ -6444,7 +6446,8 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       if (a) {
         const lei = m.leituras[tipo];
         return `<a href="${esc(a.url)}" target="_blank" rel="noopener" title="${esc(a.nome)}">📄 PDF</a>` +
-          (lei && !lei.lido ? ` <span title="${esc(lei.erro || 'PDF não lido')}">⚠️</span>` : '') +
+          (m.a_ler.includes(tipo) ? ` <small style="color:var(--suave)">⏳ lendo…</small>` : lei && !lei.lido ? ` <span title="${esc(lei.erro || 'PDF não lido')}">⚠️</span>` : '') +
+          (m.alertas[tipo] ? `<br><small style="color:var(--alerta)">⚠️ ${esc(m.alertas[tipo])}</small>` : '') +
           (ed ? `<div style="display:flex;gap:10px;font-size:12px;margin-top:2px">${inp('trocar')}<button class="btn-link perigo" style="font-size:12px" data-extm-del="${esc(a.id_documento)}">excluir</button></div>` : '') +
           (a.enviado_em ? `<br><small style="color:var(--suave)">em ${dataBr(a.enviado_em)}</small>` : '');
       }
@@ -6455,9 +6458,10 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       const temArq = TIPOS_EXT_MES.some(tp => m.anexos[tp[0]]);
       if (!temArq && m.taxas_ajuste === '') return '<span style="color:var(--suave)">—</span>';
       const nl = m.nao_lidos.map(tp => (TIPOS_EXT_MES.find(x => x[0] === tp) || [])[1]).join(', ');
+      if (m.a_ler.length && m.taxas_ajuste === '' && !m.linhas_taxa.length) return '<small style="color:var(--suave)">⏳ lendo o PDF…</small>';
       return `<b style="color:${m.taxas > 0 ? 'var(--alerta)' : 'inherit'}">${brl(m.taxas)}</b>` +
         (m.taxas_ajuste !== '' ? ` <small class="st" title="Valor informado à mão (lido do PDF: ${brl(m.taxas_lidas)})">informado</small>` : '') +
-        (m.nao_lidos.length && m.taxas_ajuste === '' ? `<br><small style="color:var(--alerta)">⚠️ não consegui ler: ${esc(nl)}</small>` : '') +
+        (m.nao_lidos.length && m.taxas_ajuste === '' ? `<br><small style="color:var(--alerta)">⚠️ não consegui ler: ${esc(nl)}</small>${ed ? ` <button class="btn-link" style="font-size:12px" data-extm-reler="${m.mes}">tentar de novo</button>` : ''}` : '') +
         (m.linhas_taxa.length ? `<details style="margin-top:2px"><summary class="dica" style="margin:0;cursor:pointer">${m.linhas_taxa.length} lançamento(s)</summary><div style="font-size:12px;line-height:1.5;text-align:left">${m.linhas_taxa.map(l =>
           `${l.data ? dataBr(l.data) : ''} · ${esc(l.historico)} · <b>${brl(l.valor)}</b>`).join('<br>')}</div></details>` : '') +
         (ed ? `<br><button class="btn-link" style="font-size:12px" data-extm-ajuste="${m.mes}">${m.taxas_ajuste !== '' ? 'alterar valor' : 'informar à mão'}</button>` : '');
@@ -6518,6 +6522,10 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       const m = d.meses.find(x => x.mes === b.dataset.extmUsar);
       salvar(m.mes, { taxas_ressarcidas: m.estornos_lidos }, 'Taxas ressarcidas salvas.');
     }));
+    T.querySelectorAll('[data-extm-reler]').forEach(b => b.addEventListener('click', () => {
+      const m = d.meses.find(x => x.mes === b.dataset.extmReler);
+      lerPendentesExt(m.nao_lidos.map(t => ({ mes: m.mes, tipo: t })));
+    }));
     T.querySelectorAll('[data-extm-ajuste]').forEach(b => b.addEventListener('click', () => {
       const m = d.meses.find(x => x.mes === b.dataset.extmAjuste);
       const v = prompt(`Taxas cobradas em ${mesTitulo(m.mes)} (R$).\nLido dos PDFs: ${brl(m.taxas_lidas)}.\nDeixe em branco para voltar ao valor lido.`, m.taxas_ajuste !== '' ? num2(m.taxas_ajuste) : num2(m.taxas_lidas));
@@ -6525,6 +6533,37 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       if (v.trim() && isNaN(lerNumero(v))) return alert('Valor inválido.');
       salvar(m.mes, { taxas_ajuste: v.trim() }, v.trim() ? 'Valor das taxas salvo.' : 'Voltou ao valor lido do PDF.');
     }));
+  }
+
+  /** Lê no navegador os extratos que já estavam anexados (ex.: pela Prestação SIT) e grava as taxas. Um de cada vez. */
+  let lendoPendExt = false;
+  async function lerPendentesExt(lista) {
+    if (lendoPendExt || !extM || !extM.projeto || !extM.pode_editar) return;
+    const idp = extM.projeto.id_projeto;
+    const fila = (lista || extM.meses.flatMap(m => (m.a_ler || []).map(t => ({ mes: m.mes, tipo: t }))))
+      .map(x => Object.assign(x, { a: ((extM.meses.find(m => m.mes === x.mes) || {}).anexos || {})[x.tipo] })).filter(x => x.a && x.a.drive_file_id);
+    if (!fila.length) return;
+    lendoPendExt = true;
+    const caixa = $('extLeitura'), aviso = t => { caixa.classList.toggle('oculto', !t); caixa.textContent = t; };
+    for (const [i, x] of fila.entries()) {
+      if (!extM || extM.projeto.id_projeto !== idp) break;                       // trocou de projeto: para
+      const rot = `${mesTitulo(x.mes)} · ${(TIPOS_EXT_MES.find(t => t[0] === x.tipo) || [])[1]}`;
+      aviso(`⏳ Lendo os extratos já anexados para somar as taxas: ${i + 1} de ${fila.length} (${rot})… Pode continuar usando o sistema.`);
+      let lei;
+      try {
+        const r = await api('baixarArquivo', { id: x.a.drive_file_id });
+        const bin = atob(r.base64), u8 = new Uint8Array(bin.length);
+        for (let k = 0; k < bin.length; k++) u8[k] = bin.charCodeAt(k);
+        const file = new File([u8], x.a.nome || 'extrato.pdf', { type: r.mime || 'application/pdf' });
+        lei = resumoLeituraExtrato(await lerExtratoArquivo(file, t => aviso(`⏳ ${rot}: ${t}`)), x.tipo);
+      } catch (err) { lei = { lido: false, erro: 'Não consegui ler: ' + err.message }; }
+      const { ocr, ...leitura } = lei;
+      try {
+        const novo = await api('salvarLeituraExtrato', { id_projeto: idp, mes: x.mes, tipo: x.tipo, leitura });
+        if (extM && extM.projeto.id_projeto === idp) { extM = novo; gravarCache(chaveDe('obterExtratosMes', { id_projeto: idp }), novo); if (!$('viewExt').classList.contains('oculto')) renderExtratos(); }
+      } catch (err) { console.warn(err); }
+    }
+    aviso(''); lendoPendExt = false;
   }
 
   // --- relatório de taxas (para pedir isenção/ressarcimento ao banco)
