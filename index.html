@@ -700,7 +700,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.20-c</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.21-a</span></span></div>
   </div>
 </section>
 
@@ -4565,6 +4565,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       if (bruto) {
         const vb = sitNum(lerNumero(m.rendimento_bruto)), vi = sitNum(lerNumero(m.ir_retido)), vl = Math.round((vb - vi) * 100) / 100;
         if (vl) rec.push(linha(['3', dt, vl.toFixed(2), vb.toFixed(2), vi.toFixed(2)]));
+        if (vl < 0) avisos.push(`Rendimento de ${mesExt(m.mes)} ficou negativo (IR maior que o bruto): vai como ${vl.toFixed(2)}. Se o SIT recusar valor negativo nesta linha, lance esse mês direto na tela do SIT.`);
       } else if (Number(m.rendimentos)) bloq.push(`Rendimento de ${mesExt(m.mes)}: informe o valor bruto e o IR retido (o SIT pede os três valores).`);
       const ress = sitNum(lerNumero(m.ressarcimento_taxas)), prop = sitNum(lerNumero(m.recursos_proprios));
       if (ress) rec.push(linha(['2', dt, ress.toFixed(2), '', '']));
