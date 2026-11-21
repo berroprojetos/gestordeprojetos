@@ -165,6 +165,7 @@
   .cab-projeto h2 { font-size: 30px; margin: 10px 0 6px; letter-spacing: -.02em; line-height: 1.15; font-weight: 800; }
   .cab-projeto .inst { color: var(--suave); font-size: 14px; }
   .resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 26px; }
+  .ext-cel.ext-sobre { outline: 2px dashed var(--primaria, #1f3b57); outline-offset: -4px; background: rgba(31,59,87,.05); }
   .kpi { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); padding: 16px 18px; box-shadow: var(--sombra); }
   .kpi span { display: block; font-size: 12px; color: var(--suave); margin-bottom: 8px; font-weight: 500; }
   .kpi strong { font-size: 22px; letter-spacing: -.02em; }
@@ -523,11 +524,12 @@
           <h2 style="font-size:16px">Extratos mês a mês</h2>
           <div class="acoes-lote">
             <button class="btn-sec" id="btnExtTaxas">📄 Relatório de taxas</button>
-            <button class="btn-sec oculto" id="btnExtConciliar" title="Procura de novo os pagamentos nos extratos">↻ Conciliar automaticamente</button>
-            <button class="btn oculto" id="btnExtAnexar">📥 Anexar extratos</button>
+            <button class="btn-sec oculto" id="btnExtConciliar" hidden>↻</button>
+            <button class="btn oculto" id="btnExtAnexar" hidden>📥</button>
           </div>
         </div>
-        <p class="dica" style="margin-top:0">Todo mês: o <b>PDF da conta corrente</b> e o <b>PDF da poupança</b>, baixados do internet banking do Banco do Brasil (o original, não escaneado). O <b>OFX</b> da conta corrente é opcional — quando houver, a conciliação usa ele.</p>
+        <p class="dica" style="margin-top:0">Todo mês, anexe o <b>PDF da conta corrente</b> e o <b>PDF da poupança</b> baixados do internet banking do Banco do Brasil (o arquivo original, não escaneado). O <b>BB Rende Fácil</b> só se o projeto tiver. Clique em <b>Anexar</b> ou arraste o arquivo para a célula do mês.
+          O sistema lê o PDF e soma as <b>taxas cobradas</b> (tarifa Pix, cesta, pacote de serviços…). Os extratos vão automaticamente para a <b>Prestação SIT</b>, no bimestre do mês, já com o nome padrão.</p>
         <div id="extTabela"></div>
       </section>
     </div>
@@ -700,7 +702,7 @@
       </section>
     </div>
   </main>
-    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.21-b</span></span></div>
+    <div class="rodape"><span><b>GESTOR DE PROJETOS</b> · PRESTAÇÃO DE CONTAS</span><span>Dados gravados na planilha Google · documentos no Google Drive · <span title="Versão da tela">v2026.11.21-c</span></span></div>
   </div>
 </section>
 
@@ -4345,9 +4347,9 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       if (ja && !confirm('Trocar o extrato já anexado? O arquivo atual vai para a lixeira do Drive (dá para recuperar por 30 dias).')) return;
       bt.disabled = true; bt.textContent = 'Enviando…';
       try {
-        const arquivo = await lerArquivo(f);
-        const r = await api('anexarExtratoSIT', { id_projeto: sit.projeto.id_projeto, mes, tipo, arquivo });
-        redesenhar(mes, r); toast('Extrato anexado.');
+        const r = await enviarExtratoMes('anexarExtratoSIT', sit.projeto.id_projeto, mes, tipo, f, txt => { bt.textContent = txt.length > 18 ? 'Lendo…' : txt.charAt(0).toUpperCase() + txt.slice(1); });
+        if (!r) { redesenhar(mes, (sitBim.extratos_anexos || {})[mes]); return; }
+        redesenhar(mes, r); toast('Extrato anexado (também aparece na tela Extratos).');
       } catch (err) { alert(err.message); redesenhar(mes, (sitBim.extratos_anexos || {})[mes]); }
     }));
     caixa.querySelectorAll('[data-extsit-excluir]').forEach(bt => bt.addEventListener('click', async () => {
@@ -5775,6 +5777,44 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     const sinal = s => s ? (s.natureza === 'D' ? -s.valor : s.valor) : '';
     return { formato: 'PDF', conta, competencia: comp, agencia_conta: agc, saldo_anterior: sinal(saldoAnterior), saldo_final: sinal(saldoFinal), lancamentos: lancs };
   }
+  /** Layout novo do BB (app/internet banking 2026): "Dia | Lote | Documento | Histórico | Valor", valores "1.500,00 (-)".
+   *  O histórico vem na linha ACIMA da data e o complemento (favorecido) na linha abaixo. */
+  function lerPdfBBNovo(itens) {
+    const linhas = linhasPdf(itens).map(l => l.itens.map(i => i.s.trim()).filter(Boolean)).filter(l => l.length);
+    const texto = linhas.map(l => l.join(' ')).join('\n');
+    const conta = /Poupan[çc]a/i.test(texto.slice(0, 200)) && !/Conta Corrente/i.test(texto.slice(0, 200)) ? 'POUP' : 'CC';
+    let comp = '', m = texto.match(/Per[ií]odo:?\s*\d{1,2}\s*a\s*\d{1,2}\/(\d{2})\/(\d{4})/i);
+    if (m) comp = `${m[2]}-${m[1]}`;
+    else if ((m = texto.match(/Per[ií]odo:?\s*\d{2}\/\d{2}\/\d{4}\s*a\s*\d{2}\/(\d{2})\/(\d{4})/i))) comp = `${m[2]}-${m[1]}`;
+    const ag = (texto.match(/Ag[êe]ncia:?\s*([\dXx-]+)/i) || [])[1] || '', cc = (texto.match(/Conta:?\s*([\dXx.-]+)/i) || [])[1] || '';
+    const RXV = /([\d.]+,\d{2})\s*\((\+|-)\)\s*$/;
+    const ehData = l => RX_DATA.test(l[0]) && RXV.test(l.join(' '));
+    const ehSaldo = l => /saldo|s a l d o/i.test(l.join(' '));
+    const lancs = []; let saldoAnterior = '', saldoFinal = '';
+    const idx = linhas.map((l, i) => ehData(l) ? i : -1).filter(i => i > -1);
+    idx.forEach((i, k) => {
+      const l = linhas[i], j = l.join(' '), mv = j.match(RXV);
+      const valor = Math.round(Number(mv[1].replace(/\./g, '').replace(',', '.')) * 100) / 100, nat = mv[2] === '-' ? 'D' : 'C';
+      if (ehSaldo(l)) {
+        if (/anterior/i.test(j)) saldoAnterior = nat === 'D' ? -valor : valor;
+        if (/s a l d o|saldo final|saldo atual/i.test(j)) saldoFinal = nat === 'D' ? -valor : valor;
+        return;
+      }
+      // linhas de texto entre a data anterior e esta: a última é o histórico; a de cima (se houver) é o complemento do lançamento anterior
+      const ant = k ? idx[k - 1] : -1, entre = [];
+      for (let z = ant + 1; z < i; z++) if (!/^(Dia|Lan[çc]amentos|Extrato|Cliente|Per[ií]odo)/i.test(linhas[z][0])) entre.push(linhas[z].join(' '));
+      const historico = entre.length ? entre[entre.length - 1] : '';
+      if (entre.length > 1 && lancs.length && !lancs[lancs.length - 1]._fechado) lancs[lancs.length - 1].detalhe = entre.slice(0, -1).join(' ');
+      // complemento: a linha logo abaixo, quando a seguinte é outra data (ou fim)
+      let detalhe = '';
+      const prox = idx[k + 1], abaixo = linhas[i + 1];
+      if (abaixo && !ehData(abaixo) && (prox === i + 2 || prox === undefined)) detalhe = abaixo.join(' ');
+      const nums = l.slice(1).filter(x => /^\d[\d.]*$/.test(x));
+      lancs.push({ data: isoDeBr(l[0]), data_base: '', historico, detalhe, documento: nums.length > 1 ? nums[1] : (nums[0] || ''), valor, natureza: nat, _fechado: !!detalhe });
+    });
+    lancs.forEach(x => delete x._fechado);
+    return { formato: 'PDF', conta, competencia: comp, agencia_conta: ag && cc ? ag + ' / ' + cc : '', saldo_anterior: saldoAnterior, saldo_final: saldoFinal, lancamentos: lancs };
+  }
   function lerOfx(txt) {
     const tag = (b, t) => { const m = b.match(new RegExp('<' + t + '>([^<\\r\\n]*)', 'i')); return m ? m[1].trim() : ''; };
     const conta = /<ACCTTYPE>\s*(SAVINGS|POUP)/i.test(txt) ? 'POUP' : 'CC';
@@ -6096,13 +6136,15 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       return r;
     }
     if (itens.some(i => /BB\s*RENDE\s*(F[ÁA]CIL|MAIS)/i.test(i.s)) && itens.some(i => /Resumo do m[êe]s/i.test(i.s))) return lerAplicacaoBB(itens);
-    return lerPdfBB(itens);
+    const r = lerPdfBB(itens);
+    if (!(r.lancamentos || []).length && itens.some(i => /\((\+|-)\)\s*$/.test(i.s))) { const n = lerPdfBBNovo(itens); if (n.lancamentos.length || n.competencia) return n; }
+    return r;
   }
 
   // ===== Tela Extratos =====
   let ext = null, extLidos = [], concDados = null, concMes = '';
   const contaNome = c => c === 'POUP' ? 'Poupança' : c === 'APLIC' ? 'Aplicação (Rende Fácil)' : 'Conta corrente';
-  async function abrirExtratos(idProjeto) {
+  async function abrirExtratosAntigo(idProjeto) {
     navAtivo('navExt', 'Extratos');
     mostrarView('viewExt');
     if (!ext || (idProjeto && ext.projeto.id_projeto !== idProjeto)) { $('extTabela').innerHTML = '<div class="vazio">Carregando…</div>'; $('extResumo').innerHTML = ''; }
@@ -6113,15 +6155,15 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
         idProjeto = (projetos.find(p => p.id_projeto === $('extProjeto').value) || projetos[0]).id_projeto;
       }
       gravarRota('extratos/' + idProjeto);
-      await apiRapida('obterExtratos', { id_projeto: idProjeto }, d => { ext = d; renderExtratos(); });
-    } catch (err) { erroComRepetir($('extTabela'), err, () => abrirExtratos(idProjeto)); }
+      await apiRapida('obterExtratos', { id_projeto: idProjeto }, d => { ext = d; renderExtratosAntigo(); });
+    } catch (err) { erroComRepetir($('extTabela'), err, () => abrirExtratosAntigo(idProjeto)); }
   }
-  function renderExtratos() {
+  function renderExtratosAntigo() {
     const d = ext, pr = d.projeto, t = d.taxas, c = d.conciliacao;
     $('extProjeto').innerHTML = d.projetos.map(p => `<option value="${esc(p.id_projeto)}" ${p.id_projeto === pr.id_projeto ? 'selected' : ''}>${esc(p.sigla || p.nome_projeto)}</option>`).join('');
     $('extSub').innerHTML = `${esc(pr.nome_projeto)}${pr.agencia || pr.conta ? ` · ${esc(pr.banco || 'Banco do Brasil')} · ag. ${esc(pr.agencia)} · c/c ${esc(pr.conta)}` : ''}`;
-    $('btnExtAnexar').classList.toggle('oculto', !d.pode_anexar);
-    $('btnExtConciliar').classList.toggle('oculto', !d.pode_conciliar);
+    
+    
     $('extResumo').innerHTML = `
       <div class="kpi ${c.pagamentos && c.conciliados < c.pagamentos ? 'alerta' : 'ok'}"><span>Pagamentos conciliados</span><strong>${c.conciliados} de ${c.pagamentos}</strong><small>pagamentos lançados × saídas no extrato</small></div>
       <div class="kpi"><span>Taxas bancárias cobradas</span><strong>${brl(t.cobradas)}</strong><small>${d.inicio_controle ? 'desde o 1º pagamento (' + dataBr(d.inicio_controle) + ')' : 'ainda sem pagamentos'}</small></div>
@@ -6155,14 +6197,14 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     T.querySelectorAll('[data-conc]').forEach(b => b.addEventListener('click', () => abrirConciliacao(b.dataset.conc)));
     T.querySelectorAll('[data-extdel]').forEach(b => b.addEventListener('click', async () => {
       if (!confirm('Excluir este arquivo de extrato? Os lançamentos lidos dele também saem (as ligações com pagamentos são desfeitas).')) return;
-      try { ext = await api('excluirExtrato', { id_importacao: b.dataset.extdel }); renderExtratos(); toast(ext.aviso || 'Extrato excluído'); } catch (err) { alert(err.message); }
+      try { ext = await api('excluirExtrato', { id_importacao: b.dataset.extdel }); renderExtratosAntigo(); toast(ext.aviso || 'Extrato excluído'); } catch (err) { alert(err.message); }
     }));
   }
   $('navExt').addEventListener('click', () => abrirExtratos($('extProjeto').value || (ext && ext.projeto.id_projeto) || ''));
   $('extProjeto').addEventListener('change', () => abrirExtratos($('extProjeto').value));
   $('btnExtConciliar').addEventListener('click', async e => {
     const b = e.currentTarget; b.disabled = true;
-    try { ext = await api('conciliarAgora', { id_projeto: ext.projeto.id_projeto }); renderExtratos(); toast(ext.novas ? `${ext.novas} pagamento(s) conciliado(s) agora` : 'Nada novo para conciliar'); }
+    try { ext = await api('conciliarAgora', { id_projeto: ext.projeto.id_projeto }); renderExtratosAntigo(); toast(ext.novas ? `${ext.novas} pagamento(s) conciliado(s) agora` : 'Nada novo para conciliar'); }
     catch (err) { alert(err.message); }
     b.disabled = false;
   });
@@ -6233,7 +6275,7 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
       } catch (err) { x.status = 'erro'; x.erroEnvio = err.message; }
       renderLidos();
     }
-    renderExtratos();
+    renderExtratosAntigo();
     const erros = extLidos.filter(x => x.status === 'erro');
     msg('msgExtUp', `${ok} arquivo(s) enviado(s)` + (conc ? ` · ${conc} pagamento(s) conciliado(s) automaticamente` : '') +
       (erros.length ? ` · ${erros.length} com erro: ` + erros.map(x => `${x.file.name} (${x.erroEnvio})`).join('; ') : ''), erros.length ? 'erro' : 'ok');
@@ -6317,26 +6359,193 @@ ${n(r.rendimentos) ? `<p style="margin:10px 0 0;color:#5b6770">Rendimentos de ap
     }));
   }
   function atualizarExtFundo() {
-    api('obterExtratos', { id_projeto: ext.projeto.id_projeto }).then(d => { ext = d; if (!$('viewExt').classList.contains('oculto')) renderExtratos(); }).catch(() => {});
+    api('obterExtratos', { id_projeto: ext.projeto.id_projeto }).then(d => { ext = d; if (!$('viewExt').classList.contains('oculto')) renderExtratosAntigo(); }).catch(() => {});
+  }
+
+  // ===== Tela Extratos (reformulada): anexar os PDFs do mês, taxas cobradas (lidas do PDF) e taxas ressarcidas =====
+  // Os arquivos são os mesmos da Prestação SIT (aparecem no bimestre do mês, com o nome padrão).
+  let extM = null;
+  const TIPOS_EXT_MES = [['CC', 'Conta corrente', true], ['APLIC', 'Poupança', true], ['RENDE', 'Rende Fácil', false]];
+  const CONTA_LEITURA = { CC: 'CC', APLIC: 'POUP', RENDE: 'APLIC' };          // tipo do anexo → conta que o leitor de PDF reconhece
+  const enviandoExt = {};                                                    // "mes|tipo" → texto de progresso
+
+  /** Resume a leitura do PDF: taxas cobradas (linha a linha), estornos de taxa, saldo final e rendimentos. */
+  function resumoLeituraExtrato(leitura, tipo) {
+    if (!leitura || leitura.erro) return { lido: false, erro: (leitura && leitura.erro) || 'Não consegui ler o PDF.' };
+    const r2 = v => Math.round(Number(v || 0) * 100) / 100;
+    const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const movs = (leitura.lancamentos || []).filter(l => !l.saldo_linha && !/^saldo/i.test(l.historico || ''));
+    const txt = l => norm((l.historico || '') + ' ' + (l.detalhe || ''));
+    const imposto = t => /imposto|\bir\b|\biof\b|i\.r\.|irrf/.test(t);
+    const ehTaxa = l => l.natureza === 'D' && /tarifa|\btar\b|tar\.|cesta|pacote de serv|pacote serv|\btaxa|encargo|manutencao de conta|anuidade/.test(txt(l)) && !imposto(txt(l));
+    const ehEstorno = l => l.natureza === 'C' && /estorno|estor|devol|ressarc|reembols|restitu/.test(txt(l)) && /tar|taxa|cesta|pacote/.test(txt(l));
+    if (!movs.length && !leitura.competencia && !leitura.resumo && !leitura.sem_movimento)
+      return { lido: false, erro: 'Não reconheci o formato deste extrato. Confira se é o PDF original do banco ou informe as taxas à mão.' };
+    const soma = arr => r2(arr.reduce((t, l) => t + Number(l.valor || 0), 0));
+    const taxas = movs.filter(ehTaxa), est = movs.filter(ehEstorno);
+    let bruto = '', ir = '';
+    if (leitura.resumo) { bruto = r2(leitura.resumo.rendimentos); ir = r2(Number(leitura.resumo.ir || 0) + Number(leitura.resumo.iof || 0)); }
+    else if (tipo !== 'CC') {
+      bruto = soma(movs.filter(l => l.natureza === 'C' && /juros|reajuste|rendimento|remunera|correcao/.test(txt(l))));
+      ir = soma(movs.filter(l => l.natureza === 'D' && imposto(txt(l))));
+    }
+    return { lido: true, taxas: soma(taxas), estornos: soma(est),
+      linhas: taxas.map(l => ({ data: l.data, historico: (l.historico || '') + (l.detalhe ? ' – ' + l.detalhe : ''), valor: r2(l.valor) })),
+      saldo_final: typeof leitura.saldo_final === 'number' ? leitura.saldo_final : '', rendimento_bruto: bruto, ir_iof: ir,
+      competencia: leitura.competencia || '', conta: leitura.conta || '', ocr: !!leitura.ocr };
+  }
+
+  /** Lê o PDF no navegador, confere mês/conta e envia (tela Extratos ou Prestação SIT). Devolve a resposta da API ou null se a pessoa desistiu. */
+  async function enviarExtratoMes(acao, idProjeto, mes, tipo, file, aviso) {
+    if (file.size > LIMITE_MB * 1024 * 1024) throw new Error('Arquivo maior que ' + LIMITE_MB + ' MB.');
+    let lei;
+    try { aviso && aviso('lendo o PDF…'); lei = resumoLeituraExtrato(await lerExtratoArquivo(file, t => aviso && aviso(t)), tipo); }
+    catch (err) { lei = { lido: false, erro: 'Não consegui ler: ' + err.message }; }
+    const rot = (TIPOS_EXT_MES.find(t => t[0] === tipo) || [])[1] || tipo;
+    const alertas = [];
+    if (lei.lido && lei.competencia && lei.competencia !== mes) alertas.push(`o extrato parece ser de ${mesTitulo(lei.competencia)}`);
+    if (lei.lido && lei.conta && lei.conta !== CONTA_LEITURA[tipo]) alertas.push(`o arquivo parece ser de ${contaNome(lei.conta)}`);
+    if (alertas.length && !confirm(`Atenção: ${alertas.join(' e ')}, mas você está anexando em ${mesTitulo(mes)} · ${rot}.\n\nAnexar mesmo assim?`)) return null;
+    aviso && aviso('enviando…');
+    const arquivo = await lerArquivo(file);
+    const { competencia, conta, ocr, ...leitura } = lei;
+    return api(acao, { id_projeto: idProjeto, mes, tipo, arquivo, leitura });
+  }
+
+  async function abrirExtratos(idProjeto) {
+    navAtivo('navExt', 'Extratos');
+    mostrarView('viewExt');
+    if (!extM || (idProjeto && extM.projeto && extM.projeto.id_projeto !== idProjeto)) { $('extTabela').innerHTML = '<div class="vazio">Carregando…</div>'; $('extResumo').innerHTML = ''; }
+    try {
+      if (!idProjeto) {
+        const projetos = lerCache('listarProjetos|{}') || await api('listarProjetos');
+        if (!projetos.length) { $('extTabela').innerHTML = '<div class="vazio">Nenhum projeto disponível.</div>'; return; }
+        idProjeto = (projetos.find(p => p.id_projeto === $('extProjeto').value) || projetos[0]).id_projeto;
+      }
+      gravarRota('extratos/' + idProjeto);
+      await apiRapida('obterExtratosMes', { id_projeto: idProjeto }, d => { extM = d; renderExtratos(); });
+    } catch (err) { erroComRepetir($('extTabela'), err, () => abrirExtratos(idProjeto)); }
+  }
+
+  function renderExtratos() {
+    const d = extM; if (!d || !d.projeto) return;
+    const pr = d.projeto, t = d.totais, ed = !!d.pode_editar;
+    $('extProjeto').innerHTML = d.projetos.map(p => `<option value="${esc(p.id_projeto)}" ${p.id_projeto === pr.id_projeto ? 'selected' : ''}>${esc(p.sigla || p.nome_projeto)}</option>`).join('');
+    $('extSub').innerHTML = `${esc(pr.nome_projeto)}${pr.agencia || pr.conta ? ` · ${esc(pr.banco || 'Banco do Brasil')} · ag. ${esc(pr.agencia)} · c/c ${esc(pr.conta)}` : ''}`;
+    $('extResumo').innerHTML = `
+      <div class="kpi ${t.pendentes ? 'alerta' : 'ok'}"><span>Extratos pendentes</span><strong>${t.pendentes ? t.pendentes + ' mês(es)' : 'em dia'}</strong><small>meses fechados sem conta corrente nem poupança</small></div>
+      <div class="kpi"><span>Taxas cobradas</span><strong>${brl(t.cobradas)}</strong><small>${t.sem_leitura ? `⚠️ ${t.sem_leitura} mês(es) com PDF não lido` : 'lidas dos extratos anexados'}</small></div>
+      <div class="kpi ok"><span>Taxas ressarcidas</span><strong>${brl(t.ressarcidas)}</strong><small>devolvidas à conta do projeto</small></div>
+      <div class="kpi ${t.a_ressarcir > 0.004 ? 'alerta' : 'ok'}"><span>Saldo a ressarcir</span><strong>${brl(t.a_ressarcir)}</strong><small>taxas cobradas − ressarcidas</small></div>`;
+    const celula = (m, tp) => {
+      const [tipo, , obrig] = tp, a = m.anexos[tipo], k = m.mes + '|' + tipo;
+      if (enviandoExt[k]) return `<span class="st">${esc(enviandoExt[k])}</span>`;
+      const inp = rot => ed ? `<label class="btn-link ext-anexar" style="cursor:pointer">${rot}<input type="file" accept=".pdf,application/pdf" hidden data-extm-inp="${k}"></label>` : '';
+      if (a) {
+        const lei = m.leituras[tipo];
+        return `<a href="${esc(a.url)}" target="_blank" rel="noopener" title="${esc(a.nome)}">📄 PDF</a>` +
+          (lei && !lei.lido ? ` <span title="${esc(lei.erro || 'PDF não lido')}">⚠️</span>` : '') +
+          (ed ? `<div style="display:flex;gap:10px;font-size:12px;margin-top:2px">${inp('trocar')}<button class="btn-link perigo" style="font-size:12px" data-extm-del="${esc(a.id_documento)}">excluir</button></div>` : '') +
+          (a.enviado_em ? `<br><small style="color:var(--suave)">em ${dataBr(a.enviado_em)}</small>` : '');
+      }
+      const falta = obrig && !m.em_andamento && !m.anexos.CC && !m.anexos.APLIC;
+      return (ed ? inp('📎 Anexar') : '') + (falta ? ` <span class="st amarelo">falta</span>` : !obrig ? ` <small style="color:var(--suave)">opcional</small>` : m.em_andamento ? ` <small style="color:var(--suave)">mês em andamento</small>` : '');
+    };
+    const celTaxas = m => {
+      const temArq = TIPOS_EXT_MES.some(tp => m.anexos[tp[0]]);
+      if (!temArq && m.taxas_ajuste === '') return '<span style="color:var(--suave)">—</span>';
+      const nl = m.nao_lidos.map(tp => (TIPOS_EXT_MES.find(x => x[0] === tp) || [])[1]).join(', ');
+      return `<b style="color:${m.taxas > 0 ? 'var(--alerta)' : 'inherit'}">${brl(m.taxas)}</b>` +
+        (m.taxas_ajuste !== '' ? ` <small class="st" title="Valor informado à mão (lido do PDF: ${brl(m.taxas_lidas)})">informado</small>` : '') +
+        (m.nao_lidos.length && m.taxas_ajuste === '' ? `<br><small style="color:var(--alerta)">⚠️ não consegui ler: ${esc(nl)}</small>` : '') +
+        (m.linhas_taxa.length ? `<details style="margin-top:2px"><summary class="dica" style="margin:0;cursor:pointer">${m.linhas_taxa.length} lançamento(s)</summary><div style="font-size:12px;line-height:1.5;text-align:left">${m.linhas_taxa.map(l =>
+          `${l.data ? dataBr(l.data) : ''} · ${esc(l.historico)} · <b>${brl(l.valor)}</b>`).join('<br>')}</div></details>` : '') +
+        (ed ? `<br><button class="btn-link" style="font-size:12px" data-extm-ajuste="${m.mes}">${m.taxas_ajuste !== '' ? 'alterar valor' : 'informar à mão'}</button>` : '');
+    };
+    const celRess = m => {
+      const v = Number(m.taxas_ressarcidas || 0);
+      const dica = m.estornos_lidos > 0 ? `<br><small style="color:var(--ok)">estorno no extrato: ${brl(m.estornos_lidos)}${ed && Math.abs(m.estornos_lidos - v) > 0.004 ? ` · <button class="btn-link" style="font-size:12px" data-extm-usar="${m.mes}">usar</button>` : ''}</small>` : '';
+      if (!ed) return (v ? brl(v) : '—') + dica;
+      return `<input data-extm-ress="${m.mes}" inputmode="decimal" placeholder="0,00" value="${v ? esc(num2(v)) : ''}" style="width:110px;text-align:right">` + dica;
+    };
+    $('extTabela').innerHTML = !d.meses.length ? '<div class="vazio">Nenhum mês ainda.</div>' : `<div class="tabela-wrap"><table>
+      <thead><tr><th>Mês</th><th>Conta corrente</th><th>Poupança</th><th>Rende Fácil</th><th class="num">Taxas cobradas</th><th class="num">Taxas ressarcidas</th></tr></thead>
+      <tbody>${d.meses.map(m => `<tr data-extm-mes="${m.mes}">
+        <td style="white-space:nowrap"><b>${mesTitulo(m.mes)}</b></td>
+        ${TIPOS_EXT_MES.map(tp => `<td class="ext-cel" data-extm-drop="${m.mes}|${tp[0]}">${celula(m, tp)}</td>`).join('')}
+        <td class="num">${celTaxas(m)}</td>
+        <td class="num">${celRess(m)}</td>
+      </tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="4"><b>Total</b></td><td class="num"><b>${brl(t.cobradas)}</b></td><td class="num"><b>${brl(t.ressarcidas)}</b><br><small>a ressarcir: ${brl(t.a_ressarcir)}</small></td></tr></tfoot>
+      </table></div>`;
+    ligarExtratosMes();
+  }
+
+  function ligarExtratosMes() {
+    const T = $('extTabela'), d = extM, idp = d.projeto.id_projeto;
+    const enviar = async (k, file) => {
+      const [mes, tipo] = k.split('|');
+      if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') return alert('Anexe o extrato em PDF.');
+      if (((d.meses.find(m => m.mes === mes) || {}).anexos || {})[tipo] && !confirm('Trocar o extrato já anexado? O arquivo atual vai para a lixeira do Drive (dá para recuperar por 30 dias).')) return;
+      enviandoExt[k] = 'lendo…'; renderExtratos();
+      try {
+        const r = await enviarExtratoMes('anexarExtratoMes', idp, mes, tipo, file, txt => { enviandoExt[k] = txt; const c = T.querySelector(`[data-extm-drop="${k}"]`); if (c) c.innerHTML = `<span class="st">${esc(txt)}</span>`; });
+        delete enviandoExt[k];
+        if (r) { extM = r; gravarCache(chaveDe('obterExtratosMes', { id_projeto: idp }), r); toast('Extrato anexado — já está na Prestação SIT.'); }
+      } catch (err) { delete enviandoExt[k]; alert(err.message); }
+      renderExtratos();
+    };
+    T.querySelectorAll('[data-extm-inp]').forEach(inp => inp.addEventListener('change', () => { const f = inp.files[0]; if (f) enviar(inp.dataset.extmInp, f); }));
+    if (d.pode_editar) T.querySelectorAll('[data-extm-drop]').forEach(td => {
+      td.addEventListener('dragover', e => { e.preventDefault(); td.classList.add('ext-sobre'); });
+      td.addEventListener('dragleave', () => td.classList.remove('ext-sobre'));
+      td.addEventListener('drop', e => { e.preventDefault(); td.classList.remove('ext-sobre'); const f = e.dataTransfer.files[0]; if (f) enviar(td.dataset.extmDrop, f); });
+    });
+    T.querySelectorAll('[data-extm-del]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('Excluir este extrato? Ele sai também da Prestação SIT. O arquivo vai para a lixeira do Drive (dá para recuperar por 30 dias).')) return;
+      try { extM = await api('excluirExtratoMes', { id_documento: b.dataset.extmDel }); renderExtratos(); toast('Extrato excluído.'); } catch (err) { alert(err.message); }
+    }));
+    const salvar = async (mes, dados, ok) => {
+      try { extM = await api('salvarTaxasMes', Object.assign({ id_projeto: idp, mes }, dados)); gravarCache(chaveDe('obterExtratosMes', { id_projeto: idp }), extM); renderExtratos(); toast(ok); }
+      catch (err) { alert(err.message); renderExtratos(); }
+    };
+    T.querySelectorAll('[data-extm-ress]').forEach(inp => inp.addEventListener('change', () => {
+      const v = inp.value.trim();
+      if (v && isNaN(lerNumero(v))) return alert('Valor inválido.');
+      salvar(inp.dataset.extmRess, { taxas_ressarcidas: v }, 'Taxas ressarcidas salvas.');
+    }));
+    T.querySelectorAll('[data-extm-usar]').forEach(b => b.addEventListener('click', () => {
+      const m = d.meses.find(x => x.mes === b.dataset.extmUsar);
+      salvar(m.mes, { taxas_ressarcidas: m.estornos_lidos }, 'Taxas ressarcidas salvas.');
+    }));
+    T.querySelectorAll('[data-extm-ajuste]').forEach(b => b.addEventListener('click', () => {
+      const m = d.meses.find(x => x.mes === b.dataset.extmAjuste);
+      const v = prompt(`Taxas cobradas em ${mesTitulo(m.mes)} (R$).\nLido dos PDFs: ${brl(m.taxas_lidas)}.\nDeixe em branco para voltar ao valor lido.`, m.taxas_ajuste !== '' ? num2(m.taxas_ajuste) : num2(m.taxas_lidas));
+      if (v === null) return;
+      if (v.trim() && isNaN(lerNumero(v))) return alert('Valor inválido.');
+      salvar(m.mes, { taxas_ajuste: v.trim() }, v.trim() ? 'Valor das taxas salvo.' : 'Voltou ao valor lido do PDF.');
+    }));
   }
 
   // --- relatório de taxas (para pedir isenção/ressarcimento ao banco)
   $('btnExtTaxas').addEventListener('click', () => {
-    if (!ext) return;
-    const d = ext, t = d.taxas, pr = d.projeto;
-    const linhas = t.lista.filter(x => x.conta_no_controle);
+    if (!extM || !extM.projeto) return;
+    const d = extM, t = d.totais, pr = d.projeto;
+    const meses = d.meses.slice().reverse().filter(m => m.taxas > 0 || m.taxas_ressarcidas > 0);
     const w = window.open('', '_blank');
     if (!w) return alert('O navegador bloqueou a janela. Libere pop-ups para este site.');
+    const nomeConta = c => (TIPOS_EXT_MES.find(x => x[0] === c) || [])[1] || c;
     w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Taxas bancárias – ${esc(pr.sigla || pr.nome_projeto)}</title>
-      <style>body{font-family:Arial,sans-serif;margin:32px;color:#222}h1{font-size:20px}table{border-collapse:collapse;width:100%;margin-top:12px}th,td{border:1px solid #ccc;padding:6px 8px;font-size:13px;text-align:left}td.n,th.n{text-align:right}.tot{font-weight:bold;background:#f4f4f4}@media print{button{display:none}}</style></head><body>
+      <style>body{font-family:Arial,sans-serif;margin:32px;color:#222}h1{font-size:20px}h2{font-size:15px;margin:22px 0 4px}table{border-collapse:collapse;width:100%;margin-top:8px}th,td{border:1px solid #ccc;padding:6px 8px;font-size:13px;text-align:left}td.n,th.n{text-align:right}.tot{font-weight:bold;background:#f4f4f4}@media print{button{display:none}}</style></head><body>
       <button onclick="print()">Imprimir / salvar PDF</button>
       <h1>Taxas bancárias cobradas – ${esc(pr.nome_projeto)}</h1>
-      <p>${esc(pr.banco || 'Banco do Brasil')} · Agência ${esc(pr.agencia)} · Conta ${esc(pr.conta)}<br>Período: a partir de ${d.inicio_controle ? dataBr(d.inicio_controle) : '—'} (1º pagamento do projeto) · emitido em ${new Date().toLocaleDateString('pt-BR')}</p>
-      <table><thead><tr><th>Data</th><th>Conta</th><th>Lançamento</th><th>Tipo</th><th class="n">Valor (R$)</th></tr></thead><tbody>
-      ${linhas.map(x => `<tr><td>${dataBr(x.data)}</td><td>${contaNome(x.conta)}</td><td>${esc(x.historico)}${x.detalhe ? ' – ' + esc(x.detalhe) : ''}</td><td>${x.categoria === 'Estorno de tarifa' ? 'Devolução' : 'Tarifa'}</td>
-        <td class="n">${x.categoria === 'Estorno de tarifa' ? '− ' : ''}${brl(x.valor).replace('R$', '').trim()}</td></tr>`).join('') || '<tr><td colspan="5">Nenhuma taxa encontrada nos extratos anexados.</td></tr>'}
+      <p>${esc(pr.banco || 'Banco do Brasil')} · Agência ${esc(pr.agencia)} · Conta ${esc(pr.conta)}${pr.termo ? ' · Termo ' + esc(pr.termo) : ''}<br>Emitido em ${new Date().toLocaleDateString('pt-BR')}</p>
+      <table><thead><tr><th>Mês</th><th>Data</th><th>Conta</th><th>Lançamento</th><th class="n">Valor (R$)</th></tr></thead><tbody>
+      ${meses.map(m => (m.linhas_taxa.length && m.taxas_ajuste === '' ? m.linhas_taxa.map(l => `<tr><td>${mesTitulo(m.mes)}</td><td>${l.data ? dataBr(l.data) : ''}</td><td>${nomeConta(l.conta)}</td><td>${esc(l.historico)}</td><td class="n">${brl(l.valor).replace('R$', '').trim()}</td></tr>`).join('')
+        : `<tr><td>${mesTitulo(m.mes)}</td><td></td><td></td><td>Taxas do mês${m.taxas_ajuste !== '' ? ' (valor informado)' : ''}</td><td class="n">${brl(m.taxas).replace('R$', '').trim()}</td></tr>`) +
+        (m.taxas_ressarcidas ? `<tr><td>${mesTitulo(m.mes)}</td><td></td><td></td><td>Ressarcido</td><td class="n">− ${brl(m.taxas_ressarcidas).replace('R$', '').trim()}</td></tr>` : '')).join('') || '<tr><td colspan="5">Nenhuma taxa nos extratos anexados.</td></tr>'}
       <tr class="tot"><td colspan="4">Total de taxas cobradas</td><td class="n">${brl(t.cobradas)}</td></tr>
-      <tr class="tot"><td colspan="4">Total devolvido pelo banco</td><td class="n">${brl(t.devolvidas)}</td></tr>
+      <tr class="tot"><td colspan="4">Total ressarcido</td><td class="n">${brl(t.ressarcidas)}</td></tr>
       <tr class="tot"><td colspan="4">Saldo a ressarcir</td><td class="n">${brl(t.a_ressarcir)}</td></tr>
       </tbody></table></body></html>`);
     w.document.close();
